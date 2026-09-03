@@ -18,10 +18,10 @@ const CADENCE_LABELS: Record<string, string> = {
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; skipped?: string }>;
+  searchParams: Promise<{ created?: string; skipped?: string; cleanerId?: string; propertyId?: string }>;
 }) {
   await requireStaff();
-  const { created, skipped } = await searchParams;
+  const { created, skipped, cleanerId, propertyId } = await searchParams;
 
   const settings = await prisma.billingSettings.upsert({
     where: { id: "singleton" },
@@ -36,13 +36,34 @@ export default async function InvoicesPage({
   const lastIncludedDay = new Date(end);
   lastIncludedDay.setDate(lastIncludedDay.getDate() - 1);
 
+  // Filter options are drawn from cleaners/properties that actually have an
+  // invoice, not every cleaner/property in the system -- an empty dropdown
+  // entry would just filter to nothing.
+  const [cleanerOptions, propertyOptions] = await Promise.all([
+    prisma.invoice.findMany({
+      distinct: ["cleanerId"],
+      orderBy: { cleanerId: "asc" },
+      select: { cleaner: { select: { id: true, name: true } } },
+    }),
+    prisma.invoice.findMany({
+      distinct: ["propertyId"],
+      orderBy: { propertyId: "asc" },
+      select: { property: { select: { id: true, name: true, address: true } } },
+    }),
+  ]);
+
   const invoices = await prisma.invoice.findMany({
+    where: {
+      cleanerId: cleanerId || undefined,
+      propertyId: propertyId || undefined,
+    },
     orderBy: { periodStart: "desc" },
     include: {
       cleaner: { select: { name: true } },
       property: { select: { name: true, address: true, client: { select: { name: true } } } },
     },
   });
+  const filteredTotal = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -133,11 +154,55 @@ export default async function InvoicesPage({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">
-          Generated ({invoices.length})
-        </h2>
+        <form action="/admin/invoices" className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cleanerId" className="text-xs text-zinc-500">
+              Cleaner
+            </label>
+            <select id="cleanerId" name="cleanerId" defaultValue={cleanerId ?? ""} className={inputCompact}>
+              <option value="">All cleaners</option>
+              {cleanerOptions.map(({ cleaner }) => (
+                <option key={cleaner.id} value={cleaner.id}>
+                  {cleaner.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="propertyId" className="text-xs text-zinc-500">
+              Property
+            </label>
+            <select id="propertyId" name="propertyId" defaultValue={propertyId ?? ""} className={inputCompact}>
+              <option value="">All properties</option>
+              {propertyOptions.map(({ property }) => (
+                <option key={property.id} value={property.id}>
+                  {propertyDisplayName(property)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" className={button("secondary", "sm")}>
+            Filter
+          </button>
+          {(cleanerId || propertyId) && (
+            <Link href="/admin/invoices" className={button("ghost", "sm")}>
+              Clear
+            </Link>
+          )}
+        </form>
+
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-zinc-500">
+            {cleanerId || propertyId ? `Filtered (${invoices.length})` : `Generated (${invoices.length})`}
+          </h2>
+          {(cleanerId || propertyId) && invoices.length > 0 && (
+            <p className="text-sm font-medium">Total: {formatCurrency(filteredTotal)}</p>
+          )}
+        </div>
         {invoices.length === 0 ? (
-          <p className="text-sm text-zinc-600">No invoices generated yet.</p>
+          <p className="text-sm text-zinc-600">
+            {cleanerId || propertyId ? "No invoices match this filter." : "No invoices generated yet."}
+          </p>
         ) : (
           <ul className="flex flex-col gap-2">
             {invoices.map((inv) => (
