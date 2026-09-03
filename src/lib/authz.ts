@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 
 const STAFF_ROLES = ["ADMIN", "OFFICE"];
 const CLEANER_ROLES = ["ADMIN", "CLEANER"];
@@ -32,4 +33,20 @@ export async function requireClient() {
   if (!session?.user) redirect("/login");
   if (!CLIENT_ROLES.includes(session.user.role)) redirect("/");
   return session;
+}
+
+// Every /client page needs the same thing: which portfolio does this login
+// belong to? Returns a null clientId rather than redirecting when the login
+// isn't linked to a Client -- redirecting would bounce to "/", which sends a
+// CLIENT straight back here, i.e. a loop. Callers render an explanatory
+// "not linked yet" state instead. Scope EVERY client-facing query by the
+// clientId this returns; it is the only thing separating one host's
+// portfolio from another's.
+export async function requireClientAccount() {
+  const session = await requireClient();
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { clientId: true },
+  });
+  return { session, clientId: user?.clientId ?? null };
 }

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { card } from "@/lib/ui";
 
@@ -5,6 +7,16 @@ export const metadata = { title: "Overview" };
 
 export default async function AdminHomePage() {
   const session = await requireStaff();
+
+  const [clients, properties] = await Promise.all([
+    prisma.client.count(),
+    prisma.property.count(),
+  ]);
+
+  const tiles = [
+    { href: "/admin/clients", label: "Clients", value: clients },
+    { href: "/admin/properties", label: "Properties", value: properties },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -14,10 +26,19 @@ export default async function AdminHomePage() {
           Signed in as {session.user.name} · {session.user.role}
         </p>
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {tiles.map((t) => (
+          <Link key={t.href} href={t.href} className={card("p-5 transition-colors hover:bg-black/[0.02]")}>
+            <p className="text-sm text-zinc-500">{t.label}</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight">{t.value}</p>
+          </Link>
+        ))}
+      </div>
+
       <div className={card("p-6")}>
         <p className="text-sm text-zinc-600">
-          Clients, properties, cleans, cleaners and the stock catalogue land here in the
-          next phases.
+          Cleans, cleaners and the stock catalogue land here in the next phases.
         </p>
       </div>
     </div>

@@ -15,9 +15,7 @@ enum Role {
   // Does the turnovers: works a schedule of cleans on site, records stock
   // counts. The equivalent of Evo Services' FIELD_EMPLOYEE.
   CLEANER
-  // A short-let owner/host. Signs in to see their own portfolio only; in
-  // Phase 1 this user gains a clientId FK pointing at the Client they
-  // belong to, so several logins can share one portfolio later.
+  // A short-let owner/host. Signs in to see their own portfolio only.
   CLIENT
 }
 
@@ -27,6 +25,85 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(CLEANER)
+  // Set only for CLIENT logins: which portfolio this person can see. Kept as
+  // a nullable FK on User (rather than auth fields on Client) so there is one
+  // identity table and one authorize() lookup, and so a management company
+  // can later have several logins against the same Client with no migration.
+  client       Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+// The host/owner an Evo Stays portfolio belongs to. Contact record first;
+// gains portal logins via User.clientId when one is issued.
+model Client {
+  id         String     @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  notes      String?
+  // Profile photo -- see src/lib/profilePhotos.ts. Optional; shows an
+  // initials placeholder until one is set.
+  photoPath  String?
+  properties Property[]
+  users      User[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  STUDIO
+  COTTAGE
+  OTHER
+}
+
+// One short-let unit. Sized by what actually drives a turnover -- bed and
+// bath count, and how many guests it sleeps -- rather than floor area, which
+// is what the sibling app's quoting model needed.
+model Property {
+  id            String          @id @default(cuid())
+  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId      String
+  // The listing name ("Riverside Loft"). Falls back to a shortened address
+  // when not set -- see src/lib/address.ts.
+  name          String?
+  address       String
+  // Set when the address was picked from an autocomplete rather than typed
+  // freehand. Null if never matched to a location.
+  latitude      Float?
+  longitude     Float?
+  type          PropertyType    @default(APARTMENT)
+  bedrooms      Int?
+  bathrooms     Int?
+  maxOccupancy  Int?
+  // Preset access-point keys (e.g. ["KEY_SAFE","LIFT"]) -- a JSON string
+  // array since SQLite/Prisma has no native scalar list type here.
+  accessOptions Json?
+  // Free text for anything the presets don't cover: key safe codes, alarm
+  // codes, parking, which bin day. The cleaner reads this on site.
+  accessNotes   String?
+  notes         String?
+  images        PropertyImage[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([clientId])
+}
+
+// A photo of the property itself. One per property can be flagged as the
+// cover shot, shown on the portfolio list.
+model PropertyImage {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+  path       String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
 }
