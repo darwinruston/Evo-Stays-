@@ -7,9 +7,10 @@ import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
+import { STOCK_BAND_LABELS, stockLevelBand, type StockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
-import { checkInClean, uploadCleanPhotos, submitStockCounts, completeClean } from "../../actions";
+import { checkInClean, uploadCleanPhotos, recordStockLevel, completeClean } from "../../actions";
 
 export const metadata = { title: "Clean" };
 
@@ -94,6 +95,67 @@ function PhotoUploadStep({
   );
 }
 
+const BAND_ORDER: StockLevelBand[] = ["high", "medium", "low", "none"];
+
+// One item at a time, tap-only: no typing, which is the whole point.
+// predicted is highlighted as the fast "this looks right" path; the other
+// three bands sit below at equal size, so correcting a wrong guess is still
+// exactly one tap, not a reveal-then-tap.
+function StockLevelStep({
+  action,
+  itemName,
+  unit,
+  predicted,
+  reason,
+  position,
+  total,
+}: {
+  action: (formData: FormData) => void;
+  itemName: string;
+  unit: string | null;
+  predicted: StockLevelBand;
+  reason: string;
+  position: number;
+  total: number;
+}) {
+  const alternatives = BAND_ORDER.filter((b) => b !== predicted);
+
+  return (
+    <form action={action} className={card("flex flex-col gap-4 p-4")}>
+      <div>
+        <p className="text-xs text-zinc-500">
+          Stock {position} of {total}
+        </p>
+        <h2 className="text-sm font-medium">
+          {itemName}
+          {unit ? ` (${unit})` : ""}
+        </h2>
+        <p className="mt-1 text-sm text-zinc-600">{reason}</p>
+      </div>
+
+      <button
+        type="submit"
+        name="band"
+        value={predicted}
+        className={`w-full ${button("primary", "lg")}`}
+      >
+        Confirm: {STOCK_BAND_LABELS[predicted]}
+      </button>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-zinc-500">Not right? Pick the actual level:</p>
+        <div className="grid grid-cols-3 gap-2">
+          {alternatives.map((b) => (
+            <button key={b} type="submit" name="band" value={b} className={button("secondary", "md")}>
+              {STOCK_BAND_LABELS[b]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </form>
+  );
+}
+
 export default async function CleanerCleanPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCleaner();
   const { id } = await params;
@@ -131,16 +193,35 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
     stockItems.length === 0 || stockItems.every((s) => recordedStockItemIds.has(s.stockItemId));
 
   // Computed once per page load (not per item -- the previous-clean lookup
-  // is the same for every item on this property) and turned into a
-  // pre-filled suggestion per item below. This never writes anything; it
-  // only changes what number the "Counted" input starts on.
+  // is the same for every item on this property), then turned into a
+  // predicted High/Medium/Low/None per item below. This never writes
+  // anything; it only decides which button is pre-highlighted as "Confirm".
   const nights = clean.scheduledFor
     ? await nightsSincePreviousClean(clean.propertyId, clean.id, clean.scheduledFor)
     : null;
   const guestGuess = clean.guestCount ?? clean.property.maxOccupancy;
-  const stockEstimates = new Map(
-    stockItems.map((level) => [level.id, estimateStockUsage(nights, guestGuess, level)]),
-  );
+
+  // The next item still needing a level -- stock items are worked through
+  // one at a time, in the same fixed order they were configured in, so
+  // "item 2 of 3" means the same thing on every reload of this step. Folded
+  // into one nullable value (rather than two separately-nullable ones) so
+  // the JSX below only has one thing to null-check.
+  const nextUp = stockItems.find((l) => !recordedStockItemIds.has(l.stockItemId));
+  const currentStockStep = nextUp
+    ? (() => {
+        const estimate = estimateStockUsage(nights, guestGuess, nextUp);
+        const prediction = estimate
+          ? {
+              band: stockLevelBand({ onHandQty: estimate.estimatedRemaining, parQty: nextUp.parQty }),
+              reason: `Estimated from ${estimate.guestCount} ${estimate.guestCount === 1 ? "guest" : "guests"} × ${estimate.nights} ${estimate.nights === 1 ? "night" : "nights"} -- check the shelf.`,
+            }
+          : {
+              band: stockLevelBand(nextUp),
+              reason: "Based on what was last recorded -- check the shelf.",
+            };
+        return { level: nextUp, ...prediction };
+      })()
+    : null;
 
   const step =
     clean.status === "PENDING"
@@ -224,77 +305,19 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
             </>
           )}
 
-          {/* Step 4 -- what's on the shelf. Only reachable when the property
-              actually has items configured; otherwise step skips it entirely. */}
-          {step === 3 && (
-            <form
-              action={submitStockCounts.bind(null, clean.id)}
-              className={card("flex flex-col gap-4 p-4")}
-            >
-              <div>
-                <h2 className="text-sm font-medium">Stock check</h2>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Count what&apos;s actually on the shelf. If you topped anything up from what you
-                  carry, add that too — otherwise leave restocked blank.
-                </p>
-              </div>
-
-              {stockItems.map((level) => {
-                const estimate = stockEstimates.get(level.id) ?? null;
-                return (
-                  <div key={level.id} className="flex items-end gap-3 border-t border-black/5 pt-3">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{level.stockItem.name}</p>
-                      <p className="text-xs text-zinc-500">
-                        Par {level.parQty}
-                        {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
-                        {estimate ? (
-                          <>
-                            {" "}
-                            · estimated {estimate.estimatedRemaining} left ({estimate.guestCount}{" "}
-                            {estimate.guestCount === 1 ? "guest" : "guests"} ×{" "}
-                            {estimate.nights} {estimate.nights === 1 ? "night" : "nights"})
-                          </>
-                        ) : (
-                          <> · last known {level.onHandQty}</>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-zinc-500">Counted</label>
-                      <input
-                        name={`counted_${level.stockItemId}`}
-                        type="number"
-                        min={0}
-                        required
-                        defaultValue={estimate?.estimatedRemaining ?? level.onHandQty}
-                        className={`${inputCompact} w-20`}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-zinc-500">Restocked</label>
-                      <input
-                        name={`restocked_${level.stockItemId}`}
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        className={`${inputCompact} w-20`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              {[...stockEstimates.values()].some(Boolean) && (
-                <p className="text-xs text-zinc-500">
-                  Numbers marked &quot;estimated&quot; are a guess from guests and nights, not a
-                  count — check the shelf and adjust if it&apos;s off.
-                </p>
-              )}
-
-              <button type="submit" className={`w-full ${button("primary", "lg")}`}>
-                Save stock count
-              </button>
-            </form>
+          {/* Step 4 -- what's on the shelf, one item at a time. Only reached
+              when the property actually has items configured; otherwise the
+              step is skipped entirely. */}
+          {step === 3 && currentStockStep && (
+            <StockLevelStep
+              action={recordStockLevel.bind(null, clean.id, currentStockStep.level.stockItemId)}
+              itemName={currentStockStep.level.stockItem.name}
+              unit={currentStockStep.level.stockItem.unit}
+              predicted={currentStockStep.band}
+              reason={currentStockStep.reason}
+              position={recordedStockItemIds.size + 1}
+              total={stockItems.length}
+            />
           )}
 
           {/* Step 5 -- write it up and leave. */}

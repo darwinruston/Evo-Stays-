@@ -29,3 +29,25 @@ export function isRunningLow(level: { onHandQty: number; parQty: number }): bool
   const band = stockLevelBand(level);
   return band === "low" || band === "none";
 }
+
+// The inverse of stockLevelBand: a representative on-hand figure for a band
+// a cleaner tapped, since PropertyStockLevel still needs a number underneath
+// (admin's numeric editor, the dashboard tile, the low-stock list all read
+// onHandQty directly). "High" maps to full par; "none" to zero; "low" and
+// "medium" are found by scanning for an integer that actually round-trips
+// back through stockLevelBand to the requested band, rather than an
+// independent formula that could disagree with it at small par quantities
+// (a par of 2 or 3 doesn't cleanly split into thirds).
+export function bandToOnHandQty(band: StockLevelBand, parQty: number): number {
+  if (band === "none") return 0;
+  if (band === "high") return parQty;
+
+  const start = band === "low" ? 1 : Math.ceil(parQty / 3);
+  for (let qty = start; qty < parQty; qty++) {
+    if (stockLevelBand({ onHandQty: qty, parQty }) === band) return qty;
+  }
+  // parQty too small to have a distinct value for this band (e.g. par 1 or
+  // 2) -- nearest sensible fallback rather than a value stockLevelBand would
+  // just reclassify into a different band.
+  return band === "low" ? 1 : Math.max(1, Math.round(parQty / 2));
+}

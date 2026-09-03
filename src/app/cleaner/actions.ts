@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { savePropertyPhotos } from "@/lib/uploads";
+import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -114,11 +115,21 @@ async function configuredStockItemIds(propertyId: string): Promise<string[]> {
   return levels.map((l) => l.stockItemId);
 }
 
-// One count (+ optional restock) per item configured on the property, saved
-// together in one submission -- unlike photos, there's no natural "first
-// half" of a stock count to save separately, so partial submissions aren't
-// allowed: every configured item needs a number before this step is done.
-export async function submitStockCounts(cleanId: string, formData: FormData) {
+const STOCK_BANDS: StockLevelBand[] = ["high", "medium", "low", "none"];
+
+// One item, one tap: the cleaner picks (or confirms a pre-highlighted
+// prediction of) a High/Medium/Low/None level rather than typing a count --
+// deliberately not asking for an exact number on site, since that's the
+// hassle this replaced. The band becomes a representative onHandQty via
+// bandToOnHandQty so the rest of the app (par-level editing, the low-stock
+// list, the dashboard) keeps working in numbers underneath.
+//
+// No separate "restocked" figure: whatever band is picked is treated as the
+// level right now, whether that's because nothing was used or because the
+// cleaner topped it up from what they carry. Keeping a distinct restock
+// count would mean typing a second number, which is exactly the friction
+// this flow is for avoiding.
+export async function recordStockLevel(cleanId: string, stockItemId: string, formData: FormData) {
   const session = await requireCleaner();
   const clean = await ownCleanOrThrow(cleanId, session.user.id);
 
@@ -126,43 +137,27 @@ export async function submitStockCounts(cleanId: string, formData: FormData) {
     throw new Error("Check in before recording stock.");
   }
 
-  const itemIds = await configuredStockItemIds(clean.propertyId);
-  if (itemIds.length === 0) return;
+  const level = await prisma.propertyStockLevel.findFirst({
+    where: { propertyId: clean.propertyId, stockItemId },
+  });
+  if (!level) throw new Error("That item isn't configured on this property.");
 
-  const already = new Set(clean.log.stockUsage.map((u) => u.stockItemId));
-  const remaining = itemIds.filter((id) => !already.has(id));
-  if (remaining.length === 0) {
-    throw new Error("Stock has already been recorded for this clean.");
+  if (clean.log.stockUsage.some((u) => u.stockItemId === stockItemId)) {
+    throw new Error("That item has already been recorded for this clean.");
   }
 
-  const rows: { stockItemId: string; countedQty: number; restockedQty: number }[] = [];
-  for (const stockItemId of remaining) {
-    const countedRaw = formData.get(`counted_${stockItemId}`);
-    const counted = typeof countedRaw === "string" ? Number.parseInt(countedRaw, 10) : NaN;
-    if (!Number.isFinite(counted) || counted < 0) {
-      throw new Error("Enter a count for every item before continuing.");
-    }
-    const restockedRaw = formData.get(`restocked_${stockItemId}`);
-    const restocked = typeof restockedRaw === "string" && restockedRaw.trim() !== ""
-      ? Number.parseInt(restockedRaw, 10)
-      : 0;
-    rows.push({
-      stockItemId,
-      countedQty: counted,
-      restockedQty: Number.isFinite(restocked) && restocked >= 0 ? restocked : 0,
-    });
+  const band = formData.get("band");
+  if (typeof band !== "string" || !STOCK_BANDS.includes(band as StockLevelBand)) {
+    throw new Error("Pick a level.");
   }
+
+  const onHandQty = bandToOnHandQty(band as StockLevelBand, level.parQty);
 
   await prisma.$transaction([
-    prisma.stockUsageLog.createMany({
-      data: rows.map((r) => ({ logId: clean.log!.id, ...r })),
+    prisma.stockUsageLog.create({
+      data: { logId: clean.log.id, stockItemId, countedQty: onHandQty },
     }),
-    ...rows.map((r) =>
-      prisma.propertyStockLevel.updateMany({
-        where: { propertyId: clean.propertyId, stockItemId: r.stockItemId },
-        data: { onHandQty: r.countedQty + r.restockedQty },
-      }),
-    ),
+    prisma.propertyStockLevel.update({ where: { id: level.id }, data: { onHandQty } }),
   ]);
 
   revalidatePath(`/cleaner/cleans/${cleanId}`);
