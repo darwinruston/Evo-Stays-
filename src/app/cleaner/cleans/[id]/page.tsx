@@ -100,7 +100,13 @@ const BAND_ORDER: StockLevelBand[] = ["high", "medium", "low", "none"];
 // One item at a time, tap-only: no typing, which is the whole point.
 // predicted is highlighted as the fast "this looks right" path; the other
 // three bands sit below at equal size, so correcting a wrong guess is still
-// exactly one tap, not a reveal-then-tap.
+// exactly one tap, not a reveal-then-tap. Always the same four options in
+// the same order for every item, regardless of that item's par -- a
+// consistent interface a cleaner can work from muscle memory beats a
+// numerically tidier one that changes shape from item to item. (A par of 1
+// or 2 doesn't have enough distinct on-hand values to make Medium and Low
+// truly different numbers underneath -- see the fallback in
+// bandToOnHandQty -- but the choice stays on screen either way.)
 function StockLevelStep({
   action,
   itemName,

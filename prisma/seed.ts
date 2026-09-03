@@ -204,10 +204,14 @@ async function main() {
   );
   const [toiletRoll, binBags, handSoap] = stockItems;
 
+  // Par is the full/restocked amount -- what a fresh order brings the
+  // property up to, not the bare minimum needed. Hand soap and bin bags
+  // seeded below par on purpose, so the "running low" view has something to
+  // show without needing a real clean to happen first.
   const stockLevels = [
-    { stockItemId: toiletRoll.id, parQty: 6, onHandQty: 6 },
-    { stockItemId: binBags.id, parQty: 4, onHandQty: 2 },
-    { stockItemId: handSoap.id, parQty: 2, onHandQty: 2 },
+    { stockItemId: toiletRoll.id, parQty: 12, onHandQty: 9 },
+    { stockItemId: binBags.id, parQty: 50, onHandQty: 20 },
+    { stockItemId: handSoap.id, parQty: 6, onHandQty: 3 },
   ];
   for (const level of stockLevels) {
     await prisma.propertyStockLevel.upsert({

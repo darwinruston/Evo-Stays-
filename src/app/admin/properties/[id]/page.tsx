@@ -133,6 +133,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           Par levels a cleaner is asked to count during a turnover. On hand updates from what they
           record — set it here only to correct it or reflect a delivery outside a visit.
         </p>
+        <p className="text-sm text-zinc-500">
+          Set par to what a full restock brings this property up to — a pack or order size (e.g.
+          6 hand soaps, 50 bin bags) — not the bare minimum needed. High/Medium/Low reads as
+          thirds of that number, so a par set too close to the minimum makes the scale feel off.
+        </p>
 
         {property.stockLevels.length > 0 && (
           <ul className="flex flex-col gap-2">
@@ -210,6 +215,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 type="number"
                 min={1}
                 required
+                placeholder="e.g. 6"
                 className={`${inputCompact} w-24`}
               />
             </div>
