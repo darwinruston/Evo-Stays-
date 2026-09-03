@@ -15,7 +15,7 @@ export default async function ClientHomePage() {
         </p>
       </div>
       <div className={card("p-6")}>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-zinc-600">
           Your properties, their cleaning history and current stock levels land here in
           the next phases.
         </p>

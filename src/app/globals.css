@@ -1,12 +1,10 @@
 @import "tailwindcss";
 
-/* Switches every dark: utility in the app from "follows the OS setting" to
-   "follows the .dark class on <html>", so the toggle in ThemeToggle.tsx can
-   actually override it. The class is set by an inline script in
-   src/app/layout.tsx (before paint, to avoid a flash) and by the toggle
-   itself; see both for the full picture. */
-@custom-variant dark (&:where(.dark, .dark *));
-
+/* Light mode only, deliberately. A dark theme was tried and removed: it
+   meant writing (and reviewing) a dark: variant on essentially every
+   element, which taxed every new screen for little benefit at this stage.
+   These tokens are kept as tokens rather than inlined hex so a theme can be
+   reintroduced later by redefining them in one place. */
 :root {
   /* Page background sits a hair off pure white so surfaces (cards, the
      header) can float above it on a soft shadow -- pure white-on-white
@@ -26,18 +24,6 @@
   --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-:root.dark {
-  --background: #0a0a0b;
-  --foreground: #fafafa;
-  /* Dark surfaces can't rely on shadow (it doesn't read against a dark
-     page), so elevation here comes from being a shade lighter than the
-     background instead, paired with a faint border on the surface
-     itself (see card() in src/lib/ui.ts). */
-  --surface: rgb(19, 19, 22);
-  --muted: #a1a1aa;
-  --border: rgba(255, 255, 255, 0.09);
 }
 
 body {

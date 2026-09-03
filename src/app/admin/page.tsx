@@ -15,7 +15,7 @@ export default async function AdminHomePage() {
         </p>
       </div>
       <div className={card("p-6")}>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-zinc-600">
           Clients, properties, cleans, cleaners and the stock catalogue land here in the
           next phases.
         </p>

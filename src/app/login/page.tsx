@@ -1,6 +1,5 @@
 import { LoginForm } from "./LoginForm";
 import { EvoTick } from "@/components/EvoTick";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { card } from "@/lib/ui";
 
 export const metadata = { title: "Sign in" };
@@ -13,8 +12,7 @@ export default async function LoginPage({
   const { callbackUrl } = await searchParams;
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center p-6">
-      <ThemeToggle className="absolute top-4 right-4 sm:top-6 sm:right-6" />
+    <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <EvoTick className="h-9 w-auto" />

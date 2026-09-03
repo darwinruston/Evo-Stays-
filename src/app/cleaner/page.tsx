@@ -15,7 +15,7 @@ export default async function CleanerHomePage() {
         </p>
       </div>
       <div className={card("p-5")}>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-zinc-600">
           Your schedule, check-in/check-out and stock counts land here in the next phases.
         </p>
       </div>
