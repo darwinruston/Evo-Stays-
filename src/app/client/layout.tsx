@@ -3,8 +3,10 @@ import { requireClient } from "@/lib/authz";
 import { EvoTick } from "@/components/EvoTick";
 import { logoutAction } from "../logout/actions";
 
-// Grows a link per phase (my properties, cleans, profile).
-const NAV = [{ href: "/client", label: "My portfolio" }];
+const NAV = [
+  { href: "/client", label: "My portfolio" },
+  { href: "/client/cleans", label: "Cleans" },
+];
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   await requireClient();

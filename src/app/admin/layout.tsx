@@ -3,12 +3,13 @@ import { requireStaff } from "@/lib/authz";
 import { EvoTick } from "@/components/EvoTick";
 import { logoutAction } from "../logout/actions";
 
-// Grows a link per phase as each admin area lands (cleans, cleaners,
-// stock items still to come).
+// Grows a link per phase as each admin area lands (stock items still to come).
 const NAV = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/clients", label: "Clients" },
   { href: "/admin/properties", label: "Properties" },
+  { href: "/admin/cleans", label: "Cleans" },
+  { href: "/admin/cleaners", label: "Cleaners" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

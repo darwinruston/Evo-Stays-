@@ -3,8 +3,13 @@ import { requireCleaner } from "@/lib/authz";
 import { EvoTick } from "@/components/EvoTick";
 import { logoutAction } from "../logout/actions";
 
-// Phone-first: this area is used on site, mid-turnaround. Grows a link per
-// phase (my cleans, calendar, properties, profile).
+// Phone-first: this area is used on site, mid-turnaround.
+const NAV = [
+  { href: "/cleaner", label: "My cleans" },
+  { href: "/cleaner/calendar", label: "Calendar" },
+  { href: "/cleaner/properties", label: "Properties" },
+];
+
 export default async function CleanerLayout({ children }: { children: React.ReactNode }) {
   await requireCleaner();
 
@@ -15,12 +20,15 @@ export default async function CleanerLayout({ children }: { children: React.Reac
           <Link href="/cleaner" aria-label="Evo Stays home" className="shrink-0">
             <EvoTick className="h-6 w-auto" />
           </Link>
-          <Link
-            href="/cleaner"
-            className="shrink-0 rounded-md text-xs text-zinc-600 transition-colors hover:text-zinc-950 sm:px-3 sm:py-1.5 sm:text-sm sm:hover:bg-black/5"
-          >
-            My cleans
-          </Link>
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="shrink-0 rounded-md text-xs text-zinc-600 transition-colors hover:text-zinc-950 sm:px-3 sm:py-1.5 sm:text-sm sm:hover:bg-black/5"
+            >
+              {item.label}
+            </Link>
+          ))}
         </div>
         <form action={logoutAction} className="shrink-0">
           <button

@@ -8,14 +8,20 @@ export const metadata = { title: "Overview" };
 export default async function AdminHomePage() {
   const session = await requireStaff();
 
-  const [clients, properties] = await Promise.all([
+  const [clients, properties, upcoming, requests] = await Promise.all([
     prisma.client.count(),
     prisma.property.count(),
+    prisma.clean.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
+    // Client-requested cleans still waiting for a slot -- the one number here
+    // that means someone is waiting on us.
+    prisma.clean.count({ where: { requestedByClientId: { not: null }, scheduledFor: null } }),
   ]);
 
   const tiles = [
     { href: "/admin/clients", label: "Clients", value: clients },
     { href: "/admin/properties", label: "Properties", value: properties },
+    { href: "/admin/cleans", label: "Cleans outstanding", value: upcoming },
+    { href: "/admin/cleans", label: "Unscheduled requests", value: requests },
   ];
 
   return (
@@ -38,7 +44,7 @@ export default async function AdminHomePage() {
 
       <div className={card("p-6")}>
         <p className="text-sm text-zinc-600">
-          Cleans, cleaners and the stock catalogue land here in the next phases.
+          The stock catalogue lands here in the next phase.
         </p>
       </div>
     </div>

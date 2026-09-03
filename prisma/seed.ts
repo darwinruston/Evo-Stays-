@@ -1,4 +1,4 @@
-import { PrismaClient, Role, PropertyType } from "@prisma/client";
+import { PrismaClient, Role, PropertyType, CleanStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -7,7 +7,10 @@ async function main() {
   const staff: { name: string; email: string; password: string; role: Role }[] = [
     { name: "Admin User", email: "admin@evostays.test", password: "password123", role: Role.ADMIN },
     { name: "Office User", email: "office@evostays.test", password: "password123", role: Role.OFFICE },
+    // Two cleaners on purpose: a cleaner may only see properties they're
+    // assigned at, and proving that needs someone to be shut out of one.
     { name: "Cleaner User", email: "cleaner@evostays.test", password: "password123", role: Role.CLEANER },
+    { name: "Second Cleaner", email: "cleaner2@evostays.test", password: "password123", role: Role.CLEANER },
   ];
 
   for (const u of staff) {
@@ -102,6 +105,85 @@ async function main() {
     });
   }
 
+  // Cleans. cleaner@ works the Harbour Lets places; cleaner2@ has the Peak
+  // Retreats cottage, so cleaner@ has a property they must not be able to
+  // reach.
+  const [admin, cleaner1, cleaner2] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { email: "admin@evostays.test" } }),
+    prisma.user.findUniqueOrThrow({ where: { email: "cleaner@evostays.test" } }),
+    prisma.user.findUniqueOrThrow({ where: { email: "cleaner2@evostays.test" } }),
+  ]);
+
+  const [riverside, dockside, millstone] = await Promise.all([
+    prisma.property.findFirstOrThrow({ where: { name: "Riverside Loft" } }),
+    prisma.property.findFirstOrThrow({ where: { name: "Dockside Studio" } }),
+    prisma.property.findFirstOrThrow({ where: { name: "Millstone Cottage" } }),
+  ]);
+
+  function at(daysFromNow: number, hour: number): Date {
+    const d = new Date();
+    d.setDate(d.getDate() + daysFromNow);
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  }
+
+  const cleans = [
+    {
+      id: "seed-clean-riverside-past",
+      propertyId: riverside.id,
+      assignedToId: cleaner1.id,
+      scheduledFor: at(-3, 11),
+      status: CleanStatus.COMPLETED,
+      instructions: "Guest checked out early — full turnover, restock the welcome tray.",
+    },
+    {
+      id: "seed-clean-riverside-next",
+      propertyId: riverside.id,
+      assignedToId: cleaner1.id,
+      scheduledFor: at(1, 11),
+      status: CleanStatus.PENDING,
+      instructions: "Back-to-back booking, guest arrives 3pm sharp.",
+    },
+    {
+      id: "seed-clean-dockside-today",
+      propertyId: dockside.id,
+      assignedToId: cleaner1.id,
+      scheduledFor: at(0, 14),
+      status: CleanStatus.PENDING,
+      instructions: null,
+    },
+    {
+      id: "seed-clean-millstone",
+      propertyId: millstone.id,
+      assignedToId: cleaner2.id,
+      scheduledFor: at(2, 10),
+      status: CleanStatus.PENDING,
+      instructions: "Log burner needs emptying between stays.",
+    },
+  ];
+
+  for (const c of cleans) {
+    await prisma.clean.upsert({
+      where: { id: c.id },
+      update: {},
+      create: { ...c, createdById: admin.id },
+    });
+  }
+
+  // A completed clean needs its log, otherwise the history view has nothing
+  // to show.
+  await prisma.cleanLog.upsert({
+    where: { cleanId: "seed-clean-riverside-past" },
+    update: {},
+    create: {
+      cleanId: "seed-clean-riverside-past",
+      recordedById: cleaner1.id,
+      note: "All done. Shower sealant is starting to go mouldy — worth flagging to the owner.",
+      arrivedAt: at(-3, 11),
+      departedAt: at(-3, 13),
+    },
+  });
+
   console.log(
     "Seeded logins:",
     [...staff.map((u) => u.email), ...clientLogins.map((c) => c.email)]
@@ -109,6 +191,7 @@ async function main() {
       .join(", "),
   );
   console.log("Seeded clients:", [harbour.name, peak.name].join(", "));
+  console.log("Seeded cleans:", cleans.length);
 }
 
 main()

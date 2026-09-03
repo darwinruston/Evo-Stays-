@@ -35,6 +35,23 @@ export async function requireClient() {
   return session;
 }
 
+// A cleaner sees a property only where they hold a clean -- any status, so
+// they keep access to their own completed history. Access notes carry key
+// safe and alarm codes, so browsing the whole estate isn't something the job
+// needs. Expressed as a Prisma `where` fragment so list queries filter in the
+// database rather than fetching everything and filtering after.
+export function cleanerPropertyWhere(userId: string) {
+  return { cleans: { some: { assignedToId: userId } } };
+}
+
+export async function cleanerCanSeeProperty(userId: string, propertyId: string): Promise<boolean> {
+  const clean = await prisma.clean.findFirst({
+    where: { propertyId, assignedToId: userId },
+    select: { id: true },
+  });
+  return clean !== null;
+}
+
 // Every /client page needs the same thing: which portfolio does this login
 // belong to? Returns a null clientId rather than redirecting when the login
 // isn't linked to a Client -- redirecting would bounce to "/", which sends a

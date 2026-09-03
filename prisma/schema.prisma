@@ -20,19 +20,22 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(CLEANER)
+  id             String     @id @default(cuid())
+  name           String
+  email          String     @unique
+  passwordHash   String
+  role           Role       @default(CLEANER)
   // Set only for CLIENT logins: which portfolio this person can see. Kept as
   // a nullable FK on User (rather than auth fields on Client) so there is one
   // identity table and one authorize() lookup, and so a management company
   // can later have several logins against the same Client with no migration.
-  client       Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  client         Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId       String?
+  assignedCleans Clean[]    @relation("CleanAssignee")
+  createdCleans  Clean[]    @relation("CleanCreator")
+  cleanLogs      CleanLog[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   @@index([clientId])
 }
@@ -50,6 +53,8 @@ model Client {
   photoPath  String?
   properties Property[]
   users      User[]
+  // Cleans this client asked for themselves, rather than staff scheduling.
+  requested  Clean[]    @relation("CleanRequestedBy")
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -89,6 +94,7 @@ model Property {
   accessNotes   String?
   notes         String?
   images        PropertyImage[]
+  cleans        Clean[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -106,4 +112,84 @@ model PropertyImage {
   createdAt  DateTime @default(now())
 
   @@index([propertyId])
+}
+
+enum CleanStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// One turnover: a job at a property, for a cleaner, on a date. The cleaner
+// works it check-in -> check-out, which produces the CleanLog below.
+//
+// Assignment is also what a cleaner's access is derived from: they can see a
+// property only where they hold a Clean (see cleanerPropertyWhere in
+// src/lib/authz.ts), since access notes carry key safe codes.
+model Clean {
+  id                  String      @id @default(cuid())
+  property            Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId          String
+  // Null when auto-assignment found nobody -- shows as "Unassigned" until
+  // an admin picks someone.
+  assignedTo          User?       @relation("CleanAssignee", fields: [assignedToId], references: [id])
+  assignedToId        String?
+  // Null for a clean the client requested themselves; there's no staff
+  // member to credit until someone picks it up.
+  createdBy           User?       @relation("CleanCreator", fields: [createdById], references: [id])
+  createdById         String?
+  requestedByClient   Client?     @relation("CleanRequestedBy", fields: [requestedByClientId], references: [id], onDelete: Cascade)
+  requestedByClientId String?
+  // What the client said when requesting. Shown to staff, never edited by them.
+  clientNote          String?
+  instructions        String?
+  status              CleanStatus @default(PENDING)
+  // Null means requested but not yet given a slot.
+  scheduledFor        DateTime?
+  // Set on check-in; copied onto the CleanLog at check-out (the log doesn't
+  // exist yet at check-in time).
+  arrivedAt           DateTime?
+  log                 CleanLog?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([propertyId])
+  @@index([assignedToId])
+  @@index([scheduledFor])
+}
+
+// The permanent record of a completed turnover. Separate from Clean so the
+// job (which can be rescheduled, reassigned, cancelled) stays distinct from
+// what actually happened on site.
+model CleanLog {
+  id           String       @id @default(cuid())
+  clean        Clean        @relation(fields: [cleanId], references: [id], onDelete: Cascade)
+  cleanId      String       @unique
+  recordedBy   User         @relation(fields: [recordedById], references: [id])
+  recordedById String
+  note         String?
+  arrivedAt    DateTime?
+  departedAt   DateTime?
+  photos       CleanPhoto[]
+  createdAt    DateTime     @default(now())
+}
+
+enum PhotoStage {
+  BEFORE
+  AFTER
+}
+
+// Before/after shots from a turnover. Stored under the same
+// storage/property-photos/{propertyId}/ root as PropertyImage, so the single
+// access check in /api/photos covers both.
+model CleanPhoto {
+  id        String     @id @default(cuid())
+  log       CleanLog   @relation(fields: [logId], references: [id], onDelete: Cascade)
+  logId     String
+  path      String
+  stage     PhotoStage
+  createdAt DateTime   @default(now())
+
+  @@index([logId])
 }

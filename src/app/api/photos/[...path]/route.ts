@@ -15,11 +15,14 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 
 // Property photos are client-sensitive: they show the inside of someone's
-// home. Staff and cleaners may read any of them, but a CLIENT may only read
-// photos of properties in their own portfolio -- otherwise guessing a path
-// would walk straight past the per-client scoping the /client pages enforce.
-// This is a deliberate tightening of the sibling app's "any signed-in user"
-// rule, which was written for a product with no client logins at all.
+// home. Only staff read them unconditionally -- a CLIENT is limited to their
+// own portfolio, and a CLEANER to properties they're assigned at. Without
+// this, guessing a path would walk straight past the scoping the /client and
+// /cleaner pages enforce.
+//
+// This is a deliberate tightening of the sibling app's "any signed-in user
+// may read any photo" rule, which was written for a product with no client
+// logins and no reason to fence its field staff.
 //
 // Denials return 404 rather than 403 so the response doesn't confirm that
 // some other client's property id exists.
@@ -38,10 +41,13 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
+  // Photos are stored under {propertyId}/{filename} (see savePropertyPhotos),
+  // so the first segment is the property this file belongs to. Turnover
+  // before/after shots live under the same root, so this one check covers
+  // PropertyImage and CleanPhoto alike.
+  const propertyId = segments[0];
+
   if (session.user.role === "CLIENT") {
-    // Photos are stored under {propertyId}/{filename} (see savePropertyPhotos),
-    // so the first segment is the property this file belongs to.
-    const propertyId = segments[0];
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { clientId: true },
@@ -53,6 +59,14 @@ export async function GET(
       select: { id: true },
     });
     if (!owned) return new NextResponse("Not found", { status: 404 });
+  }
+
+  if (session.user.role === "CLEANER") {
+    const assigned = await prisma.clean.findFirst({
+      where: { propertyId, assignedToId: session.user.id },
+      select: { id: true },
+    });
+    if (!assigned) return new NextResponse("Not found", { status: 404 });
   }
 
   try {
