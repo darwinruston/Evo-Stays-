@@ -95,6 +95,7 @@ model Property {
   notes         String?
   images        PropertyImage[]
   cleans        Clean[]
+  stockLevels   PropertyStockLevel[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -172,6 +173,7 @@ model CleanLog {
   arrivedAt    DateTime?
   departedAt   DateTime?
   photos       CleanPhoto[]
+  stockUsage   StockUsageLog[]
   createdAt    DateTime     @default(now())
 }
 
@@ -191,5 +193,66 @@ model CleanPhoto {
   stage     PhotoStage
   createdAt DateTime   @default(now())
 
+  @@index([logId])
+}
+
+// The business-wide catalogue of consumables: loo roll, bin bags, welcome
+// tea/coffee, cleaning products. active mirrors Service in the sibling app --
+// items with usage history are hidden rather than deleted, see the guard in
+// src/app/admin/stock-items/actions.ts.
+model StockItem {
+  id        String               @id @default(cuid())
+  name      String               @unique
+  // Free label for what's being counted -- "roll", "bottle", "sachet". Shown
+  // next to the number, never used in arithmetic.
+  unit      String?
+  active    Boolean              @default(true)
+  levels    PropertyStockLevel[]
+  usage     StockUsageLog[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+// One item, one property: what should be on hand (parQty) and what actually
+// is (onHandQty) right now. Configuring this is opt-in per property -- most
+// won't have any rows yet, and the cleaner's stock step simply doesn't
+// appear for a property with none (see the step logic in
+// src/app/cleaner/cleans/[id]/page.tsx).
+model PropertyStockLevel {
+  id          String    @id @default(cuid())
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id])
+  stockItemId String
+  parQty      Int
+  onHandQty   Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([propertyId, stockItemId])
+  @@index([propertyId])
+}
+
+// One item, one completed (or in-progress) visit: what the cleaner counted
+// on site, plus anything they topped up from supplies they carry. restockedQty
+// defaults to 0 rather than being required, so a business that only wants
+// counts reported (someone else delivers later) and one where cleaners
+// restock on the spot are both just this same row with a different number in
+// it -- no separate flow for either.
+//
+// PropertyStockLevel.onHandQty is set to countedQty + restockedQty when this
+// is recorded (see submitStockCounts), so this table is the audit trail
+// behind that single current number.
+model StockUsageLog {
+  id           String    @id @default(cuid())
+  log          CleanLog  @relation(fields: [logId], references: [id], onDelete: Cascade)
+  logId        String
+  stockItem    StockItem @relation(fields: [stockItemId], references: [id])
+  stockItemId  String
+  countedQty   Int
+  restockedQty Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  @@unique([logId, stockItemId])
   @@index([logId])
 }

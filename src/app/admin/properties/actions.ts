@@ -179,3 +179,71 @@ export async function deletePropertyPhoto(propertyId: string, imageId: string) {
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
+
+// Configures a par level for one item on this property. onHandQty defaults
+// to parQty -- setting one up is a signal the property is being freshly
+// stocked to that level, not a signal that it's currently empty. The real
+// count then updates as cleans happen.
+export async function addPropertyStockLevel(propertyId: string, formData: FormData) {
+  await requireStaff();
+
+  const stockItemId = str(formData, "stockItemId");
+  const parQty = int(formData, "parQty");
+  if (!stockItemId) throw new Error("Pick an item");
+  if (parQty === null || parQty < 1) throw new Error("Par level must be at least 1");
+
+  const existing = await prisma.propertyStockLevel.findUnique({
+    where: { propertyId_stockItemId: { propertyId, stockItemId } },
+  });
+  if (existing) throw new Error("That item is already configured on this property");
+
+  await prisma.propertyStockLevel.create({
+    data: { propertyId, stockItemId, parQty, onHandQty: parQty },
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/stock");
+}
+
+// Lets staff correct the par level or the current count directly -- for a
+// delivery that arrived outside a clean, or fixing a miscount, without
+// needing a visit to happen first.
+export async function updatePropertyStockLevel(propertyId: string, levelId: string, formData: FormData) {
+  await requireStaff();
+
+  const parQty = int(formData, "parQty");
+  const onHandQty = int(formData, "onHandQty");
+  if (parQty === null || parQty < 1) throw new Error("Par level must be at least 1");
+  if (onHandQty === null || onHandQty < 0) throw new Error("On hand must be zero or more");
+
+  // Scoped to the property so a stray level id can't touch another
+  // property's stock.
+  const level = await prisma.propertyStockLevel.findFirst({
+    where: { id: levelId, propertyId },
+    select: { id: true },
+  });
+  if (!level) throw new Error("Stock level not found for this property");
+
+  await prisma.propertyStockLevel.update({ where: { id: level.id }, data: { parQty, onHandQty } });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/stock");
+}
+
+export async function removePropertyStockLevel(propertyId: string, levelId: string) {
+  await requireStaff();
+
+  const level = await prisma.propertyStockLevel.findFirst({
+    where: { id: levelId, propertyId },
+    select: { id: true },
+  });
+  if (!level) throw new Error("Stock level not found for this property");
+
+  // The usage history (StockUsageLog) stays -- it's a record of what was
+  // physically counted on real visits, independent of whether the property
+  // still tracks that item's par level today.
+  await prisma.propertyStockLevel.delete({ where: { id: level.id } });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/stock");
+}

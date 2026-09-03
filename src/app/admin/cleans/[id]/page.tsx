@@ -27,7 +27,13 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
       property: { select: { id: true, name: true, address: true, client: { select: { id: true, name: true } } } },
       assignedTo: { select: { name: true } },
       requestedByClient: { select: { name: true } },
-      log: { include: { recordedBy: { select: { name: true } }, photos: true } },
+      log: {
+        include: {
+          recordedBy: { select: { name: true } },
+          photos: true,
+          stockUsage: { include: { stockItem: true } },
+        },
+      },
     },
   });
   if (!clean) notFound();

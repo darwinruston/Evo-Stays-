@@ -7,6 +7,7 @@ import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
+import { isRunningLow } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { requestClean } from "../../actions";
 
@@ -35,11 +36,18 @@ export default async function ClientPropertyPage({ params }: { params: Promise<{
         where: { id, clientId },
         include: {
           images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+          stockLevels: { include: { stockItem: true }, orderBy: { createdAt: "asc" } },
           cleans: {
             orderBy: [{ scheduledFor: "desc" }, { createdAt: "desc" }],
             include: {
               assignedTo: { select: { name: true } },
-              log: { include: { recordedBy: { select: { name: true } }, photos: true } },
+              log: {
+                include: {
+                  recordedBy: { select: { name: true } },
+                  photos: true,
+                  stockUsage: { include: { stockItem: true } },
+                },
+              },
             },
           },
         },
@@ -118,6 +126,26 @@ export default async function ClientPropertyPage({ params }: { params: Promise<{
           </p>
         </form>
       </section>
+
+      {property.stockLevels.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium text-zinc-500">Stock</h2>
+          <ul className={card("divide-y divide-black/5 px-4 py-1")}>
+            {property.stockLevels.map((level) => (
+              <li key={level.id} className="flex items-center justify-between gap-4 py-2 text-sm">
+                <span>{level.stockItem.name}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-zinc-500">
+                    {level.onHandQty} / {level.parQty}
+                    {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
+                  </span>
+                  {isRunningLow(level) && <span className={badge("solid")}>Running low</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {property.images.length > 0 && (
         <section className="flex flex-col gap-3">

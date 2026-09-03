@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import { isRunningLow } from "@/lib/stock";
 import { card } from "@/lib/ui";
 
 export const metadata = { title: "Overview" };
@@ -8,20 +9,27 @@ export const metadata = { title: "Overview" };
 export default async function AdminHomePage() {
   const session = await requireStaff();
 
-  const [clients, properties, upcoming, requests] = await Promise.all([
+  const [clients, properties, upcoming, requests, stockLevels] = await Promise.all([
     prisma.client.count(),
     prisma.property.count(),
     prisma.clean.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
     // Client-requested cleans still waiting for a slot -- the one number here
     // that means someone is waiting on us.
     prisma.clean.count({ where: { requestedByClientId: { not: null }, scheduledFor: null } }),
+    // "Low" compares two columns on the same row, which SQLite can't express
+    // in a where clause without raw SQL -- filtered in JS instead, see
+    // src/lib/stock.ts.
+    prisma.propertyStockLevel.findMany({ select: { propertyId: true, onHandQty: true, parQty: true } }),
   ]);
+
+  const lowProperties = new Set(stockLevels.filter(isRunningLow).map((l) => l.propertyId)).size;
 
   const tiles = [
     { href: "/admin/clients", label: "Clients", value: clients },
     { href: "/admin/properties", label: "Properties", value: properties },
     { href: "/admin/cleans", label: "Cleans outstanding", value: upcoming },
     { href: "/admin/cleans", label: "Unscheduled requests", value: requests },
+    { href: "/admin/stock", label: "Properties running low", value: lowProperties },
   ];
 
   return (
@@ -40,12 +48,6 @@ export default async function AdminHomePage() {
             <p className="mt-1 text-3xl font-semibold tracking-tight">{t.value}</p>
           </Link>
         ))}
-      </div>
-
-      <div className={card("p-6")}>
-        <p className="text-sm text-zinc-600">
-          The stock catalogue lands here in the next phase.
-        </p>
       </div>
     </div>
   );

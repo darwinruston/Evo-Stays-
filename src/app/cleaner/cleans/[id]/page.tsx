@@ -8,17 +8,17 @@ import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
 import { badge, button, card, inputCompact } from "@/lib/ui";
-import { checkInClean, uploadCleanPhotos, completeClean } from "../../actions";
+import { checkInClean, uploadCleanPhotos, submitStockCounts, completeClean } from "../../actions";
 
 export const metadata = { title: "Clean" };
 
-const STEPS = ["Arrive", "Before", "Clean", "Finish"] as const;
+const STEPS = ["Arrive", "Before", "Clean", "Stock", "Finish"] as const;
 
 // The turnover runs as a forced march: one step on screen at a time, and the
 // next only appears once the current one is actually recorded. The step is
 // derived from what's been captured rather than stored on the Clean -- a
 // column would be a second source of truth that could disagree with the
-// photos themselves.
+// photos (and now stock counts) themselves.
 function Progress({ current }: { current: number }) {
   return (
     <ol className="flex items-center gap-1.5">
@@ -102,8 +102,16 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
   const clean = await prisma.clean.findFirst({
     where: { id, assignedToId: session.user.id },
     include: {
-      property: true,
-      log: { include: { recordedBy: { select: { name: true } }, photos: true } },
+      property: {
+        include: { stockLevels: { include: { stockItem: true }, orderBy: { createdAt: "asc" } } },
+      },
+      log: {
+        include: {
+          recordedBy: { select: { name: true } },
+          photos: true,
+          stockUsage: { include: { stockItem: true } },
+        },
+      },
     },
   });
   if (!clean) notFound();
@@ -113,8 +121,24 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
   const before = photos.filter((p) => p.stage === "BEFORE").map((p) => p.path);
   const after = photos.filter((p) => p.stage === "AFTER").map((p) => p.path);
 
+  // Opt-in per property: a place with nothing configured skips straight past
+  // this step, so rolling out stock tracking doesn't hold up every turnover
+  // everywhere else.
+  const stockItems = clean.property.stockLevels;
+  const recordedStockItemIds = new Set((clean.log?.stockUsage ?? []).map((u) => u.stockItemId));
+  const stockDone =
+    stockItems.length === 0 || stockItems.every((s) => recordedStockItemIds.has(s.stockItemId));
+
   const step =
-    clean.status === "PENDING" ? 0 : before.length === 0 ? 1 : after.length === 0 ? 2 : 3;
+    clean.status === "PENDING"
+      ? 0
+      : before.length === 0
+        ? 1
+        : after.length === 0
+          ? 2
+          : !stockDone
+            ? 3
+            : 4;
 
   return (
     <div className="flex flex-col gap-6">
@@ -187,8 +211,63 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
             </>
           )}
 
-          {/* Step 4 -- write it up and leave. */}
+          {/* Step 4 -- what's on the shelf. Only reachable when the property
+              actually has items configured; otherwise step skips it entirely. */}
           {step === 3 && (
+            <form
+              action={submitStockCounts.bind(null, clean.id)}
+              className={card("flex flex-col gap-4 p-4")}
+            >
+              <div>
+                <h2 className="text-sm font-medium">Stock check</h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  Count what&apos;s actually on the shelf. If you topped anything up from what you
+                  carry, add that too — otherwise leave restocked blank.
+                </p>
+              </div>
+
+              {stockItems.map((level) => (
+                <div key={level.id} className="flex items-end gap-3 border-t border-black/5 pt-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{level.stockItem.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      Par {level.parQty}
+                      {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""} · last known{" "}
+                      {level.onHandQty}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-500">Counted</label>
+                    <input
+                      name={`counted_${level.stockItemId}`}
+                      type="number"
+                      min={0}
+                      required
+                      defaultValue={level.onHandQty}
+                      className={`${inputCompact} w-20`}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-500">Restocked</label>
+                    <input
+                      name={`restocked_${level.stockItemId}`}
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      className={`${inputCompact} w-20`}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <button type="submit" className={`w-full ${button("primary", "lg")}`}>
+                Save stock count
+              </button>
+            </form>
+          )}
+
+          {/* Step 5 -- write it up and leave. */}
+          {step === 4 && (
             <>
               <form
                 action={completeClean.bind(null, clean.id)}
@@ -204,7 +283,7 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
                   name="note"
                   rows={4}
                   required
-                  placeholder="How the place was left, anything that needs following up, stock running low."
+                  placeholder="How the place was left, anything that needs following up."
                   className={inputCompact}
                 />
                 <button type="submit" className={`w-full ${button("primary", "lg")}`}>

@@ -184,6 +184,33 @@ async function main() {
     },
   });
 
+  // A starter catalogue and one property's par levels -- bin bags seeded
+  // below par on purpose, so the "running low" view has something to show
+  // without needing a real clean to happen first.
+  const stockItemDefs = [
+    { name: "Toilet roll", unit: "roll" },
+    { name: "Bin bags", unit: "bag" },
+    { name: "Hand soap", unit: "bottle" },
+    { name: "Welcome tea/coffee", unit: "sachet" },
+  ];
+  const stockItems = await Promise.all(
+    stockItemDefs.map((s) => prisma.stockItem.upsert({ where: { name: s.name }, update: {}, create: s })),
+  );
+  const [toiletRoll, binBags, handSoap] = stockItems;
+
+  const stockLevels = [
+    { stockItemId: toiletRoll.id, parQty: 6, onHandQty: 6 },
+    { stockItemId: binBags.id, parQty: 4, onHandQty: 2 },
+    { stockItemId: handSoap.id, parQty: 2, onHandQty: 2 },
+  ];
+  for (const level of stockLevels) {
+    await prisma.propertyStockLevel.upsert({
+      where: { propertyId_stockItemId: { propertyId: riverside.id, stockItemId: level.stockItemId } },
+      update: {},
+      create: { propertyId: riverside.id, ...level },
+    });
+  }
+
   console.log(
     "Seeded logins:",
     [...staff.map((u) => u.email), ...clientLogins.map((c) => c.email)]
@@ -192,6 +219,7 @@ async function main() {
   );
   console.log("Seeded clients:", [harbour.name, peak.name].join(", "));
   console.log("Seeded cleans:", cleans.length);
+  console.log("Seeded stock items:", stockItems.map((s) => s.name).join(", "));
 }
 
 main()
