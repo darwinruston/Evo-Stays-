@@ -7,6 +7,7 @@ import { PropertyDetails } from "@/components/PropertyDetails";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
 import { stockLevelBand } from "@/lib/stock";
+import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import {
   addPropertyPhotos,
@@ -37,6 +38,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       client: { select: { id: true, name: true } },
       images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       stockLevels: { orderBy: { createdAt: "asc" }, include: { stockItem: true } },
+      invoices: {
+        orderBy: { periodStart: "desc" },
+        include: { cleaner: { select: { id: true, name: true } } },
+      },
     },
   });
   if (!property) notFound();
@@ -188,6 +193,52 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             ) : (
               "Every active item is already configured on this property."
             )}
+          </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-zinc-500">
+          Cleaning costs ({property.invoices.length})
+        </h2>
+        <p className="text-sm text-zinc-600">
+          Every invoice generated for this property, one per cleaner per billing period — this
+          client&apos;s cleaning spend, on its own, separate from every other property.
+        </p>
+
+        {property.invoices.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {property.invoices.map((inv) => (
+              <li key={inv.id}>
+                <Link
+                  href={`/admin/invoices/${inv.id}`}
+                  className={card("flex items-center justify-between gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">{inv.cleaner.name}</p>
+                    <p className="truncate text-sm text-zinc-500">
+                      {formatPeriod(inv.periodStart, inv.periodEnd)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-sm text-zinc-500">
+                      {formatHours(inv.totalHours)} · {formatCurrency(inv.totalAmount)}
+                    </span>
+                    <span className={badge(inv.paidAt ? "solid" : "neutral")}>
+                      {inv.paidAt ? "Paid" : "Unpaid"}
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-zinc-500">
+            No invoices generated yet — see{" "}
+            <Link href="/admin/invoices" className="underline underline-offset-2">
+              Invoices
+            </Link>
+            .
           </p>
         )}
       </section>
