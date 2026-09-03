@@ -8,6 +8,7 @@ import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
 import { badge, button, card, inputCompact } from "@/lib/ui";
+import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
 import { checkInClean, uploadCleanPhotos, submitStockCounts, completeClean } from "../../actions";
 
 export const metadata = { title: "Clean" };
@@ -129,6 +130,18 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
   const stockDone =
     stockItems.length === 0 || stockItems.every((s) => recordedStockItemIds.has(s.stockItemId));
 
+  // Computed once per page load (not per item -- the previous-clean lookup
+  // is the same for every item on this property) and turned into a
+  // pre-filled suggestion per item below. This never writes anything; it
+  // only changes what number the "Counted" input starts on.
+  const nights = clean.scheduledFor
+    ? await nightsSincePreviousClean(clean.propertyId, clean.id, clean.scheduledFor)
+    : null;
+  const guestGuess = clean.guestCount ?? clean.property.maxOccupancy;
+  const stockEstimates = new Map(
+    stockItems.map((level) => [level.id, estimateStockUsage(nights, guestGuess, level)]),
+  );
+
   const step =
     clean.status === "PENDING"
       ? 0
@@ -226,39 +239,57 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
                 </p>
               </div>
 
-              {stockItems.map((level) => (
-                <div key={level.id} className="flex items-end gap-3 border-t border-black/5 pt-3">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{level.stockItem.name}</p>
-                    <p className="text-xs text-zinc-500">
-                      Par {level.parQty}
-                      {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""} · last known{" "}
-                      {level.onHandQty}
-                    </p>
+              {stockItems.map((level) => {
+                const estimate = stockEstimates.get(level.id) ?? null;
+                return (
+                  <div key={level.id} className="flex items-end gap-3 border-t border-black/5 pt-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{level.stockItem.name}</p>
+                      <p className="text-xs text-zinc-500">
+                        Par {level.parQty}
+                        {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
+                        {estimate ? (
+                          <>
+                            {" "}
+                            · estimated {estimate.estimatedRemaining} left ({estimate.guestCount}{" "}
+                            {estimate.guestCount === 1 ? "guest" : "guests"} ×{" "}
+                            {estimate.nights} {estimate.nights === 1 ? "night" : "nights"})
+                          </>
+                        ) : (
+                          <> · last known {level.onHandQty}</>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-zinc-500">Counted</label>
+                      <input
+                        name={`counted_${level.stockItemId}`}
+                        type="number"
+                        min={0}
+                        required
+                        defaultValue={estimate?.estimatedRemaining ?? level.onHandQty}
+                        className={`${inputCompact} w-20`}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-zinc-500">Restocked</label>
+                      <input
+                        name={`restocked_${level.stockItemId}`}
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        className={`${inputCompact} w-20`}
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-zinc-500">Counted</label>
-                    <input
-                      name={`counted_${level.stockItemId}`}
-                      type="number"
-                      min={0}
-                      required
-                      defaultValue={level.onHandQty}
-                      className={`${inputCompact} w-20`}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-zinc-500">Restocked</label>
-                    <input
-                      name={`restocked_${level.stockItemId}`}
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      className={`${inputCompact} w-20`}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
+              {[...stockEstimates.values()].some(Boolean) && (
+                <p className="text-xs text-zinc-500">
+                  Numbers marked &quot;estimated&quot; are a guess from guests and nights, not a
+                  count — check the shelf and adjust if it&apos;s off.
+                </p>
+              )}
 
               <button type="submit" className={`w-full ${button("primary", "lg")}`}>
                 Save stock count

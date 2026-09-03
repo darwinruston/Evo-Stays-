@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
-import { isRunningLow } from "@/lib/stock";
+import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import {
   addPropertyPhotos,
@@ -168,13 +168,13 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       className={`${inputCompact} w-20`}
                     />
                   </div>
-                  {isRunningLow(level) && <span className={badge("solid")}>Running low</span>}
+                  <StockLevelIndicator level={level} />
                   <button type="submit" className={button("secondary", "sm")}>
                     Save
                   </button>
                 </form>
                 <form action={removePropertyStockLevel.bind(null, property.id, level.id)} className="mt-2">
-                  <button type="submit" className={button("ghost", "sm")}>
+                  <button type="submit" className={button("danger", "sm")}>
                     Remove from this property
                   </button>
                 </form>

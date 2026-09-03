@@ -12,6 +12,15 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
+// Rate fields are optional and can be fractional (e.g. 0.5 rolls per guest
+// per night), unlike the plain-count int() helpers used elsewhere.
+function rate(formData: FormData, key: string): number | null {
+  const raw = str(formData, key);
+  if (raw === null) return null;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 export async function createStockItem(formData: FormData) {
   await requireStaff();
 
@@ -19,7 +28,7 @@ export async function createStockItem(formData: FormData) {
   if (!name) throw new Error("Name is required");
 
   await prisma.stockItem.create({
-    data: { name, unit: str(formData, "unit") },
+    data: { name, unit: str(formData, "unit"), usagePerGuestNight: rate(formData, "usagePerGuestNight") },
   });
 
   revalidatePath("/admin/stock-items");
@@ -37,6 +46,7 @@ export async function updateStockItem(id: string, formData: FormData) {
     data: {
       name,
       unit: str(formData, "unit"),
+      usagePerGuestNight: rate(formData, "usagePerGuestNight"),
       active: formData.get("active") === "on",
     },
   });

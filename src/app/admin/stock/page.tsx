@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { isRunningLow } from "@/lib/stock";
-import { badge, card } from "@/lib/ui";
+import { StockLevelIndicator } from "@/components/StockLevelIndicator";
+import { card } from "@/lib/ui";
 
 export const metadata = { title: "Stock" };
 
@@ -51,11 +52,11 @@ export default async function StockOverviewPage() {
                       {propertyDisplayName(level.property)} · {level.property.client.name}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-3">
                     <span className="text-sm text-zinc-500">
                       {level.onHandQty} / {level.parQty}
                     </span>
-                    <span className={badge("solid")}>Running low</span>
+                    <StockLevelIndicator level={level} />
                   </div>
                 </Link>
               </li>

@@ -7,7 +7,7 @@ import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
-import { isRunningLow } from "@/lib/stock";
+import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { requestClean } from "../../actions";
 
@@ -110,6 +110,19 @@ export default async function ClientPropertyPage({ params }: { params: Promise<{
           action={requestClean.bind(null, property.id)}
           className={card("flex max-w-lg flex-col gap-3 p-4")}
         >
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="guestCount" className="text-sm font-medium">
+              Guests
+            </label>
+            <input
+              id="guestCount"
+              name="guestCount"
+              type="number"
+              min={0}
+              placeholder={property.maxOccupancy ? String(property.maxOccupancy) : undefined}
+              className={`${inputCompact} w-24`}
+            />
+          </div>
           <textarea
             name="clientNote"
             rows={3}
@@ -134,12 +147,12 @@ export default async function ClientPropertyPage({ params }: { params: Promise<{
             {property.stockLevels.map((level) => (
               <li key={level.id} className="flex items-center justify-between gap-4 py-2 text-sm">
                 <span>{level.stockItem.name}</span>
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-3">
                   <span className="text-zinc-500">
                     {level.onHandQty} / {level.parQty}
                     {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
                   </span>
-                  {isRunningLow(level) && <span className={badge("solid")}>Running low</span>}
+                  <StockLevelIndicator level={level} />
                 </span>
               </li>
             ))}

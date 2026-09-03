@@ -7,6 +7,7 @@ type CleanFields = {
   propertyId: string;
   assignedToId: string | null;
   scheduledFor: Date | null;
+  guestCount: number | null;
   instructions: string | null;
   status: string;
 };
@@ -20,6 +21,7 @@ export function CleanForm({
   properties,
   cleaners,
   defaultPropertyId,
+  propertyMaxOccupancy,
   submitLabel,
 }: {
   action: (formData: FormData) => void;
@@ -27,6 +29,10 @@ export function CleanForm({
   properties: { id: string; name: string | null; address: string; client: { name: string } }[];
   cleaners: { id: string; name: string }[];
   defaultPropertyId?: string;
+  // Only known once a property is fixed (i.e. editing) -- the create form's
+  // property is still a dropdown at render time, so its guest field just
+  // gets a generic placeholder instead of a per-property one.
+  propertyMaxOccupancy?: number | null;
   submitLabel: string;
 }) {
   return (
@@ -90,6 +96,25 @@ export function CleanForm({
           className={inputCompact}
         />
         <p className="text-xs text-zinc-500">Leave blank to schedule it later.</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="guestCount" className="text-sm font-medium">
+          Guests
+        </label>
+        <input
+          id="guestCount"
+          name="guestCount"
+          type="number"
+          min={0}
+          defaultValue={clean?.guestCount ?? ""}
+          placeholder={propertyMaxOccupancy ? String(propertyMaxOccupancy) : "e.g. 4"}
+          className={`${inputCompact} w-24`}
+        />
+        <p className="text-xs text-zinc-500">
+          Optional. Feeds the stock estimate a cleaner sees on site — leave blank and it falls
+          back to the property&apos;s max occupancy.
+        </p>
       </div>
 
       <div className="flex flex-col gap-1.5">

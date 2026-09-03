@@ -23,6 +23,13 @@ function dateTime(formData: FormData, key: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function int(formData: FormData, key: string): number | null {
+  const raw = str(formData, key);
+  if (raw === null) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 export async function createClean(formData: FormData) {
   const session = await requireStaff();
 
@@ -40,6 +47,7 @@ export async function createClean(formData: FormData) {
       assignedToId,
       createdById: session.user.id,
       scheduledFor,
+      guestCount: int(formData, "guestCount"),
       instructions: str(formData, "instructions"),
     },
   });
@@ -60,6 +68,7 @@ export async function updateClean(id: string, formData: FormData) {
     data: {
       assignedToId: str(formData, "assignedToId"),
       scheduledFor,
+      guestCount: int(formData, "guestCount"),
       instructions: str(formData, "instructions"),
       // Only PENDING/CANCELLED are settable by staff. IN_PROGRESS and
       // COMPLETED are owned by the cleaner's check-in/check-out, and letting

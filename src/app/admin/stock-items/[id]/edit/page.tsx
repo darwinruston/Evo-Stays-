@@ -41,6 +41,25 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
           <input id="unit" name="unit" defaultValue={item.unit ?? ""} className={inputCompact} />
         </div>
 
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="usagePerGuestNight" className="text-sm font-medium">
+            Usage per guest per night
+          </label>
+          <input
+            id="usagePerGuestNight"
+            name="usagePerGuestNight"
+            type="number"
+            min={0}
+            step="0.1"
+            defaultValue={item.usagePerGuestNight ?? ""}
+            className={inputCompact}
+          />
+          <p className="text-xs text-zinc-500">
+            Optional. When set, the cleaner&apos;s stock count starts pre-filled with an estimate
+            instead of the last known figure.
+          </p>
+        </div>
+
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={item.active} />
           Active — shows up when configuring a property&apos;s par levels

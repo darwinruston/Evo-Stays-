@@ -78,6 +78,10 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
           <span className="text-zinc-500">Cleaner</span>
           <span>{clean.assignedTo?.name ?? "Unassigned"}</span>
         </div>
+        <div className="flex justify-between gap-6 py-2 text-sm">
+          <span className="text-zinc-500">Guests</span>
+          <span>{clean.guestCount ?? "Not set"}</span>
+        </div>
       </div>
 
       {clean.requestedByClient && (

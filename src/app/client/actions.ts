@@ -11,6 +11,13 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
+function int(formData: FormData, key: string): number | null {
+  const raw = str(formData, key);
+  if (raw === null) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 // A host asking for a turnover at one of their own places. Deliberately
 // creates an unscheduled, unassigned Clean: picking the slot and the cleaner
 // is an operations decision, so this lands in the admin list as a request to
@@ -32,6 +39,7 @@ export async function requestClean(propertyId: string, formData: FormData) {
       propertyId: property.id,
       requestedByClientId: clientId,
       clientNote: str(formData, "clientNote"),
+      guestCount: int(formData, "guestCount"),
     },
   });
 

@@ -71,8 +71,8 @@ enum PropertyType {
 // bath count, and how many guests it sleeps -- rather than floor area, which
 // is what the sibling app's quoting model needed.
 model Property {
-  id            String          @id @default(cuid())
-  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id            String               @id @default(cuid())
+  client        Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientId      String
   // The listing name ("Riverside Loft"). Falls back to a shortened address
   // when not set -- see src/lib/address.ts.
@@ -82,7 +82,7 @@ model Property {
   // freehand. Null if never matched to a location.
   latitude      Float?
   longitude     Float?
-  type          PropertyType    @default(APARTMENT)
+  type          PropertyType         @default(APARTMENT)
   bedrooms      Int?
   bathrooms     Int?
   maxOccupancy  Int?
@@ -96,8 +96,8 @@ model Property {
   images        PropertyImage[]
   cleans        Clean[]
   stockLevels   PropertyStockLevel[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@index([clientId])
 }
@@ -148,6 +148,10 @@ model Clean {
   status              CleanStatus @default(PENDING)
   // Null means requested but not yet given a slot.
   scheduledFor        DateTime?
+  // How many guests just stayed -- the input the stock estimate is built
+  // from (see src/lib/stockEstimate.ts). Optional: without it there's simply
+  // no estimate, the same as an item with no usagePerGuestNight configured.
+  guestCount          Int?
   // Set on check-in; copied onto the CleanLog at check-out (the log doesn't
   // exist yet at check-in time).
   arrivedAt           DateTime?
@@ -164,17 +168,17 @@ model Clean {
 // job (which can be rescheduled, reassigned, cancelled) stays distinct from
 // what actually happened on site.
 model CleanLog {
-  id           String       @id @default(cuid())
-  clean        Clean        @relation(fields: [cleanId], references: [id], onDelete: Cascade)
-  cleanId      String       @unique
-  recordedBy   User         @relation(fields: [recordedById], references: [id])
+  id           String          @id @default(cuid())
+  clean        Clean           @relation(fields: [cleanId], references: [id], onDelete: Cascade)
+  cleanId      String          @unique
+  recordedBy   User            @relation(fields: [recordedById], references: [id])
   recordedById String
   note         String?
   arrivedAt    DateTime?
   departedAt   DateTime?
   photos       CleanPhoto[]
   stockUsage   StockUsageLog[]
-  createdAt    DateTime     @default(now())
+  createdAt    DateTime        @default(now())
 }
 
 enum PhotoStage {
@@ -201,16 +205,20 @@ model CleanPhoto {
 // items with usage history are hidden rather than deleted, see the guard in
 // src/app/admin/stock-items/actions.ts.
 model StockItem {
-  id        String               @id @default(cuid())
-  name      String               @unique
+  id                 String               @id @default(cuid())
+  name               String               @unique
   // Free label for what's being counted -- "roll", "bottle", "sachet". Shown
   // next to the number, never used in arithmetic.
-  unit      String?
-  active    Boolean              @default(true)
-  levels    PropertyStockLevel[]
-  usage     StockUsageLog[]
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  unit               String?
+  // Expected consumption per guest per night, e.g. 0.5 loo rolls. Optional --
+  // an item with no rate set gets no auto-estimate, just today's "last known"
+  // default. See src/lib/stockEstimate.ts.
+  usagePerGuestNight Float?
+  active             Boolean              @default(true)
+  levels             PropertyStockLevel[]
+  usage              StockUsageLog[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 }
 
 // One item, one property: what should be on hand (parQty) and what actually

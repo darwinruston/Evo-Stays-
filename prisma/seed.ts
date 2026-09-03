@@ -186,15 +186,21 @@ async function main() {
 
   // A starter catalogue and one property's par levels -- bin bags seeded
   // below par on purpose, so the "running low" view has something to show
-  // without needing a real clean to happen first.
+  // without needing a real clean to happen first. usagePerGuestNight is set
+  // on the two items where consumption genuinely tracks guest-nights (paper
+  // goods); hand soap is left unrated since a bottle usually lasts several
+  // stays regardless of headcount, which is exactly the "no rate configured"
+  // case the estimate falls back around.
   const stockItemDefs = [
-    { name: "Toilet roll", unit: "roll" },
-    { name: "Bin bags", unit: "bag" },
+    { name: "Toilet roll", unit: "roll", usagePerGuestNight: 0.5 },
+    { name: "Bin bags", unit: "bag", usagePerGuestNight: 0.15 },
     { name: "Hand soap", unit: "bottle" },
-    { name: "Welcome tea/coffee", unit: "sachet" },
+    { name: "Welcome tea/coffee", unit: "sachet", usagePerGuestNight: 0.3 },
   ];
   const stockItems = await Promise.all(
-    stockItemDefs.map((s) => prisma.stockItem.upsert({ where: { name: s.name }, update: {}, create: s })),
+    stockItemDefs.map((s) =>
+      prisma.stockItem.upsert({ where: { name: s.name }, update: {}, create: s }),
+    ),
   );
   const [toiletRoll, binBags, handSoap] = stockItems;
 
