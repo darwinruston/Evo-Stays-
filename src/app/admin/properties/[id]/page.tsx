@@ -71,64 +71,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       <PropertyDetails property={property} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">Photos ({property.images.length})</h2>
-
-        {property.images.length > 0 && (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {property.images.map((img) => (
-              <li key={img.id} className={card("overflow-hidden")}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/photos/${img.path}`}
-                  alt={propertyDisplayName(property)}
-                  className="h-32 w-full object-cover"
-                />
-                <div className="flex items-center justify-between gap-2 p-2">
-                  {img.isPrimary ? (
-                    <span className={badge("solid")}>Cover</span>
-                  ) : (
-                    <form action={setPrimaryPhoto.bind(null, property.id, img.id)}>
-                      <button type="submit" className={button("ghost", "sm")}>
-                        Make cover
-                      </button>
-                    </form>
-                  )}
-                  <form action={deletePropertyPhoto.bind(null, property.id, img.id)}>
-                    <button type="submit" className={button("ghost", "sm")} aria-label="Delete photo">
-                      Delete
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <form
-          action={addPropertyPhotos.bind(null, property.id)}
-          className={card("flex max-w-lg flex-col gap-3 p-4")}
-        >
-          <label htmlFor="photos" className="text-sm font-medium">
-            Add photos
-          </label>
-          <input
-            id="photos"
-            name="photos"
-            type="file"
-            accept="image/*"
-            multiple
-            required
-            className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-          />
-          <div>
-            <button type="submit" className={button("primary", "sm")}>
-              Upload
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-zinc-500">
           Stock ({property.stockLevels.length})
         </h2>
@@ -248,6 +190,64 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             )}
           </p>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-zinc-500">Photos ({property.images.length})</h2>
+
+        {property.images.length > 0 && (
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {property.images.map((img) => (
+              <li key={img.id} className={card("overflow-hidden")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/photos/${img.path}`}
+                  alt={propertyDisplayName(property)}
+                  className="h-32 w-full object-cover"
+                />
+                <div className="flex items-center justify-between gap-2 p-2">
+                  {img.isPrimary ? (
+                    <span className={badge("solid")}>Cover</span>
+                  ) : (
+                    <form action={setPrimaryPhoto.bind(null, property.id, img.id)}>
+                      <button type="submit" className={button("ghost", "sm")}>
+                        Make cover
+                      </button>
+                    </form>
+                  )}
+                  <form action={deletePropertyPhoto.bind(null, property.id, img.id)}>
+                    <button type="submit" className={button("ghost", "sm")} aria-label="Delete photo">
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form
+          action={addPropertyPhotos.bind(null, property.id)}
+          className={card("flex max-w-lg flex-col gap-3 p-4")}
+        >
+          <label htmlFor="photos" className="text-sm font-medium">
+            Add photos
+          </label>
+          <input
+            id="photos"
+            name="photos"
+            type="file"
+            accept="image/*"
+            multiple
+            required
+            className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
+          />
+          <div>
+            <button type="submit" className={button("primary", "sm")}>
+              Upload
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   );
