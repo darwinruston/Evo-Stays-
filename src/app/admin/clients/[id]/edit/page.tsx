@@ -33,8 +33,8 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
         <h2 className="text-sm font-medium text-zinc-500">Delete</h2>
         <p className="text-sm text-zinc-600">
           Removes this client along with their {client._count.properties}{" "}
-          {client._count.properties === 1 ? "property" : "properties"}, all property photos, and
-          any portal logins. This cannot be undone.
+          {client._count.properties === 1 ? "property" : "properties"} and all property photos.
+          This cannot be undone.
         </p>
         <form action={deleteClient.bind(null, client.id)}>
           <button type="submit" className={button("danger", "sm")}>

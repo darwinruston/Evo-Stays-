@@ -14,18 +14,17 @@ const CONTENT_TYPES: Record<string, string> = {
   ".heif": "image/heif",
 };
 
-// Property photos are client-sensitive: they show the inside of someone's
-// home. Only staff read them unconditionally -- a CLIENT is limited to their
-// own portfolio, and a CLEANER to properties they're assigned at. Without
-// this, guessing a path would walk straight past the scoping the /client and
-// /cleaner pages enforce.
+// Property photos show the inside of someone's home, so a CLEANER only
+// reads photos of properties they're assigned a clean at -- staff read
+// everything. Without this, guessing a path would walk straight past the
+// scoping the /cleaner pages enforce.
 //
 // This is a deliberate tightening of the sibling app's "any signed-in user
-// may read any photo" rule, which was written for a product with no client
-// logins and no reason to fence its field staff.
+// may read any photo" rule, which was written for a product with no reason
+// to fence its field staff.
 //
 // Denials return 404 rather than 403 so the response doesn't confirm that
-// some other client's property id exists.
+// some other property's id exists.
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -46,20 +45,6 @@ export async function GET(
   // before/after shots live under the same root, so this one check covers
   // PropertyImage and CleanPhoto alike.
   const propertyId = segments[0];
-
-  if (session.user.role === "CLIENT") {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { clientId: true },
-    });
-    if (!user?.clientId) return new NextResponse("Not found", { status: 404 });
-
-    const owned = await prisma.property.findFirst({
-      where: { id: propertyId, clientId: user.clientId },
-      select: { id: true },
-    });
-    if (!owned) return new NextResponse("Not found", { status: 404 });
-  }
 
   if (session.user.role === "CLEANER") {
     const assigned = await prisma.clean.findFirst({

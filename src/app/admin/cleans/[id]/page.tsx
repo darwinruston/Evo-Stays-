@@ -26,7 +26,6 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
     include: {
       property: { select: { id: true, name: true, address: true, client: { select: { id: true, name: true } } } },
       assignedTo: { select: { name: true } },
-      requestedByClient: { select: { name: true } },
       log: {
         include: {
           recordedBy: { select: { name: true } },
@@ -83,17 +82,6 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
           <span>{clean.guestCount ?? "Not set"}</span>
         </div>
       </div>
-
-      {clean.requestedByClient && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-zinc-500">
-            Requested by {clean.requestedByClient.name}
-          </h2>
-          {clean.clientNote && (
-            <p className="text-sm whitespace-pre-line text-zinc-600">{clean.clientNote}</p>
-          )}
-        </section>
-      )}
 
       {clean.instructions && (
         <section className="flex flex-col gap-2">

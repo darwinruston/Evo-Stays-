@@ -22,9 +22,10 @@ async function main() {
     });
   }
 
-  // Two clients, each with their own login. Two rather than one on purpose:
-  // the thing most worth testing in this app is that one host cannot reach
-  // the other's portfolio, and that needs a second portfolio to fail against.
+  // Two clients (contact records only -- no login, see prisma/schema.prisma).
+  // Two rather than one on purpose: the thing most worth testing in this app
+  // is that a cleaner can't reach a property they're not assigned at, which
+  // needs a second portfolio to fail against.
   const harbour = await prisma.client.upsert({
     where: { id: "seed-client-harbour" },
     update: {},
@@ -84,26 +85,6 @@ async function main() {
       },
     },
   });
-
-  const clientLogins: { name: string; email: string; clientId: string }[] = [
-    { name: "Harbour Lets", email: "client@evostays.test", clientId: harbour.id },
-    { name: "Peak Retreats", email: "client2@evostays.test", clientId: peak.id },
-  ];
-
-  for (const c of clientLogins) {
-    const passwordHash = await bcrypt.hash("password123", 10);
-    await prisma.user.upsert({
-      where: { email: c.email },
-      update: { clientId: c.clientId },
-      create: {
-        name: c.name,
-        email: c.email,
-        passwordHash,
-        role: Role.CLIENT,
-        clientId: c.clientId,
-      },
-    });
-  }
 
   // Cleans. cleaner@ works the Harbour Lets places; cleaner2@ has the Peak
   // Retreats cottage, so cleaner@ has a property they must not be able to
@@ -223,9 +204,7 @@ async function main() {
 
   console.log(
     "Seeded logins:",
-    [...staff.map((u) => u.email), ...clientLogins.map((c) => c.email)]
-      .map((e) => `${e} / password123`)
-      .join(", "),
+    staff.map((u) => `${u.email} / password123`).join(", "),
   );
   console.log("Seeded clients:", [harbour.name, peak.name].join(", "));
   console.log("Seeded cleans:", cleans.length);

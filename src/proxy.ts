@@ -2,8 +2,8 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
 // Authenticated-or-not only. Which role may see which area is decided by the
-// requireStaff/requireCleaner/requireClient guards in src/lib/authz.ts,
-// called from each area's layout and again in its pages and actions.
+// requireStaff/requireCleaner guards in src/lib/authz.ts, called from each
+// area's layout and again in its pages and actions.
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isLoginPage = req.nextUrl.pathname === "/login";

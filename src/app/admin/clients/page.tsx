@@ -11,7 +11,7 @@ export default async function ClientsPage() {
 
   const clients = await prisma.client.findMany({
     orderBy: { name: "asc" },
-    include: { _count: { select: { properties: true, users: true } } },
+    include: { _count: { select: { properties: true } } },
   });
 
   return (
@@ -43,7 +43,6 @@ export default async function ClientsPage() {
                 </div>
                 <span className="shrink-0 text-sm text-zinc-500">
                   {c._count.properties} {c._count.properties === 1 ? "property" : "properties"}
-                  {c._count.users === 0 ? " · no login" : ""}
                 </span>
               </Link>
             </li>

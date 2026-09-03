@@ -8,6 +8,5 @@ export default async function Home() {
   if (!session?.user) redirect("/login");
 
   if (session.user.role === "CLEANER") redirect("/cleaner");
-  if (session.user.role === "CLIENT") redirect("/client");
   redirect("/admin");
 }

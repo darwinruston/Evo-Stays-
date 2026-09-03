@@ -15,8 +15,6 @@ enum Role {
   // Does the turnovers: works a schedule of cleans on site, records stock
   // counts. The equivalent of Evo Services' FIELD_EMPLOYEE.
   CLEANER
-  // A short-let owner/host. Signs in to see their own portfolio only.
-  CLIENT
 }
 
 model User {
@@ -25,23 +23,17 @@ model User {
   email          String     @unique
   passwordHash   String
   role           Role       @default(CLEANER)
-  // Set only for CLIENT logins: which portfolio this person can see. Kept as
-  // a nullable FK on User (rather than auth fields on Client) so there is one
-  // identity table and one authorize() lookup, and so a management company
-  // can later have several logins against the same Client with no migration.
-  client         Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId       String?
   assignedCleans Clean[]    @relation("CleanAssignee")
   createdCleans  Clean[]    @relation("CleanCreator")
   cleanLogs      CleanLog[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
-
-  @@index([clientId])
 }
 
-// The host/owner an Evo Stays portfolio belongs to. Contact record first;
-// gains portal logins via User.clientId when one is issued.
+// The property owner/management client an Evo Stays portfolio belongs to.
+// This app is operated by a management company on the client's behalf --
+// there's no client login, just a contact record staff manage, same role
+// Client plays in the sibling Evo Services app.
 model Client {
   id         String     @id @default(cuid())
   name       String
@@ -52,9 +44,6 @@ model Client {
   // initials placeholder until one is set.
   photoPath  String?
   properties Property[]
-  users      User[]
-  // Cleans this client asked for themselves, rather than staff scheduling.
-  requested  Clean[]    @relation("CleanRequestedBy")
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -129,35 +118,29 @@ enum CleanStatus {
 // property only where they hold a Clean (see cleanerPropertyWhere in
 // src/lib/authz.ts), since access notes carry key safe codes.
 model Clean {
-  id                  String      @id @default(cuid())
-  property            Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId          String
+  id           String      @id @default(cuid())
+  property     Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId   String
   // Null when auto-assignment found nobody -- shows as "Unassigned" until
   // an admin picks someone.
-  assignedTo          User?       @relation("CleanAssignee", fields: [assignedToId], references: [id])
-  assignedToId        String?
-  // Null for a clean the client requested themselves; there's no staff
-  // member to credit until someone picks it up.
-  createdBy           User?       @relation("CleanCreator", fields: [createdById], references: [id])
-  createdById         String?
-  requestedByClient   Client?     @relation("CleanRequestedBy", fields: [requestedByClientId], references: [id], onDelete: Cascade)
-  requestedByClientId String?
-  // What the client said when requesting. Shown to staff, never edited by them.
-  clientNote          String?
-  instructions        String?
-  status              CleanStatus @default(PENDING)
-  // Null means requested but not yet given a slot.
-  scheduledFor        DateTime?
+  assignedTo   User?       @relation("CleanAssignee", fields: [assignedToId], references: [id])
+  assignedToId String?
+  createdBy    User        @relation("CleanCreator", fields: [createdById], references: [id])
+  createdById  String
+  instructions String?
+  status       CleanStatus @default(PENDING)
+  // Null means created but not yet given a slot.
+  scheduledFor DateTime?
   // How many guests just stayed -- the input the stock estimate is built
   // from (see src/lib/stockEstimate.ts). Optional: without it there's simply
   // no estimate, the same as an item with no usagePerGuestNight configured.
-  guestCount          Int?
+  guestCount   Int?
   // Set on check-in; copied onto the CleanLog at check-out (the log doesn't
   // exist yet at check-in time).
-  arrivedAt           DateTime?
-  log                 CleanLog?
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  arrivedAt    DateTime?
+  log          CleanLog?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([propertyId])
   @@index([assignedToId])

@@ -22,9 +22,7 @@ export default async function CleansPage() {
     id: c.id,
     href: `/admin/cleans/${c.id}`,
     title: propertyDisplayName(c.property),
-    subtitle: `${c.property.client.name} · ${c.assignedTo?.name ?? "Unassigned"}${
-      c.requestedByClientId ? " · client requested" : ""
-    }`,
+    subtitle: `${c.property.client.name} · ${c.assignedTo?.name ?? "Unassigned"}`,
     status: c.status,
     scheduledFor: c.scheduledFor,
   }));

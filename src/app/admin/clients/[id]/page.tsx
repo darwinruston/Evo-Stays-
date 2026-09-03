@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
 import { propertyDisplayName } from "@/lib/address";
-import { button, card, inputCompact } from "@/lib/ui";
-import { createClientLogin, deleteClientLogin } from "../actions";
+import { button, card } from "@/lib/ui";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,7 +20,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     where: { id },
     include: {
       properties: { orderBy: { createdAt: "asc" } },
-      users: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!client) notFound();
@@ -79,59 +77,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             ))}
           </ul>
         )}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">Portal access</h2>
-        <p className="text-sm text-zinc-600">
-          Logins that can sign in and see this client&apos;s portfolio — and nothing else.
-        </p>
-
-        {client.users.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {client.users.map((u) => (
-              <li key={u.id} className={card("flex items-center justify-between p-4")}>
-                <div>
-                  <p className="font-medium">{u.name}</p>
-                  <p className="text-sm text-zinc-500">{u.email}</p>
-                </div>
-                <form action={deleteClientLogin.bind(null, client.id, u.id)}>
-                  <button type="submit" className={button("danger", "sm")}>
-                    Remove
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <form
-          action={createClientLogin.bind(null, client.id)}
-          className={card("flex max-w-lg flex-col gap-3 p-4")}
-        >
-          <p className="text-sm font-medium">Add a login</p>
-          <input name="loginName" required placeholder="Contact name" className={inputCompact} />
-          <input
-            name="loginEmail"
-            type="email"
-            required
-            placeholder="Email address"
-            className={inputCompact}
-          />
-          <input
-            name="loginPassword"
-            type="password"
-            required
-            minLength={8}
-            placeholder="Initial password (min 8 characters)"
-            className={inputCompact}
-          />
-          <div>
-            <button type="submit" className={button("primary", "sm")}>
-              Create login
-            </button>
-          </div>
-        </form>
       </section>
     </div>
   );

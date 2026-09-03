@@ -9,13 +9,13 @@ export const metadata = { title: "Overview" };
 export default async function AdminHomePage() {
   const session = await requireStaff();
 
-  const [clients, properties, upcoming, requests, stockLevels] = await Promise.all([
+  const [clients, properties, upcoming, unscheduled, stockLevels] = await Promise.all([
     prisma.client.count(),
     prisma.property.count(),
     prisma.clean.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
-    // Client-requested cleans still waiting for a slot -- the one number here
-    // that means someone is waiting on us.
-    prisma.clean.count({ where: { requestedByClientId: { not: null }, scheduledFor: null } }),
+    // Still needs a slot -- the one number here that means something is
+    // waiting to be scheduled.
+    prisma.clean.count({ where: { status: "PENDING", scheduledFor: null } }),
     // "Low" compares two columns on the same row, which SQLite can't express
     // in a where clause without raw SQL -- filtered in JS instead, see
     // src/lib/stock.ts.
@@ -28,7 +28,7 @@ export default async function AdminHomePage() {
     { href: "/admin/clients", label: "Clients", value: clients },
     { href: "/admin/properties", label: "Properties", value: properties },
     { href: "/admin/cleans", label: "Cleans outstanding", value: upcoming },
-    { href: "/admin/cleans", label: "Unscheduled requests", value: requests },
+    { href: "/admin/cleans", label: "Unscheduled cleans", value: unscheduled },
     { href: "/admin/stock", label: "Properties running low", value: lowProperties },
   ];
 
