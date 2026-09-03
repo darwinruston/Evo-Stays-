@@ -5,13 +5,16 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
+import { StockLevelToggle } from "@/components/StockLevelToggle";
+import { stockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import {
   addPropertyPhotos,
   setPrimaryPhoto,
   deletePropertyPhoto,
   addPropertyStockLevel,
-  updatePropertyStockLevel,
+  updatePropertyStockPar,
+  setPropertyStockLevel,
   removePropertyStockLevel,
 } from "../actions";
 
@@ -130,59 +133,57 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           Stock ({property.stockLevels.length})
         </h2>
         <p className="text-sm text-zinc-600">
-          Par levels a cleaner is asked to count during a turnover. On hand updates from what they
-          record — set it here only to correct it or reflect a delivery outside a visit.
-        </p>
-        <p className="text-sm text-zinc-500">
-          Set par to what a full restock brings this property up to — a pack or order size (e.g.
-          6 hand soaps, 50 bin bags) — not the bare minimum needed. High/Medium/Low reads as
-          thirds of that number, so a par set too close to the minimum makes the scale feel off.
+          Nobody counts bin bags exactly, before or after topping them up — set the level the same
+          way a cleaner records it. Par is the one real number here: what a full restock brings
+          this property up to, e.g. a pack or order size (6 hand soaps, 50 bin bags), not the bare
+          minimum needed.
         </p>
 
         {property.stockLevels.length > 0 && (
           <ul className="flex flex-col gap-2">
             {property.stockLevels.map((level) => (
-              <li key={level.id} className={card("p-4")}>
-                <form
-                  action={updatePropertyStockLevel.bind(null, property.id, level.id)}
-                  className="flex flex-wrap items-end gap-3"
-                >
-                  <div className="min-w-32 flex-1">
+              <li key={level.id} className={card("flex flex-col gap-3 p-4")}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
                     <p className="font-medium">{level.stockItem.name}</p>
-                    {level.stockItem.unit && (
-                      <p className="text-xs text-zinc-500">{level.stockItem.unit}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-zinc-500">On hand</label>
-                    <input
-                      name="onHandQty"
-                      type="number"
-                      min={0}
-                      defaultValue={level.onHandQty}
-                      className={`${inputCompact} w-20`}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-zinc-500">Par</label>
-                    <input
-                      name="parQty"
-                      type="number"
-                      min={1}
-                      defaultValue={level.parQty}
-                      className={`${inputCompact} w-20`}
-                    />
+                    <p className="text-xs text-zinc-500">
+                      Par {level.parQty}
+                      {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
+                    </p>
                   </div>
                   <StockLevelIndicator level={level} />
-                  <button type="submit" className={button("secondary", "sm")}>
-                    Save
-                  </button>
-                </form>
-                <form action={removePropertyStockLevel.bind(null, property.id, level.id)} className="mt-2">
-                  <button type="submit" className={button("danger", "sm")}>
-                    Remove from this property
-                  </button>
-                </form>
+                </div>
+
+                <StockLevelToggle
+                  action={setPropertyStockLevel.bind(null, property.id, level.id)}
+                  current={stockLevelBand(level)}
+                />
+
+                <div className="flex flex-wrap items-center gap-3 border-t border-black/5 pt-3">
+                  <form
+                    action={updatePropertyStockPar.bind(null, property.id, level.id)}
+                    className="flex items-end gap-2"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-zinc-500">Par</label>
+                      <input
+                        name="parQty"
+                        type="number"
+                        min={1}
+                        defaultValue={level.parQty}
+                        className={`${inputCompact} w-20`}
+                      />
+                    </div>
+                    <button type="submit" className={button("secondary", "sm")}>
+                      Save
+                    </button>
+                  </form>
+                  <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
+                    <button type="submit" className={button("danger", "sm")}>
+                      Remove from this property
+                    </button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>
