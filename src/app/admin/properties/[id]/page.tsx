@@ -159,31 +159,40 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   current={stockLevelBand(level)}
                 />
 
-                <div className="flex flex-wrap items-center gap-3 border-t border-black/5 pt-3">
-                  <form
-                    action={updatePropertyStockPar.bind(null, property.id, level.id)}
-                    className="flex items-end gap-2"
-                  >
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-zinc-500">Par</label>
-                      <input
-                        name="parQty"
-                        type="number"
-                        min={1}
-                        defaultValue={level.parQty}
-                        className={`${inputCompact} w-20`}
-                      />
-                    </div>
-                    <button type="submit" className={button("secondary", "sm")}>
-                      Save
-                    </button>
-                  </form>
-                  <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
-                    <button type="submit" className={button("danger", "sm")}>
-                      Remove from this property
-                    </button>
-                  </form>
-                </div>
+                {/* Par is a one-time setup fact (a pack or order size), not
+                    something that needs adjusting on every visit to this
+                    page -- tucked away by default so the level toggle above
+                    is what actually draws the eye. */}
+                <details className="border-t border-black/5 pt-3">
+                  <summary className="cursor-pointer text-xs text-zinc-500">
+                    Par settings
+                  </summary>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <form
+                      action={updatePropertyStockPar.bind(null, property.id, level.id)}
+                      className="flex items-end gap-2"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Par</label>
+                        <input
+                          name="parQty"
+                          type="number"
+                          min={1}
+                          defaultValue={level.parQty}
+                          className={`${inputCompact} w-20`}
+                        />
+                      </div>
+                      <button type="submit" className={button("secondary", "sm")}>
+                        Save
+                      </button>
+                    </form>
+                    <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
+                      <button type="submit" className={button("danger", "sm")}>
+                        Remove from this property
+                      </button>
+                    </form>
+                  </div>
+                </details>
               </li>
             ))}
           </ul>
