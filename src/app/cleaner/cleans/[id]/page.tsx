@@ -8,9 +8,90 @@ import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
 import { badge, button, card, inputCompact } from "@/lib/ui";
-import { checkInClean, completeClean } from "../../actions";
+import { checkInClean, uploadCleanPhotos, completeClean } from "../../actions";
 
 export const metadata = { title: "Clean" };
+
+const STEPS = ["Arrive", "Before", "Clean", "Finish"] as const;
+
+// The turnover runs as a forced march: one step on screen at a time, and the
+// next only appears once the current one is actually recorded. The step is
+// derived from what's been captured rather than stored on the Clean -- a
+// column would be a second source of truth that could disagree with the
+// photos themselves.
+function Progress({ current }: { current: number }) {
+  return (
+    <ol className="flex items-center gap-1.5">
+      {STEPS.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <li key={label} className="flex flex-1 flex-col gap-1.5">
+            <span
+              className={
+                "h-1 rounded-full " +
+                (done || active ? "bg-zinc-900" : "bg-black/10")
+              }
+            />
+            <span
+              className={
+                "text-[11px] " + (active ? "font-medium text-zinc-900" : "text-zinc-500")
+              }
+            >
+              {label}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function PhotoGrid({ paths, alt }: { paths: string[]; alt: string }) {
+  return (
+    <ul className="grid grid-cols-3 gap-2">
+      {paths.map((path) => (
+        <li key={path} className={card("overflow-hidden")}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/photos/${path}`} alt={alt} className="h-20 w-full object-cover" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PhotoUploadStep({
+  action,
+  heading,
+  hint,
+  submitLabel,
+}: {
+  action: (formData: FormData) => void;
+  heading: string;
+  hint: string;
+  submitLabel: string;
+}) {
+  return (
+    <form action={action} className={card("flex flex-col gap-3 p-4")}>
+      <div>
+        <h2 className="text-sm font-medium">{heading}</h2>
+        <p className="mt-1 text-sm text-zinc-600">{hint}</p>
+      </div>
+      <input
+        name="photos"
+        type="file"
+        accept="image/*"
+        multiple
+        required
+        capture="environment"
+        className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
+      />
+      <button type="submit" className={`w-full ${button("primary", "lg")}`}>
+        {submitLabel}
+      </button>
+    </form>
+  );
+}
 
 export default async function CleanerCleanPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireCleaner();
@@ -28,6 +109,12 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
   if (!clean) notFound();
 
   const title = propertyDisplayName(clean.property);
+  const photos = clean.log?.photos ?? [];
+  const before = photos.filter((p) => p.stage === "BEFORE").map((p) => p.path);
+  const after = photos.filter((p) => p.stage === "AFTER").map((p) => p.path);
+
+  const step =
+    clean.status === "PENDING" ? 0 : before.length === 0 ? 1 : after.length === 0 ? 2 : 3;
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,79 +131,105 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
         </p>
       </div>
 
-      {clean.instructions && (
+      {clean.status === "IN_PROGRESS" && <Progress current={step} />}
+
+      {clean.instructions && clean.status !== "COMPLETED" && (
         <div className={card("p-4")}>
           <h2 className="mb-1 text-sm font-medium">Instructions</h2>
           <p className="text-sm whitespace-pre-line text-zinc-600">{clean.instructions}</p>
         </div>
       )}
 
-      <PropertyDetails property={clean.property} />
-
+      {/* Step 1 -- getting in. The access details are the whole point of this
+          screen before check-in, so they lead. */}
       {clean.status === "PENDING" && (
-        <form action={checkInClean.bind(null, clean.id)}>
-          <button type="submit" className={`w-full ${button("primary", "lg")}`}>
-            Check in
-          </button>
-        </form>
+        <>
+          <PropertyDetails property={clean.property} />
+          <form action={checkInClean.bind(null, clean.id)}>
+            <button type="submit" className={`w-full ${button("primary", "lg")}`}>
+              I&apos;ve arrived — check in
+            </button>
+          </form>
+        </>
       )}
 
       {clean.status === "IN_PROGRESS" && (
-        <form action={completeClean.bind(null, clean.id)} className="flex flex-col gap-4">
+        <>
           {clean.arrivedAt && (
             <p className="text-sm text-zinc-600">
               Checked in at {formatScheduledFor(clean.arrivedAt)}.
             </p>
           )}
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="beforePhotos" className="text-sm font-medium">
-              Before photos
-            </label>
-            <input
-              id="beforePhotos"
-              name="beforePhotos"
-              type="file"
-              accept="image/*"
-              multiple
-              capture="environment"
-              className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
+          {/* Step 2 -- before photos, required before anything else opens up. */}
+          {step === 1 && (
+            <PhotoUploadStep
+              action={uploadCleanPhotos.bind(null, clean.id, "BEFORE")}
+              heading="Before photos"
+              hint="Photograph the place as you found it, before you touch anything. You'll need these before you can carry on."
+              submitLabel="Save before photos"
             />
-          </div>
+          )}
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="afterPhotos" className="text-sm font-medium">
-              After photos
-            </label>
-            <input
-              id="afterPhotos"
-              name="afterPhotos"
-              type="file"
-              accept="image/*"
-              multiple
-              capture="environment"
-              className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-            />
-          </div>
+          {/* Step 3 -- do the work, then the after shots. */}
+          {step === 2 && (
+            <>
+              <PhotoUploadStep
+                action={uploadCleanPhotos.bind(null, clean.id, "AFTER")}
+                heading="After photos"
+                hint="Once the turnover is done, photograph the finished result."
+                submitLabel="Save after photos"
+              />
+              <section className="flex flex-col gap-2">
+                <h2 className="text-sm font-medium text-zinc-500">Before ({before.length})</h2>
+                <PhotoGrid paths={before} alt={title} />
+              </section>
+            </>
+          )}
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="note" className="text-sm font-medium">
-              Notes
-            </label>
-            <textarea
-              id="note"
-              name="note"
-              rows={4}
-              required
-              placeholder="How the place was left, anything that needs following up, stock running low."
-              className={inputCompact}
-            />
-          </div>
+          {/* Step 4 -- write it up and leave. */}
+          {step === 3 && (
+            <>
+              <form
+                action={completeClean.bind(null, clean.id)}
+                className={card("flex flex-col gap-3 p-4")}
+              >
+                <div>
+                  <h2 className="text-sm font-medium">Notes</h2>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Last step — how you left it, and anything worth flagging.
+                  </p>
+                </div>
+                <textarea
+                  name="note"
+                  rows={4}
+                  required
+                  placeholder="How the place was left, anything that needs following up, stock running low."
+                  className={inputCompact}
+                />
+                <button type="submit" className={`w-full ${button("primary", "lg")}`}>
+                  Check out &amp; complete
+                </button>
+              </form>
 
-          <button type="submit" className={`w-full ${button("primary", "lg")}`}>
-            Check out &amp; complete
-          </button>
-        </form>
+              <section className="flex flex-col gap-2">
+                <h2 className="text-sm font-medium text-zinc-500">Before ({before.length})</h2>
+                <PhotoGrid paths={before} alt={title} />
+                <h2 className="mt-2 text-sm font-medium text-zinc-500">After ({after.length})</h2>
+                <PhotoGrid paths={after} alt={title} />
+              </section>
+            </>
+          )}
+
+          {/* Kept to hand throughout -- key safe codes and quirks still matter
+              mid-turnover, not just on the doorstep. */}
+          <details className="text-sm">
+            <summary className="cursor-pointer text-zinc-500">Property details</summary>
+            <div className="mt-3">
+              <PropertyDetails property={clean.property} />
+            </div>
+          </details>
+        </>
       )}
 
       {clean.status === "COMPLETED" && clean.log && (
