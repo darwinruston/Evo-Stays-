@@ -87,6 +87,12 @@ model Property {
   // codes, parking, which bin day. The cleaner reads this on site.
   accessNotes   String?
   notes         String?
+  // Floor on billable hours per visit, e.g. 2 -- a cleaner who finishes in
+  // 40 minutes because the property was left tidy still gets paid for the
+  // minimum, so there's no incentive to rush. Null means the toggle is off
+  // and invoices bill actual check-in/check-out time only. See
+  // generateInvoices in src/lib/invoices.ts.
+  minBillableHours Float?
   images        PropertyImage[]
   cleans        Clean[]
   stockLevels   PropertyStockLevel[]

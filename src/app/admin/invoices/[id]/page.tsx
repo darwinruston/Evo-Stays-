@@ -84,16 +84,23 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-zinc-500">Visits ({invoice.lines.length})</h2>
         <ul className="flex flex-col gap-2">
-          {invoice.lines.map((line) => (
-            <li key={line.id} className={card("flex items-center justify-between gap-4 p-4")}>
-              <span className="text-sm">
-                {formatScheduledFor(line.arrivedAt)} – {formatScheduledFor(line.departedAt)}
-              </span>
-              <span className="shrink-0 text-sm text-zinc-500">
-                {formatHours(line.hours)} · {formatCurrency(line.amount)}
-              </span>
-            </li>
-          ))}
+          {invoice.lines.map((line) => {
+            const actualHours = (line.departedAt.getTime() - line.arrivedAt.getTime()) / 3600000;
+            const toppedUp = line.hours > actualHours + 1 / 3600; // +1s slack for float rounding
+            return (
+              <li key={line.id} className={card("flex items-center justify-between gap-4 p-4")}>
+                <span className="text-sm">
+                  {formatScheduledFor(line.arrivedAt)} – {formatScheduledFor(line.departedAt)}
+                </span>
+                <span className="shrink-0 text-sm text-zinc-500">
+                  {formatHours(line.hours)}
+                  {toppedUp && ` (${formatHours(actualHours)} actual, topped up to minimum)`}
+                  {" · "}
+                  {formatCurrency(line.amount)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 

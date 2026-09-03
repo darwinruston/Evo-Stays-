@@ -84,7 +84,7 @@ export async function generateInvoices(
       clean: {
         include: {
           assignedTo: { select: { id: true, name: true, hourlyRate: true } },
-          property: { select: { id: true } },
+          property: { select: { id: true, minBillableHours: true } },
         },
       },
     },
@@ -95,6 +95,7 @@ export async function generateInvoices(
     cleanerName: string;
     hourlyRate: number | null;
     propertyId: string;
+    minBillableHours: number | null;
     logs: { id: string; arrivedAt: Date; departedAt: Date }[];
   };
   const groups = new Map<string, Group>();
@@ -111,6 +112,7 @@ export async function generateInvoices(
       cleanerName: cleaner.name,
       hourlyRate: cleaner.hourlyRate,
       propertyId,
+      minBillableHours: log.clean.property.minBillableHours,
       logs: [],
     };
     group.logs.push({ id: log.id, arrivedAt: log.arrivedAt!, departedAt: log.departedAt! });
@@ -129,7 +131,13 @@ export async function generateInvoices(
     }
 
     const lines = group.logs.map((log) => {
-      const hours = (log.departedAt.getTime() - log.arrivedAt.getTime()) / 3600000;
+      const actualHours = (log.departedAt.getTime() - log.arrivedAt.getTime()) / 3600000;
+      // A property can set a floor on billable hours per visit so a
+      // cleaner who finishes quickly because the place was left tidy isn't
+      // penalised for it -- arrivedAt/departedAt still record the real
+      // visit, only the billed hours are topped up.
+      const hours =
+        group.minBillableHours !== null ? Math.max(actualHours, group.minBillableHours) : actualHours;
       return {
         cleanLogId: log.id,
         arrivedAt: log.arrivedAt,

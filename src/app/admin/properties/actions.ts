@@ -24,6 +24,13 @@ function int(formData: FormData, key: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function hours(formData: FormData, key: string): number | null {
+  const raw = str(formData, key);
+  if (raw === null) return null;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function accessOptions(formData: FormData): string[] {
   return formData.getAll("accessOptions").filter((v): v is string => typeof v === "string");
 }
@@ -258,6 +265,21 @@ export async function setPropertyStockLevel(propertyId: string, levelId: string,
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/stock");
+}
+
+// The minimum-hours toggle: an empty field turns it off (invoices bill
+// actual check-in/check-out time only), a value turns it on. There's no
+// separate checkbox -- the field itself being set or not is the toggle,
+// same pattern as par being left blank on the stock item form.
+export async function updatePropertyMinBillableHours(propertyId: string, formData: FormData) {
+  await requireStaff();
+
+  await prisma.property.update({
+    where: { id: propertyId },
+    data: { minBillableHours: hours(formData, "minBillableHours") },
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
 }
 
 export async function removePropertyStockLevel(propertyId: string, levelId: string) {

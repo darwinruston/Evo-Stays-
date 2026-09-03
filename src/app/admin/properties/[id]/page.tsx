@@ -17,6 +17,7 @@ import {
   updatePropertyStockPar,
   setPropertyStockLevel,
   removePropertyStockLevel,
+  updatePropertyMinBillableHours,
 } from "../actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -195,6 +196,38 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             )}
           </p>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium text-zinc-500">Billing</h2>
+        <p className="text-sm text-zinc-600">
+          Optional floor on billed hours per visit, so a cleaner who finishes quickly because the
+          property was left in good condition isn&apos;t penalised for it — invoices bill whichever
+          is higher, actual time or this minimum. Leave blank to bill actual time only.
+        </p>
+        <form
+          action={updatePropertyMinBillableHours.bind(null, property.id)}
+          className={card("flex flex-wrap items-end gap-3 p-4")}
+        >
+          <div className="flex flex-col gap-1">
+            <label htmlFor="minBillableHours" className="text-sm font-medium">
+              Minimum hours per visit
+            </label>
+            <input
+              id="minBillableHours"
+              name="minBillableHours"
+              type="number"
+              min={0}
+              step="0.25"
+              defaultValue={property.minBillableHours ?? ""}
+              placeholder="e.g. 2"
+              className={`${inputCompact} w-28`}
+            />
+          </div>
+          <button type="submit" className={button("secondary", "sm")}>
+            Save
+          </button>
+        </form>
       </section>
 
       <section className="flex flex-col gap-3">
