@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite for local dev (zero setup), same as the sibling Evo Services app.
+  // Swap to postgresql + a real DATABASE_URL before this is hosted anywhere.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OFFICE
+  // Does the turnovers: works a schedule of cleans on site, records stock
+  // counts. The equivalent of Evo Services' FIELD_EMPLOYEE.
+  CLEANER
+  // A short-let owner/host. Signs in to see their own portfolio only; in
+  // Phase 1 this user gains a clientId FK pointing at the Client they
+  // belong to, so several logins can share one portfolio later.
+  CLIENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(CLEANER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
