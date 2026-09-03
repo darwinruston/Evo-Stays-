@@ -38,6 +38,27 @@ export async function createCleaner(formData: FormData) {
   redirect("/admin/cleaners");
 }
 
+function rate(formData: FormData, key: string): number | null {
+  const raw = str(formData, key);
+  if (raw === null) return null;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+// Only affects invoices generated after this is saved -- past ones keep
+// whatever rate was snapshotted onto them at the time (see
+// Invoice.hourlyRate / src/lib/invoices.ts).
+export async function updateCleanerRate(id: string, formData: FormData) {
+  await requireStaff();
+
+  await prisma.user.update({
+    where: { id, role: "CLEANER" },
+    data: { hourlyRate: rate(formData, "hourlyRate") },
+  });
+
+  revalidatePath(`/admin/cleaners/${id}`);
+}
+
 export async function deleteCleaner(id: string) {
   await requireStaff();
 

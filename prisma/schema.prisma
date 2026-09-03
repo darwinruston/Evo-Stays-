@@ -23,9 +23,14 @@ model User {
   email          String     @unique
   passwordHash   String
   role           Role       @default(CLEANER)
+  // Only meaningful for CLEANER. Snapshotted onto Invoice.hourlyRate at
+  // generation time (see src/lib/invoices.ts), so changing this later never
+  // rewrites a past invoice.
+  hourlyRate     Float?
   assignedCleans Clean[]    @relation("CleanAssignee")
   createdCleans  Clean[]    @relation("CleanCreator")
   cleanLogs      CleanLog[]
+  invoices       Invoice[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
@@ -85,6 +90,7 @@ model Property {
   images        PropertyImage[]
   cleans        Clean[]
   stockLevels   PropertyStockLevel[]
+  invoices      Invoice[]
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
@@ -161,6 +167,9 @@ model CleanLog {
   departedAt   DateTime?
   photos       CleanPhoto[]
   stockUsage   StockUsageLog[]
+  // At most one -- a visit can only ever be billed once, even across
+  // separate invoice generation runs. See src/lib/invoices.ts.
+  invoiceLine  InvoiceLine?
   createdAt    DateTime        @default(now())
 }
 
@@ -246,4 +255,67 @@ model StockUsageLog {
 
   @@unique([logId, stockItemId])
   @@index([logId])
+}
+
+enum InvoiceCadence {
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+}
+
+// Business-wide setting, not per-cleaner: "how often do cleaner invoices go
+// out". Single row -- id is always "singleton", never created twice. Only
+// pre-fills the period offered when generating; a run can still cover any
+// dates staff pick.
+model BillingSettings {
+  id        String         @id @default("singleton")
+  cadence   InvoiceCadence @default(MONTHLY)
+  updatedAt DateTime       @updatedAt
+}
+
+// One cleaner's earnings at one property for one period. Per-property, not
+// per-cleaner-per-period, because each property belongs to a different
+// Client (see Property.clientId) who needs their own cleaning cost visible
+// on its own, not lumped in with unrelated properties. Who ultimately gets
+// billed is derivable via property.client -- not duplicated here.
+model Invoice {
+  id          String        @id @default(cuid())
+  cleaner     User          @relation(fields: [cleanerId], references: [id])
+  cleanerId   String
+  property    Property      @relation(fields: [propertyId], references: [id])
+  propertyId  String
+  periodStart DateTime
+  periodEnd   DateTime
+  // Copied from User.hourlyRate at generation time -- see the model comment
+  // there for why.
+  hourlyRate  Float
+  totalHours  Float
+  totalAmount Float
+  // Pure record-keeping: an admin-set flag for "have we been paid for
+  // this", not anything that processes an actual payment.
+  paidAt      DateTime?
+  lines       InvoiceLine[]
+  createdAt   DateTime      @default(now())
+
+  @@index([cleanerId])
+  @@index([propertyId])
+}
+
+// One completed visit's contribution to an invoice. cleanLogId is unique --
+// not just per-invoice but globally -- so the same visit can never end up on
+// two invoices even if generation is run twice for overlapping periods.
+// That uniqueness is what makes generation safe to re-run: it only ever
+// picks up CleanLogs with no InvoiceLine yet.
+model InvoiceLine {
+  id         String   @id @default(cuid())
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId  String
+  cleanLog   CleanLog @relation(fields: [cleanLogId], references: [id])
+  cleanLogId String   @unique
+  arrivedAt  DateTime
+  departedAt DateTime
+  hours      Float
+  amount     Float
+
+  @@index([invoiceId])
 }
