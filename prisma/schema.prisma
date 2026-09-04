@@ -31,6 +31,7 @@ model User {
   createdCleans  Clean[]    @relation("CleanCreator")
   cleanLogs      CleanLog[]
   invoices       Invoice[]
+  laundryLoads   LaundryLoad[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
@@ -176,6 +177,12 @@ model CleanLog {
   // At most one -- a visit can only ever be billed once, even across
   // separate invoice generation runs. See src/lib/invoices.ts.
   invoiceLine  InvoiceLine?
+  // Which laundrette drop-off this visit's dirty linen went out in, if any
+  // -- a visit belongs to at most one load. SetNull (not Cascade) so
+  // deleting a load frees its logs back to unlinked rather than losing the
+  // visit record itself.
+  laundryLoad   LaundryLoad? @relation(fields: [laundryLoadId], references: [id], onDelete: SetNull)
+  laundryLoadId String?
   createdAt    DateTime        @default(now())
 }
 
@@ -324,4 +331,24 @@ model InvoiceLine {
   amount     Float
 
   @@index([invoiceId])
+}
+
+// Proof that a laundrette drop-off happened, plus its cost -- so laundry
+// spend is auditable the same way cleaning invoices are. Covers however
+// many completed visits' dirty linen went out together in one trip (see
+// `logs` below), not a strict one-to-one with a single Clean. Either a
+// cleaner or admin/office staff can create one -- see recordedBy.
+model LaundryLoad {
+  id           String     @id @default(cuid())
+  cost         Float
+  // One ticket photo, same storage convention as PropertyImage/CleanPhoto
+  // (see src/lib/uploads.ts) but under its own storage root, since a load
+  // isn't scoped to a single property the way those are.
+  receiptPath  String
+  recordedBy   User       @relation(fields: [recordedById], references: [id])
+  recordedById String
+  logs         CleanLog[]
+  createdAt    DateTime   @default(now())
+
+  @@index([recordedById])
 }

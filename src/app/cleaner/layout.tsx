@@ -8,6 +8,7 @@ const NAV = [
   { href: "/cleaner", label: "My cleans" },
   { href: "/cleaner/calendar", label: "Calendar" },
   { href: "/cleaner/properties", label: "Properties" },
+  { href: "/cleaner/laundry", label: "Laundry" },
 ];
 
 export default async function CleanerLayout({ children }: { children: React.ReactNode }) {

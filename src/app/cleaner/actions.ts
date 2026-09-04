@@ -1,9 +1,10 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
-import { savePropertyPhotos } from "@/lib/uploads";
+import { savePropertyPhotos, saveLaundryPhoto } from "@/lib/uploads";
 import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
 
 function str(formData: FormData, key: string): string | null {
@@ -199,4 +200,56 @@ export async function completeClean(cleanId: string, formData: FormData) {
   revalidatePath(`/cleaner/cleans/${cleanId}`);
   revalidatePath("/admin/cleans");
   revalidatePath(`/admin/cleans/${cleanId}`);
+}
+
+// Logging a laundrette drop-off -- one load can cover linen from several of
+// this cleaner's own completed visits (see LaundryLoad in schema.prisma),
+// so this isn't scoped to a single Clean the way the actions above are.
+// Mirrors src/app/admin/laundry/actions.ts's createLaundryLoad, but every
+// requested visit must belong to THIS cleaner -- re-validated here rather
+// than trusted from the submitted checkboxes.
+export async function createLaundryLoad(formData: FormData) {
+  const session = await requireCleaner();
+
+  const requestedIds = formData
+    .getAll("cleanLogIds")
+    .filter((v): v is string => typeof v === "string");
+  if (requestedIds.length === 0) throw new Error("Pick at least one clean.");
+
+  const eligible = await prisma.cleanLog.findMany({
+    where: {
+      id: { in: requestedIds },
+      laundryLoadId: null,
+      arrivedAt: { not: null },
+      departedAt: { not: null },
+      clean: { status: "COMPLETED", assignedToId: session.user.id },
+    },
+    select: { id: true },
+  });
+  if (eligible.length === 0) throw new Error("None of the selected visits are eligible.");
+
+  const photo = formData.get("photo");
+  if (!(photo instanceof File) || photo.size === 0) throw new Error("Upload a photo of the ticket.");
+
+  const rawCost = str(formData, "cost");
+  const cost = rawCost === null ? NaN : Number.parseFloat(rawCost);
+  if (!Number.isFinite(cost) || cost < 0) throw new Error("Enter a valid cost.");
+
+  // Generated up front so the photo can be saved under {id}/{filename} and
+  // the whole row written in one create() -- see saveLaundryPhoto.
+  const laundryLoadId = randomUUID();
+  const receiptPath = await saveLaundryPhoto(laundryLoadId, photo);
+
+  await prisma.laundryLoad.create({
+    data: {
+      id: laundryLoadId,
+      cost,
+      receiptPath,
+      recordedById: session.user.id,
+      logs: { connect: eligible.map((l) => ({ id: l.id })) },
+    },
+  });
+
+  revalidatePath("/cleaner/laundry");
+  revalidatePath("/admin/laundry");
 }

@@ -10,6 +10,13 @@ import path from "path";
 // SQLite -> Postgres swap.
 export const STORAGE_ROOT = path.join(process.cwd(), "storage", "property-photos");
 
+// Laundry ticket photos live under their own root, not property-photos --
+// a load isn't scoped to one property (see LaundryLoad in schema.prisma),
+// so the access-control route for these needs a different check than "is
+// this cleaner assigned at this property". See
+// src/app/api/laundry-photos/[...path]/route.ts.
+export const LAUNDRY_STORAGE_ROOT = path.join(process.cwd(), "storage", "laundry-photos");
+
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 
 // Saves uploaded property images to disk and returns their storage-relative
@@ -37,4 +44,25 @@ export async function savePropertyPhotos(propertyId: string, files: File[]): Pro
     paths.push(`${propertyId}/${filename}`);
   }
   return paths;
+}
+
+// Saves one laundry ticket photo under a caller-supplied load id (generated
+// up front by the caller with randomUUID(), before the LaundryLoad row
+// exists -- see createLaundryLoad in the admin/cleaner actions -- so the
+// whole row, including this path, can be written in a single prisma.create
+// rather than a create-then-update). Single photo, not an array: one
+// ticket per load is what was asked for.
+export async function saveLaundryPhoto(laundryLoadId: string, file: File): Promise<string> {
+  if (!ALLOWED_TYPES.has(file.type)) {
+    throw new Error(`Unsupported file type: ${file.type || "unknown"}. Photos only.`);
+  }
+
+  const dir = path.join(LAUNDRY_STORAGE_ROOT, laundryLoadId);
+  await mkdir(dir, { recursive: true });
+
+  const ext = path.extname(file.name) || ".jpg";
+  const filename = `${randomUUID()}${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(path.join(dir, filename), buffer);
+  return `${laundryLoadId}/${filename}`;
 }
