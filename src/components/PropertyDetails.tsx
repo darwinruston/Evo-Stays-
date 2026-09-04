@@ -38,7 +38,7 @@ export function PropertyDetails({ property }: { property: PropertyLike }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-zinc-500">Access</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">Access</h2>
         {access.length === 0 && !property.accessNotes ? (
           <p className="text-sm text-zinc-600">Nothing recorded yet.</p>
         ) : (
@@ -61,7 +61,7 @@ export function PropertyDetails({ property }: { property: PropertyLike }) {
 
       {property.notes && (
         <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-zinc-500">Notes</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Notes</h2>
           <p className="text-sm whitespace-pre-line text-zinc-600">{property.notes}</p>
         </div>
       )}
