@@ -21,14 +21,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 border-b border-black/5 bg-background/80 backdrop-blur-md">
-        <nav className="relative mx-auto flex max-w-5xl items-center gap-6 px-4 py-4 sm:px-6">
+        <nav className="relative flex items-center gap-6 px-4 py-4 sm:px-6 lg:px-10">
           <Link href="/admin" aria-label="Evo Stays home" className="shrink-0">
             <EvoTick className="h-6 w-auto" />
           </Link>
           <NavMenu items={NAV} logoutAction={logoutAction} />
         </nav>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">{children}</main>
+      <main className="px-4 py-10 sm:px-6 lg:px-10">{children}</main>
     </div>
   );
 }

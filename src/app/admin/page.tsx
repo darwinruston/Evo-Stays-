@@ -72,7 +72,7 @@ export default async function AdminHomePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {tiles.map((t) => (
           <Link key={t.href} href={t.href} className={card("p-5 transition-colors hover:bg-black/[0.02]")}>
             <p className="text-sm text-zinc-500">{t.label}</p>
