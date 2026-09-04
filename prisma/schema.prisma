@@ -18,22 +18,22 @@ enum Role {
 }
 
 model User {
-  id             String     @id @default(cuid())
+  id             String        @id @default(cuid())
   name           String
-  email          String     @unique
+  email          String        @unique
   passwordHash   String
-  role           Role       @default(CLEANER)
+  role           Role          @default(CLEANER)
   // Only meaningful for CLEANER. Snapshotted onto Invoice.hourlyRate at
   // generation time (see src/lib/invoices.ts), so changing this later never
   // rewrites a past invoice.
   hourlyRate     Float?
-  assignedCleans Clean[]    @relation("CleanAssignee")
-  createdCleans  Clean[]    @relation("CleanCreator")
+  assignedCleans Clean[]       @relation("CleanAssignee")
+  createdCleans  Clean[]       @relation("CleanCreator")
   cleanLogs      CleanLog[]
   invoices       Invoice[]
   laundryLoads   LaundryLoad[]
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }
 
 // The property owner/management client an Evo Stays portfolio belongs to.
@@ -66,40 +66,40 @@ enum PropertyType {
 // bath count, and how many guests it sleeps -- rather than floor area, which
 // is what the sibling app's quoting model needed.
 model Property {
-  id            String               @id @default(cuid())
-  client        Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId      String
+  id               String               @id @default(cuid())
+  client           Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId         String
   // The listing name ("Riverside Loft"). Falls back to a shortened address
   // when not set -- see src/lib/address.ts.
-  name          String?
-  address       String
+  name             String?
+  address          String
   // Set when the address was picked from an autocomplete rather than typed
   // freehand. Null if never matched to a location.
-  latitude      Float?
-  longitude     Float?
-  type          PropertyType         @default(APARTMENT)
-  bedrooms      Int?
-  bathrooms     Int?
-  maxOccupancy  Int?
+  latitude         Float?
+  longitude        Float?
+  type             PropertyType         @default(APARTMENT)
+  bedrooms         Int?
+  bathrooms        Int?
+  maxOccupancy     Int?
   // Preset access-point keys (e.g. ["KEY_SAFE","LIFT"]) -- a JSON string
   // array since SQLite/Prisma has no native scalar list type here.
-  accessOptions Json?
+  accessOptions    Json?
   // Free text for anything the presets don't cover: key safe codes, alarm
   // codes, parking, which bin day. The cleaner reads this on site.
-  accessNotes   String?
-  notes         String?
+  accessNotes      String?
+  notes            String?
   // Floor on billable hours per visit, e.g. 2 -- a cleaner who finishes in
   // 40 minutes because the property was left tidy still gets paid for the
   // minimum, so there's no incentive to rush. Null means the toggle is off
   // and invoices bill actual check-in/check-out time only. See
   // generateInvoices in src/lib/invoices.ts.
   minBillableHours Float?
-  images        PropertyImage[]
-  cleans        Clean[]
-  stockLevels   PropertyStockLevel[]
-  invoices      Invoice[]
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  images           PropertyImage[]
+  cleans           Clean[]
+  stockLevels      PropertyStockLevel[]
+  invoices         Invoice[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   @@index([clientId])
 }
@@ -164,26 +164,26 @@ model Clean {
 // job (which can be rescheduled, reassigned, cancelled) stays distinct from
 // what actually happened on site.
 model CleanLog {
-  id           String          @id @default(cuid())
-  clean        Clean           @relation(fields: [cleanId], references: [id], onDelete: Cascade)
-  cleanId      String          @unique
-  recordedBy   User            @relation(fields: [recordedById], references: [id])
-  recordedById String
-  note         String?
-  arrivedAt    DateTime?
-  departedAt   DateTime?
-  photos       CleanPhoto[]
-  stockUsage   StockUsageLog[]
+  id            String          @id @default(cuid())
+  clean         Clean           @relation(fields: [cleanId], references: [id], onDelete: Cascade)
+  cleanId       String          @unique
+  recordedBy    User            @relation(fields: [recordedById], references: [id])
+  recordedById  String
+  note          String?
+  arrivedAt     DateTime?
+  departedAt    DateTime?
+  photos        CleanPhoto[]
+  stockUsage    StockUsageLog[]
   // At most one -- a visit can only ever be billed once, even across
   // separate invoice generation runs. See src/lib/invoices.ts.
-  invoiceLine  InvoiceLine?
+  invoiceLine   InvoiceLine?
   // Which laundrette drop-off this visit's dirty linen went out in, if any
   // -- a visit belongs to at most one load. SetNull (not Cascade) so
   // deleting a load frees its logs back to unlinked rather than losing the
   // visit record itself.
-  laundryLoad   LaundryLoad? @relation(fields: [laundryLoadId], references: [id], onDelete: SetNull)
+  laundryLoad   LaundryLoad?    @relation(fields: [laundryLoadId], references: [id], onDelete: SetNull)
   laundryLoadId String?
-  createdAt    DateTime        @default(now())
+  createdAt     DateTime        @default(now())
 }
 
 enum PhotoStage {
@@ -339,20 +339,21 @@ model InvoiceLine {
 // `logs` below), not a strict one-to-one with a single Clean. Either a
 // cleaner or admin/office staff can create one -- see recordedBy.
 model LaundryLoad {
-  id           String     @id @default(cuid())
+  id           String          @id @default(cuid())
   cost         Float
-  // Free text, e.g. "Sudsy Wash, High Street" -- which launderette or
-  // facility the linen was actually dropped off at. A business using more
-  // than one over time needs this to know where to go back to.
-  facility     String
+  // Which launderette/facility the linen actually went to -- picked from
+  // the LaundryFacility catalogue rather than typed fresh each time, since
+  // a business only ever uses a handful of these on repeat.
+  facility     LaundryFacility @relation(fields: [facilityId], references: [id])
+  facilityId   String
   // One ticket photo, same storage convention as PropertyImage/CleanPhoto
   // (see src/lib/uploads.ts) but under its own storage root, since a load
   // isn't scoped to a single property the way those are.
   receiptPath  String
-  recordedBy   User       @relation(fields: [recordedById], references: [id])
+  recordedBy   User            @relation(fields: [recordedById], references: [id])
   recordedById String
   logs         CleanLog[]
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime        @default(now())
   // Null while the linen is still out at the laundrette -- that's what
   // makes a property's "currently out" section self-closing: once this is
   // set, the load just drops out of that filtered view instead of needing
@@ -360,4 +361,19 @@ model LaundryLoad {
   collectedAt  DateTime?
 
   @@index([recordedById])
+  @@index([facilityId])
+}
+
+// The catalogue of launderettes/facilities a business actually uses on
+// repeat, so a load picks one instead of typing a name fresh each time.
+// Same active-flag pattern as StockItem: a facility no longer used is
+// deactivated (dropped from the picker for new loads) rather than deleted,
+// since past loads still need to display which one they went to.
+model LaundryFacility {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  active    Boolean       @default(true)
+  loads     LaundryLoad[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }

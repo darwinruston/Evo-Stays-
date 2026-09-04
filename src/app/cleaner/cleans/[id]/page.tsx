@@ -7,6 +7,7 @@ import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
+import { StepProgress } from "@/components/StepProgress";
 import { STOCK_BAND_LABELS, stockLevelBand, type StockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
@@ -14,40 +15,12 @@ import { checkInClean, uploadCleanPhotos, recordStockLevel, completeClean } from
 
 export const metadata = { title: "Clean" };
 
-const STEPS = ["Arrive", "Before", "Clean", "Stock", "Finish"] as const;
-
 // The turnover runs as a forced march: one step on screen at a time, and the
 // next only appears once the current one is actually recorded. The step is
 // derived from what's been captured rather than stored on the Clean -- a
 // column would be a second source of truth that could disagree with the
 // photos (and now stock counts) themselves.
-function Progress({ current }: { current: number }) {
-  return (
-    <ol className="flex items-center gap-1.5">
-      {STEPS.map((label, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <li key={label} className="flex flex-1 flex-col gap-1.5">
-            <span
-              className={
-                "h-1 rounded-full " +
-                (done || active ? "bg-zinc-900" : "bg-black/10")
-              }
-            />
-            <span
-              className={
-                "text-[11px] " + (active ? "font-medium text-zinc-900" : "text-zinc-500")
-              }
-            >
-              {label}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
+const STEPS = ["Arrive", "Before", "Clean", "Stock", "Finish"] as const;
 
 function PhotoGrid({ paths, alt }: { paths: string[]; alt: string }) {
   return (
@@ -259,7 +232,7 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
         </p>
       </div>
 
-      {clean.status === "IN_PROGRESS" && <Progress current={step} />}
+      {clean.status === "IN_PROGRESS" && <StepProgress steps={STEPS} current={step} />}
 
       {clean.instructions && clean.status !== "COMPLETED" && (
         <div className={card("p-4")}>

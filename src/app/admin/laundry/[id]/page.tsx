@@ -17,6 +17,7 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
   const load = await prisma.laundryLoad.findUnique({
     where: { id },
     include: {
+      facility: { select: { name: true } },
       recordedBy: { select: { name: true } },
       logs: {
         orderBy: { departedAt: "asc" },
@@ -39,7 +40,7 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{formatCurrency(load.cost)}</h1>
-            <p className="mt-0.5 text-sm text-zinc-500">{load.facility}</p>
+            <p className="mt-0.5 text-sm text-zinc-500">{load.facility.name}</p>
             <p className="mt-0.5 text-sm text-zinc-500">
               {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
             </p>

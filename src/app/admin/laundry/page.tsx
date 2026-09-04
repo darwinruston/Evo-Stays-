@@ -4,7 +4,8 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
 import { formatDate } from "@/lib/schedule";
-import { badge, button, card, inputCompact } from "@/lib/ui";
+import { badge, card } from "@/lib/ui";
+import { LaundryLoadWizard } from "@/components/LaundryLoadWizard";
 import { createLaundryLoad } from "./actions";
 
 export const metadata = { title: "Laundry" };
@@ -29,9 +30,16 @@ export default async function LaundryPage() {
     },
   });
 
+  const facilities = await prisma.laundryFacility.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
   const loads = await prisma.laundryLoad.findMany({
     orderBy: { createdAt: "desc" },
     include: {
+      facility: { select: { name: true } },
       recordedBy: { select: { name: true } },
       logs: { include: { clean: { include: { property: { select: { name: true, address: true } } } } } },
     },
@@ -39,84 +47,29 @@ export default async function LaundryPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Laundry</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Ticket photo and cost for each laundrette drop-off, and which visits&apos; linen it covered.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Laundry</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Ticket photo and cost for each laundrette drop-off, and which visits&apos; linen it covered.
+          </p>
+        </div>
+        <Link href="/admin/laundry-facilities" className="shrink-0 text-sm text-zinc-500 hover:text-zinc-900">
+          Manage launderettes →
+        </Link>
       </div>
 
-      <section className={card("flex flex-col gap-4 p-4")}>
+      <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">Log a drop-off</h2>
-        {eligibleLogs.length === 0 ? (
-          <p className="text-sm text-zinc-600">
-            Nothing unclaimed right now -- every completed visit&apos;s linen is already logged.
-          </p>
-        ) : (
-          <form action={createLaundryLoad} className="flex flex-col gap-4">
-            <fieldset className="flex flex-col gap-2">
-              <legend className="text-sm font-medium">Which visits went in this load?</legend>
-              <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
-                {eligibleLogs.map((log) => (
-                  <label key={log.id} className="flex items-start gap-2 text-sm text-zinc-600">
-                    <input type="checkbox" name="cleanLogIds" value={log.id} className="mt-0.5" />
-                    <span>
-                      {propertyDisplayName(log.clean.property)} · {formatDate(log.departedAt!)} ·{" "}
-                      {log.clean.assignedTo?.name ?? "Unassigned"}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="facility" className="text-sm font-medium">
-                  Launderette / facility
-                </label>
-                <input
-                  id="facility"
-                  name="facility"
-                  type="text"
-                  required
-                  placeholder="e.g. Sudsy Wash, High Street"
-                  className={`${inputCompact} w-56`}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="cost" className="text-sm font-medium">
-                  Cost
-                </label>
-                <input
-                  id="cost"
-                  name="cost"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  required
-                  placeholder="e.g. 18.50"
-                  className={`${inputCompact} w-28`}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="photo" className="text-sm font-medium">
-                  Ticket photo
-                </label>
-                <input
-                  id="photo"
-                  name="photo"
-                  type="file"
-                  accept="image/*"
-                  required
-                  className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-                />
-              </div>
-              <button type="submit" className={button("primary", "sm")}>
-                Save
-              </button>
-            </div>
-          </form>
-        )}
+        <LaundryLoadWizard
+          eligibleVisits={eligibleLogs.map((log) => ({
+            id: log.id,
+            label: `${propertyDisplayName(log.clean.property)} · ${formatDate(log.departedAt!)} · ${log.clean.assignedTo?.name ?? "Unassigned"}`,
+          }))}
+          facilities={facilities}
+          manageFacilitiesHref="/admin/laundry-facilities"
+          action={createLaundryLoad}
+        />
       </section>
 
       <section className="flex flex-col gap-3">
@@ -139,7 +92,7 @@ export default async function LaundryPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
-                      {formatCurrency(load.cost)} · {load.facility}
+                      {formatCurrency(load.cost)} · {load.facility.name}
                     </p>
                     <p className="truncate text-sm text-zinc-500">
                       {load.logs.map((l) => propertyDisplayName(l.clean.property)).join(", ")}

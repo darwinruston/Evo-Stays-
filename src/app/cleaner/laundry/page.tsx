@@ -3,7 +3,8 @@ import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
 import { formatDate } from "@/lib/schedule";
-import { badge, button, card, inputCompact } from "@/lib/ui";
+import { badge, card } from "@/lib/ui";
+import { LaundryLoadWizard } from "@/components/LaundryLoadWizard";
 import { createLaundryLoad } from "../actions";
 
 export const metadata = { title: "Laundry" };
@@ -24,12 +25,19 @@ export default async function CleanerLaundryPage() {
     include: { clean: { include: { property: { select: { name: true, address: true } } } } },
   });
 
+  const facilities = await prisma.laundryFacility.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
   // Loads covering any of this cleaner's own visits -- even one office
   // staff logged on their behalf, so they can see it was actually done.
   const loads = await prisma.laundryLoad.findMany({
     where: { logs: { some: { clean: { assignedToId: session.user.id } } } },
     orderBy: { createdAt: "desc" },
     include: {
+      facility: { select: { name: true } },
       recordedBy: { select: { name: true } },
       logs: { include: { clean: { include: { property: { select: { name: true, address: true } } } } } },
     },
@@ -44,78 +52,17 @@ export default async function CleanerLaundryPage() {
         </p>
       </div>
 
-      <section className={card("flex flex-col gap-3 p-4")}>
+      <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">Log a drop-off</h2>
-        {eligibleLogs.length === 0 ? (
-          <p className="text-sm text-zinc-600">
-            Nothing unclaimed right now -- every completed visit&apos;s linen is already logged.
-          </p>
-        ) : (
-          <form action={createLaundryLoad} className="flex flex-col gap-3">
-            <fieldset className="flex flex-col gap-2">
-              <legend className="text-sm font-medium">Which visits went in this load?</legend>
-              <div className="flex flex-col gap-1.5">
-                {eligibleLogs.map((log) => (
-                  <label key={log.id} className="flex items-start gap-2 text-sm text-zinc-600">
-                    <input type="checkbox" name="cleanLogIds" value={log.id} className="mt-0.5" />
-                    <span>
-                      {propertyDisplayName(log.clean.property)} · {formatDate(log.departedAt!)}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="facility" className="text-sm font-medium">
-                Launderette / facility
-              </label>
-              <input
-                id="facility"
-                name="facility"
-                type="text"
-                required
-                placeholder="e.g. Sudsy Wash, High Street"
-                className={inputCompact}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="cost" className="text-sm font-medium">
-                Cost
-              </label>
-              <input
-                id="cost"
-                name="cost"
-                type="number"
-                min={0}
-                step="0.01"
-                required
-                placeholder="e.g. 18.50"
-                className={inputCompact}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="photo" className="text-sm font-medium">
-                Ticket photo
-              </label>
-              <input
-                id="photo"
-                name="photo"
-                type="file"
-                accept="image/*"
-                capture="environment"
-                required
-                className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-              />
-            </div>
-
-            <button type="submit" className={`w-full ${button("primary", "lg")}`}>
-              Save
-            </button>
-          </form>
-        )}
+        <LaundryLoadWizard
+          eligibleVisits={eligibleLogs.map((log) => ({
+            id: log.id,
+            label: `${propertyDisplayName(log.clean.property)} · ${formatDate(log.departedAt!)}`,
+          }))}
+          facilities={facilities}
+          capturePhoto
+          action={createLaundryLoad}
+        />
       </section>
 
       <section className="flex flex-col gap-2">
@@ -134,7 +81,7 @@ export default async function CleanerLaundryPage() {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
-                    {formatCurrency(load.cost)} · {load.facility}
+                    {formatCurrency(load.cost)} · {load.facility.name}
                   </p>
                   <p className="truncate text-xs text-zinc-500">
                     {load.logs.map((l) => propertyDisplayName(l.clean.property)).join(", ")}

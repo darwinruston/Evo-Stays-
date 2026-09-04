@@ -65,6 +65,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
     where: { collectedAt: null, logs: { some: { clean: { propertyId: property.id } } } },
     orderBy: { createdAt: "desc" },
     include: {
+      facility: { select: { name: true } },
       recordedBy: { select: { name: true } },
       logs: { include: { clean: { include: { property: { select: { id: true, name: true, address: true } } } } } },
     },
@@ -344,7 +345,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     />
                     <div className="min-w-0">
                       <p className="font-medium">
-                        {formatCurrency(load.cost)} · {load.facility}
+                        {formatCurrency(load.cost)} · {load.facility.name}
                       </p>
                       <p className="truncate text-sm text-zinc-500">
                         {formatDate(load.createdAt)} · logged by {load.recordedBy.name}

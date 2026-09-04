@@ -235,8 +235,11 @@ export async function createLaundryLoad(formData: FormData) {
   const cost = rawCost === null ? NaN : Number.parseFloat(rawCost);
   if (!Number.isFinite(cost) || cost < 0) throw new Error("Enter a valid cost.");
 
-  const facility = str(formData, "facility");
-  if (!facility) throw new Error("Enter which launderette or facility this went to.");
+  const rawFacilityId = str(formData, "facilityId");
+  const facility = rawFacilityId
+    ? await prisma.laundryFacility.findUnique({ where: { id: rawFacilityId }, select: { id: true } })
+    : null;
+  if (!facility) throw new Error("Pick which launderette this went to.");
 
   // Generated up front so the photo can be saved under {id}/{filename} and
   // the whole row written in one create() -- see saveLaundryPhoto.
@@ -247,7 +250,7 @@ export async function createLaundryLoad(formData: FormData) {
     data: {
       id: laundryLoadId,
       cost,
-      facility,
+      facilityId: facility.id,
       receiptPath,
       recordedById: session.user.id,
       logs: { connect: eligible.map((l) => ({ id: l.id })) },
