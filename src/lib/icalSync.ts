@@ -9,7 +9,17 @@ import { createCleanRecord } from "@/lib/cleans";
 // instead, since "Sync now" is a button a staff member clicks and the
 // property page just needs something to show, not an exception to catch.
 export async function syncCalendarFeed(feedId: string, triggeredById: string): Promise<void> {
-  const feed = await prisma.propertyCalendarFeed.findUniqueOrThrow({ where: { id: feedId } });
+  const feed = await prisma.propertyCalendarFeed.findUniqueOrThrow({
+    where: { id: feedId },
+    include: { property: { select: { syncHorizonDays: true } } },
+  });
+
+  // A booking checking out further out than this is skipped rather than
+  // turned into a clean -- re-evaluated on every later sync, so it's picked
+  // up for real once it's within range. Property-wide (not per feed): a
+  // property listed on several platforms wants one consistent lookahead.
+  const horizon = feed.property.syncHorizonDays;
+  const cutoff = horizon !== null ? new Date(Date.now() + horizon * 24 * 60 * 60 * 1000) : null;
 
   try {
     const parsed = await ical.async.fromURL(feed.url);
@@ -30,6 +40,7 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
       });
 
       if (!existing) {
+        if (cutoff !== null && checkOut > cutoff) continue;
         const clean = await createCleanRecord({
           propertyId: feed.propertyId,
           createdById: triggeredById,

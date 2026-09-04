@@ -94,6 +94,14 @@ model Property {
   // and invoices bill actual check-in/check-out time only. See
   // generateInvoices in src/lib/invoices.ts.
   minBillableHours Float?
+  // How far into the future calendar sync will create cleans for this
+  // property's feeds, e.g. 31 -- a booking checking out further out than
+  // that is simply skipped on this sync and picked up on a later one once
+  // it's within range, rather than filling the schedule with cleans over a
+  // year out. Null means no limit. Applies to every feed under this
+  // property (one property can list on several platforms). See
+  // syncCalendarFeed in src/lib/icalSync.ts.
+  syncHorizonDays  Int?
   images           PropertyImage[]
   cleans           Clean[]
   stockLevels      PropertyStockLevel[]

@@ -301,6 +301,22 @@ export async function removePropertyStockLevel(propertyId: string, levelId: stri
   revalidatePath("/admin/stock");
 }
 
+// The sync-horizon toggle: an empty field turns it off (sync creates a
+// clean for every booking in the feed, however far out), a value turns it
+// on -- same "blank field is the toggle" pattern as minBillableHours above.
+// Applies to every calendar feed on this property, not one at a time, since
+// a property listed on several platforms wants one consistent lookahead.
+export async function updatePropertySyncHorizon(propertyId: string, formData: FormData) {
+  await requireStaff();
+
+  await prisma.property.update({
+    where: { id: propertyId },
+    data: { syncHorizonDays: int(formData, "syncHorizonDays") },
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
 // One feed per platform a property is listed on -- Airbnb and Vrbo each
 // publish their own separate iCal URL for the same physical unit, so this
 // isn't a one-per-property field.

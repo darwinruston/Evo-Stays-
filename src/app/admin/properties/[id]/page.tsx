@@ -23,6 +23,7 @@ import {
   addPropertyCalendarFeed,
   removePropertyCalendarFeed,
   syncPropertyCalendarFeed,
+  updatePropertySyncHorizon,
 } from "../actions";
 import { setLaundryLoadCollected } from "../../laundry/actions";
 
@@ -326,6 +327,42 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           Calendars <span className="text-sm font-normal text-zinc-500">({property.calendarFeeds.length})</span>
           <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing -- add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
         </h2>
+
+        {/* One lookahead for every feed on this property -- some properties
+            take bookings a year out and staff only want the next month of
+            cleans generated, not the whole year at once. Tucked behind a
+            disclosure, same treatment as Par and Minimum hours above: a
+            setting changed rarely, not something to bump into by accident. */}
+        <details className="w-fit">
+          <summary className="cursor-pointer list-none text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700 [&::-webkit-details-marker]:hidden">
+            {property.syncHorizonDays !== null
+              ? `Only creating cleans up to ${property.syncHorizonDays} days out`
+              : "No limit on how far out cleans are created"}
+          </summary>
+          <form
+            action={updatePropertySyncHorizon.bind(null, property.id)}
+            className="mt-2 flex flex-wrap items-end gap-2"
+          >
+            <div className="flex flex-col gap-1">
+              <label htmlFor="syncHorizonDays" className="text-xs text-zinc-500">
+                Days ahead
+              </label>
+              <input
+                id="syncHorizonDays"
+                name="syncHorizonDays"
+                type="number"
+                min={0}
+                defaultValue={property.syncHorizonDays ?? ""}
+                placeholder="e.g. 31"
+                className={`${inputCompact} w-24`}
+              />
+            </div>
+            <button type="submit" className={button("secondary", "sm")}>
+              Save
+            </button>
+            <p className="w-full text-xs text-zinc-500">Clear the field and save to remove the limit.</p>
+          </form>
+        </details>
 
         {property.calendarFeeds.length > 0 && (
           <ul className="flex flex-col gap-2">
