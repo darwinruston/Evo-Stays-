@@ -29,9 +29,8 @@ export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string
 
   return (
     <div className="flex flex-col gap-6">
-      {groups.map(({ group, cleans: rows }) => (
-        <div key={group} className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-zinc-500">{group}</h2>
+      {groups.map(({ group, cleans: rows }) => {
+        const list = (
           <ul className="flex flex-col gap-2">
             {rows.map((c) => (
               <li key={c.id}>
@@ -53,8 +52,29 @@ export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string
               </li>
             ))}
           </ul>
-        </div>
-      ))}
+        );
+
+        // Past cleans just accumulate forever -- collapsed by default so
+        // the list reads as what's coming up, not a growing history, but
+        // still one click away when someone actually needs it.
+        if (group === "Past") {
+          return (
+            <details key={group}>
+              <summary className="cursor-pointer text-sm font-medium text-zinc-500">
+                Past ({rows.length})
+              </summary>
+              <div className="mt-2">{list}</div>
+            </details>
+          );
+        }
+
+        return (
+          <div key={group} className="flex flex-col gap-2">
+            <h2 className="text-sm font-medium text-zinc-500">{group}</h2>
+            {list}
+          </div>
+        );
+      })}
     </div>
   );
 }
