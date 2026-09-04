@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/schedule";
 import { badge, card } from "@/lib/ui";
 import { LaundryLoadWizard } from "@/components/LaundryLoadWizard";
 import { createLaundryLoad } from "./actions";
+import { createLaundryFacilityQuick } from "../laundry-facilities/actions";
 
 export const metadata = { title: "Laundry" };
 
@@ -68,6 +69,7 @@ export default async function LaundryPage() {
           }))}
           facilities={facilities}
           manageFacilitiesHref="/admin/laundry-facilities"
+          onCreateFacility={createLaundryFacilityQuick}
           action={createLaundryLoad}
         />
       </section>

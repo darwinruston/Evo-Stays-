@@ -22,12 +22,18 @@ export function LaundryLoadWizard({
   eligibleVisits,
   facilities,
   manageFacilitiesHref,
+  onCreateFacility,
   capturePhoto,
   action,
 }: {
   eligibleVisits: WizardVisit[];
   facilities: WizardFacility[];
   manageFacilitiesHref?: string;
+  // Only passed where the caller is actually allowed to create facilities
+  // (admin/office) -- when absent, someone who can't see one they need is
+  // pointed at manageFacilitiesHref instead of getting a button that would
+  // just fail server-side.
+  onCreateFacility?: (name: string) => Promise<WizardFacility>;
   capturePhoto?: boolean;
   action: (formData: FormData) => void;
 }) {
@@ -35,6 +41,11 @@ export function LaundryLoadWizard({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [facilityId, setFacilityId] = useState("");
   const [cost, setCost] = useState("");
+  const [localFacilities, setLocalFacilities] = useState(facilities);
+  const [addingFacility, setAddingFacility] = useState(facilities.length === 0);
+  const [newFacilityName, setNewFacilityName] = useState("");
+  const [creatingFacility, setCreatingFacility] = useState(false);
+  const [createFacilityError, setCreateFacilityError] = useState<string | null>(null);
 
   if (eligibleVisits.length === 0) {
     return (
@@ -55,6 +66,30 @@ export function LaundryLoadWizard({
       else next.add(id);
       return next;
     });
+  }
+
+  async function handleCreateFacility() {
+    if (!onCreateFacility) return;
+    const name = newFacilityName.trim();
+    if (!name) return;
+
+    setCreatingFacility(true);
+    setCreateFacilityError(null);
+    try {
+      const created = await onCreateFacility(name);
+      setLocalFacilities((prev) =>
+        prev.some((f) => f.id === created.id)
+          ? prev
+          : [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setFacilityId(created.id);
+      setNewFacilityName("");
+      setAddingFacility(false);
+    } catch (err) {
+      setCreateFacilityError(err instanceof Error ? err.message : "Couldn't add that launderette.");
+    } finally {
+      setCreatingFacility(false);
+    }
   }
 
   return (
@@ -80,23 +115,12 @@ export function LaundryLoadWizard({
         </div>
       </fieldset>
 
-      <div className={step === 1 ? "flex flex-col gap-1" : "hidden"}>
+      <div className={step === 1 ? "flex flex-col gap-2" : "hidden"}>
         <label htmlFor="facilityId" className="text-sm font-medium">
           Where did it go?
         </label>
-        {facilities.length === 0 ? (
-          <p className="text-sm text-zinc-600">
-            No launderettes set up yet.
-            {manageFacilitiesHref && (
-              <>
-                {" "}
-                <Link href={manageFacilitiesHref} className="underline underline-offset-2">
-                  Add one →
-                </Link>
-              </>
-            )}
-          </p>
-        ) : (
+
+        {localFacilities.length > 0 && (
           <select
             id="facilityId"
             name="facilityId"
@@ -105,13 +129,71 @@ export function LaundryLoadWizard({
             className={inputCompact}
           >
             <option value="">Choose a launderette</option>
-            {facilities.map((f) => (
+            {localFacilities.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
               </option>
             ))}
           </select>
         )}
+
+        {onCreateFacility ? (
+          addingFacility ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={newFacilityName}
+                onChange={(e) => setNewFacilityName(e.target.value)}
+                placeholder="New launderette name"
+                className={inputCompact}
+              />
+              <button
+                type="button"
+                disabled={creatingFacility || newFacilityName.trim() === ""}
+                onClick={handleCreateFacility}
+                className={`${button("secondary", "sm")} disabled:cursor-not-allowed disabled:opacity-40`}
+              >
+                {creatingFacility ? "Adding…" : "Add"}
+              </button>
+              {localFacilities.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddingFacility(false);
+                    setCreateFacilityError(null);
+                  }}
+                  className="text-xs text-zinc-500 hover:underline"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingFacility(true)}
+              className="w-fit text-xs text-zinc-500 underline decoration-dotted underline-offset-2 hover:text-zinc-700"
+            >
+              + Add new launderette
+            </button>
+          )
+        ) : (
+          localFacilities.length === 0 && (
+            <p className="text-sm text-zinc-600">
+              No launderettes set up yet.
+              {manageFacilitiesHref && (
+                <>
+                  {" "}
+                  <Link href={manageFacilitiesHref} className="underline underline-offset-2">
+                    Add one →
+                  </Link>
+                </>
+              )}
+            </p>
+          )
+        )}
+
+        {createFacilityError && <p className="text-xs text-red-600">{createFacilityError}</p>}
       </div>
 
       <div className={step === 2 ? "flex flex-col gap-1" : "hidden"}>

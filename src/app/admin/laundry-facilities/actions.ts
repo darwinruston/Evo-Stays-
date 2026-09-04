@@ -24,6 +24,33 @@ export async function createLaundryFacility(formData: FormData) {
   redirect("/admin/laundry-facilities");
 }
 
+// Called directly from the laundry-load wizard (src/components/LaundryLoadWizard.tsx)
+// when the launderette someone wants isn't in the list yet -- creates it and
+// hands back {id, name} to select immediately, no redirect and no leaving
+// the wizard (which would lose the visits already picked on an earlier
+// step). A name that already exists is reused rather than erroring --
+// reactivating it first if it had been deactivated -- since the point is
+// "make sure this exists and is usable", not strict duplicate-prevention.
+export async function createLaundryFacilityQuick(name: string): Promise<{ id: string; name: string }> {
+  await requireStaff();
+
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Enter a name for the launderette.");
+
+  const existing = await prisma.laundryFacility.findUnique({ where: { name: trimmed } });
+  const facility = existing
+    ? existing.active
+      ? existing
+      : await prisma.laundryFacility.update({ where: { id: existing.id }, data: { active: true } })
+    : await prisma.laundryFacility.create({ data: { name: trimmed } });
+
+  revalidatePath("/admin/laundry-facilities");
+  revalidatePath("/admin/laundry");
+  revalidatePath("/cleaner/laundry");
+
+  return { id: facility.id, name: facility.name };
+}
+
 export async function updateLaundryFacility(id: string, formData: FormData) {
   await requireStaff();
 
