@@ -172,7 +172,10 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
     where: { id, assignedToId: session.user.id },
     include: {
       property: {
-        include: { stockLevels: { include: { stockItem: true }, orderBy: { createdAt: "asc" } } },
+        include: {
+          stockLevels: { include: { stockItem: true }, orderBy: { createdAt: "asc" } },
+          images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+        },
       },
       log: {
         include: {
@@ -186,6 +189,7 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
   if (!clean) notFound();
 
   const title = propertyDisplayName(clean.property);
+  const referencePhotos = clean.property.images.map((img) => img.path);
   const photos = clean.log?.photos ?? [];
   const before = photos.filter((p) => p.stage === "BEFORE").map((p) => p.path);
   const after = photos.filter((p) => p.stage === "AFTER").map((p) => p.path);
@@ -269,6 +273,14 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
       {clean.status === "PENDING" && (
         <>
           <PropertyDetails property={clean.property} />
+          {referencePhotos.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-medium text-zinc-500">
+                What it should look like ({referencePhotos.length})
+              </h2>
+              <PhotoGrid paths={referencePhotos} alt={title} />
+            </section>
+          )}
           <form action={checkInClean.bind(null, clean.id)}>
             <button type="submit" className={`w-full ${button("primary", "lg")}`}>
               I&apos;ve arrived — check in
@@ -368,6 +380,20 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
               <PropertyDetails property={clean.property} />
             </div>
           </details>
+
+          {/* Same idea for the reference photos shown on arrival -- worth
+              checking back against at any point while cleaning, not just
+              once before starting. */}
+          {referencePhotos.length > 0 && (
+            <details className="text-sm">
+              <summary className="cursor-pointer text-zinc-500">
+                Reference photos ({referencePhotos.length})
+              </summary>
+              <div className="mt-3">
+                <PhotoGrid paths={referencePhotos} alt={title} />
+              </div>
+            </details>
+          )}
         </>
       )}
 
