@@ -98,6 +98,7 @@ model Property {
   cleans           Clean[]
   stockLevels      PropertyStockLevel[]
   invoices         Invoice[]
+  calendarFeeds    PropertyCalendarFeed[]
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -152,6 +153,11 @@ model Clean {
   // exist yet at check-in time).
   arrivedAt    DateTime?
   log          CleanLog?
+  // Set only when this clean was auto-created by a calendar sync rather
+  // than scheduled by hand -- see PropertyCalendarFeed/SyncedBookingEvent.
+  // Required by Prisma to declare the relation on both sides; nothing in
+  // the app queries through it from this direction yet.
+  syncedBookingEvent SyncedBookingEvent?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -376,4 +382,39 @@ model LaundryFacility {
   loads     LaundryLoad[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+}
+
+// One row per platform a property is listed on (Airbnb, Vrbo, ...) --
+// each publishes its own separate iCal URL for the same physical unit.
+model PropertyCalendarFeed {
+  id             String    @id @default(cuid())
+  property       Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  label          String
+  url            String
+  lastSyncedAt   DateTime?
+  lastSyncError  String?
+  events         SyncedBookingEvent[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([propertyId])
+}
+
+// One row per iCal VEVENT ever seen on a feed, keyed by [feedId, externalUid]
+// so re-syncing is idempotent -- a UID already seen is updated, not re-created.
+model SyncedBookingEvent {
+  id             String                @id @default(cuid())
+  feed           PropertyCalendarFeed  @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  feedId         String
+  externalUid    String
+  checkIn        DateTime
+  checkOut       DateTime
+  clean          Clean?                @relation(fields: [cleanId], references: [id], onDelete: SetNull)
+  cleanId        String?               @unique
+  cancelled      Boolean               @default(false)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@unique([feedId, externalUid])
 }

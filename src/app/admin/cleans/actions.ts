@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
-import { autoAssignCleaner } from "@/lib/autoAssign";
+import { createCleanRecord } from "@/lib/cleans";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -37,19 +37,17 @@ export async function createClean(formData: FormData) {
   if (!propertyId) throw new Error("Property is required");
 
   const scheduledFor = dateTime(formData, "scheduledFor");
-  // Blank assignee means "pick someone sensible" -- see autoAssignCleaner.
-  const assignedToId =
-    str(formData, "assignedToId") ?? (await autoAssignCleaner(propertyId, scheduledFor));
+  // Blank assignee means "pick someone sensible" -- omitting assignedToId
+  // from the input is what tells createCleanRecord to auto-assign.
+  const assignedToId = str(formData, "assignedToId");
 
-  const clean = await prisma.clean.create({
-    data: {
-      propertyId,
-      assignedToId,
-      createdById: session.user.id,
-      scheduledFor,
-      guestCount: int(formData, "guestCount"),
-      instructions: str(formData, "instructions"),
-    },
+  const clean = await createCleanRecord({
+    propertyId,
+    createdById: session.user.id,
+    scheduledFor,
+    guestCount: int(formData, "guestCount"),
+    instructions: str(formData, "instructions"),
+    ...(assignedToId ? { assignedToId } : {}),
   });
 
   revalidatePath("/admin/cleans");

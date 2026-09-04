@@ -9,7 +9,7 @@ import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
 import { stockLevelBand } from "@/lib/stock";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
-import { formatDate } from "@/lib/schedule";
+import { formatDate, formatScheduledFor } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import {
   addPropertyPhotos,
@@ -20,6 +20,9 @@ import {
   setPropertyStockLevel,
   removePropertyStockLevel,
   updatePropertyMinBillableHours,
+  addPropertyCalendarFeed,
+  removePropertyCalendarFeed,
+  syncPropertyCalendarFeed,
 } from "../actions";
 import { setLaundryLoadCollected } from "../../laundry/actions";
 
@@ -46,6 +49,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         orderBy: { periodStart: "desc" },
         include: { cleaner: { select: { id: true, name: true } } },
       },
+      calendarFeeds: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!property) notFound();
@@ -315,6 +319,81 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             .
           </p>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+          Calendars <span className="text-sm font-normal text-zinc-500">({property.calendarFeeds.length})</span>
+          <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing -- add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
+        </h2>
+
+        {property.calendarFeeds.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {property.calendarFeeds.map((feed) => (
+              <li key={feed.id} className={card("flex flex-col gap-2 p-4")}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{feed.label}</p>
+                    <p className="truncate text-sm text-zinc-500">
+                      {feed.lastSyncError
+                        ? `Last sync failed: ${feed.lastSyncError}`
+                        : feed.lastSyncedAt
+                          ? `Synced ${formatScheduledFor(feed.lastSyncedAt)}`
+                          : "Never synced"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <form action={syncPropertyCalendarFeed.bind(null, property.id, feed.id)}>
+                      <button type="submit" className={button("secondary", "sm")}>
+                        Sync now
+                      </button>
+                    </form>
+                    <form action={removePropertyCalendarFeed.bind(null, property.id, feed.id)}>
+                      <button type="submit" className="text-xs text-red-600 hover:underline">
+                        Remove
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form
+          action={addPropertyCalendarFeed.bind(null, property.id)}
+          className={card("flex flex-wrap items-end gap-3 p-4")}
+        >
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="label" className="text-sm font-medium">
+              Platform
+            </label>
+            <input
+              id="label"
+              name="label"
+              type="text"
+              required
+              placeholder="e.g. Airbnb"
+              className={`${inputCompact} w-32`}
+            />
+          </div>
+          <div className="flex flex-1 flex-col gap-1.5">
+            <label htmlFor="url" className="text-sm font-medium">
+              Calendar URL
+            </label>
+            <input
+              id="url"
+              name="url"
+              type="url"
+              required
+              placeholder="https://www.airbnb.co.uk/calendar/ical/....ics"
+              className={`${inputCompact} w-full`}
+            />
+          </div>
+          <button type="submit" className={button("primary", "sm")}>
+            Add
+          </button>
+        </form>
       </section>
 
       {laundryOut.length > 0 && (

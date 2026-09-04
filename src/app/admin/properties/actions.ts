@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
+import { syncCalendarFeed } from "@/lib/icalSync";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -298,4 +299,58 @@ export async function removePropertyStockLevel(propertyId: string, levelId: stri
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/stock");
+}
+
+// One feed per platform a property is listed on -- Airbnb and Vrbo each
+// publish their own separate iCal URL for the same physical unit, so this
+// isn't a one-per-property field.
+export async function addPropertyCalendarFeed(propertyId: string, formData: FormData) {
+  await requireStaff();
+
+  const label = str(formData, "label");
+  const url = str(formData, "url");
+  if (!label) throw new Error("Label is required");
+  if (!url) throw new Error("Calendar URL is required");
+
+  await prisma.propertyCalendarFeed.create({
+    data: { propertyId, label, url },
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+export async function removePropertyCalendarFeed(propertyId: string, feedId: string) {
+  await requireStaff();
+
+  const feed = await prisma.propertyCalendarFeed.findFirst({
+    where: { id: feedId, propertyId },
+    select: { id: true },
+  });
+  if (!feed) throw new Error("Calendar not found for this property");
+
+  // Its SyncedBookingEvents cascade with it; the Cleans they produced stay
+  // put (cleanId just goes back to unlinked) -- deleting a feed shouldn't
+  // delete real scheduled work.
+  await prisma.propertyCalendarFeed.delete({ where: { id: feed.id } });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+// "Sync now" -- see src/lib/icalSync.ts. Never throws; a fetch/parse failure
+// is recorded on the feed itself (lastSyncError) for the property page to
+// show, so there's nothing here to catch.
+export async function syncPropertyCalendarFeed(propertyId: string, feedId: string) {
+  const session = await requireStaff();
+
+  const feed = await prisma.propertyCalendarFeed.findFirst({
+    where: { id: feedId, propertyId },
+    select: { id: true },
+  });
+  if (!feed) throw new Error("Calendar not found for this property");
+
+  await syncCalendarFeed(feed.id, session.user.id);
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/cleans");
+  revalidatePath("/cleaner");
 }
