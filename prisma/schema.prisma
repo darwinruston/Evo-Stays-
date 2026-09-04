@@ -81,6 +81,12 @@ model Property {
   bedrooms         Int?
   bathrooms        Int?
   maxOccupancy     Int?
+  // Extra sleeping capacity already counted into maxOccupancy but not from
+  // a bedroom -- a double sofa bed sleeping 2, say. Null/0 means no sofa
+  // bed. A changeover needs it prepared when the booking's guest count runs
+  // higher than maxOccupancy minus this, i.e. more guests than the
+  // bedrooms alone sleep. See cleanPrep in src/lib/cleanPrep.ts.
+  sofaBedSleeps    Int?
   // Preset access-point keys (e.g. ["KEY_SAFE","LIFT"]) -- a JSON string
   // array since SQLite/Prisma has no native scalar list type here.
   accessOptions    Json?

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
+import { isCleanFinished } from "@/lib/cleans";
+import { cleanPrep } from "@/lib/cleanPrep";
 
 export const metadata = { title: "My cleans" };
 
@@ -12,7 +14,11 @@ export default async function CleanerHomePage() {
     // Only ever this cleaner's own work -- never anyone else's.
     where: { assignedToId: session.user.id },
     orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
-    include: { property: { select: { name: true, address: true } } },
+    include: {
+      property: {
+        select: { name: true, address: true, bedrooms: true, bathrooms: true, maxOccupancy: true, sofaBedSleeps: true },
+      },
+    },
   });
 
   const rows: CleanRow[] = cleans.map((c) => ({
@@ -21,6 +27,7 @@ export default async function CleanerHomePage() {
     title: propertyDisplayName(c.property),
     status: c.status,
     scheduledFor: c.scheduledFor,
+    prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
   }));
 
   return (

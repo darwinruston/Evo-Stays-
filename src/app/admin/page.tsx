@@ -5,6 +5,8 @@ import { propertyDisplayName } from "@/lib/address";
 import { isRunningLow } from "@/lib/stock";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { card } from "@/lib/ui";
+import { isCleanFinished } from "@/lib/cleans";
+import { cleanPrep } from "@/lib/cleanPrep";
 
 export const metadata = { title: "Overview" };
 
@@ -38,7 +40,17 @@ export default async function AdminHomePage() {
       where: { scheduledFor: { gte: start, lt: end }, status: { not: "CANCELLED" } },
       orderBy: { scheduledFor: "asc" },
       include: {
-        property: { select: { name: true, address: true, client: { select: { name: true } } } },
+        property: {
+          select: {
+            name: true,
+            address: true,
+            bedrooms: true,
+            bathrooms: true,
+            maxOccupancy: true,
+            sofaBedSleeps: true,
+            client: { select: { name: true } },
+          },
+        },
         assignedTo: { select: { name: true } },
       },
     }),
@@ -61,6 +73,7 @@ export default async function AdminHomePage() {
     subtitle: `${c.property.client.name} · ${c.assignedTo?.name ?? "Unassigned"}`,
     status: c.status,
     scheduledFor: c.scheduledFor,
+    prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
   }));
 
   return (

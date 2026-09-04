@@ -4,6 +4,8 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { button } from "@/lib/ui";
+import { isCleanFinished } from "@/lib/cleans";
+import { cleanPrep } from "@/lib/cleanPrep";
 
 export const metadata = { title: "Cleans" };
 
@@ -13,7 +15,17 @@ export default async function CleansPage() {
   const cleans = await prisma.clean.findMany({
     orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
     include: {
-      property: { select: { name: true, address: true, client: { select: { name: true } } } },
+      property: {
+        select: {
+          name: true,
+          address: true,
+          bedrooms: true,
+          bathrooms: true,
+          maxOccupancy: true,
+          sofaBedSleeps: true,
+          client: { select: { name: true } },
+        },
+      },
       assignedTo: { select: { name: true } },
     },
   });
@@ -25,6 +37,7 @@ export default async function CleansPage() {
     subtitle: `${c.property.client.name} · ${c.assignedTo?.name ?? "Unassigned"}`,
     status: c.status,
     scheduledFor: c.scheduledFor,
+    prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
   }));
 
   return (

@@ -7,6 +7,8 @@ import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { formatCurrency } from "@/lib/invoices";
 import { button, card, inputCompact } from "@/lib/ui";
+import { isCleanFinished } from "@/lib/cleans";
+import { cleanPrep } from "@/lib/cleanPrep";
 import { deleteCleaner, updateCleanerRate } from "../actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +26,19 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
     include: {
       assignedCleans: {
         orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
-        include: { property: { select: { name: true, address: true, client: { select: { name: true } } } } },
+        include: {
+          property: {
+            select: {
+              name: true,
+              address: true,
+              bedrooms: true,
+              bathrooms: true,
+              maxOccupancy: true,
+              sofaBedSleeps: true,
+              client: { select: { name: true } },
+            },
+          },
+        },
       },
     },
   });
@@ -37,6 +51,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
     subtitle: c.property.client.name,
     status: c.status,
     scheduledFor: c.scheduledFor,
+    prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
   }));
 
   return (

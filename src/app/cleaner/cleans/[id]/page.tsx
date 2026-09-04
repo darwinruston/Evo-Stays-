@@ -8,6 +8,8 @@ import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
 import { StepProgress } from "@/components/StepProgress";
+import { CleanPrepSummary } from "@/components/CleanPrepSummary";
+import { cleanPrep } from "@/lib/cleanPrep";
 import { STOCK_BAND_LABELS, stockLevelBand, type StockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
@@ -230,6 +232,12 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
             {CLEAN_STATUS_LABELS[clean.status]}
           </span>
         </p>
+        {(clean.status === "PENDING" || clean.status === "IN_PROGRESS") && (
+          <CleanPrepSummary
+            prep={cleanPrep(clean.property, clean.guestCount)}
+            className="mt-1.5 text-sm"
+          />
+        )}
       </div>
 
       {clean.status === "IN_PROGRESS" && <StepProgress steps={STEPS} current={step} />}

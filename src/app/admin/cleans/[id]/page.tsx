@@ -7,6 +7,7 @@ import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { formatScheduledFor } from "@/lib/schedule";
 import { CleanLogView } from "@/components/CleanLogView";
 import { badge, button, card } from "@/lib/ui";
+import { cleanPrep } from "@/lib/cleanPrep";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,7 +25,18 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
   const clean = await prisma.clean.findUnique({
     where: { id },
     include: {
-      property: { select: { id: true, name: true, address: true, client: { select: { id: true, name: true } } } },
+      property: {
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          bedrooms: true,
+          bathrooms: true,
+          maxOccupancy: true,
+          sofaBedSleeps: true,
+          client: { select: { id: true, name: true } },
+        },
+      },
       assignedTo: { select: { name: true } },
       log: {
         include: {
@@ -36,6 +48,8 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
     },
   });
   if (!clean) notFound();
+
+  const prep = cleanPrep(clean.property, clean.guestCount);
 
   return (
     <div className="flex flex-col gap-8">
@@ -81,6 +95,20 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
           <span className="text-zinc-500">Guests</span>
           <span>{clean.guestCount ?? "Not set"}</span>
         </div>
+        <div className="flex justify-between gap-6 py-2 text-sm">
+          <span className="text-zinc-500">Beds to change</span>
+          <span>{prep.beds}</span>
+        </div>
+        <div className="flex justify-between gap-6 py-2 text-sm">
+          <span className="text-zinc-500">Bathrooms to clean</span>
+          <span>{prep.bathrooms}</span>
+        </div>
+        {clean.property.sofaBedSleeps !== null && (
+          <div className="flex justify-between gap-6 py-2 text-sm">
+            <span className="text-zinc-500">Sofa bed</span>
+            <span>{prep.sofaBedNeeded ? "Needs preparing" : "Not needed for this booking"}</span>
+          </div>
+        )}
       </div>
 
       {clean.instructions && (

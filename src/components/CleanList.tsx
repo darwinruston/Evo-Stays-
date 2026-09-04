@@ -3,6 +3,8 @@ import type { CleanStatus } from "@prisma/client";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
 import { formatScheduledFor, groupCleansByTime } from "@/lib/schedule";
 import { card } from "@/lib/ui";
+import { CleanPrepSummary } from "@/components/CleanPrepSummary";
+import type { CleanPrep } from "@/lib/cleanPrep";
 
 // Pre-shaped so the admin, cleaner and client lists can share the grouping
 // and row treatment without this component knowing about any of their
@@ -14,6 +16,9 @@ export type CleanRow = {
   subtitle?: string | null;
   status: CleanStatus;
   scheduledFor: Date | null;
+  // Omitted entirely for a cancelled/completed clean by most callers --
+  // there's nothing left to prep for those.
+  prep?: CleanPrep | null;
 };
 
 export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string }) {
@@ -44,6 +49,7 @@ export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string
                       {c.scheduledFor ? formatScheduledFor(c.scheduledFor) : "Not scheduled"}
                       {c.subtitle ? ` · ${c.subtitle}` : ""}
                     </p>
+                    {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
                   </div>
                   <span className="shrink-0 text-sm text-zinc-500">
                     {CLEAN_STATUS_LABELS[c.status]}

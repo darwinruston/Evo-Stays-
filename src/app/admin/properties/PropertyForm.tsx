@@ -11,6 +11,7 @@ type PropertyFields = {
   bedrooms: number | null;
   bathrooms: number | null;
   maxOccupancy: number | null;
+  sofaBedSleeps: number | null;
   accessOptions: unknown;
   accessNotes: string | null;
   notes: string | null;
@@ -150,6 +151,26 @@ export function PropertyForm({
             className={inputCompact}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="sofaBedSleeps" className="text-sm font-medium">
+          Sofa bed sleeps
+        </label>
+        <input
+          id="sofaBedSleeps"
+          name="sofaBedSleeps"
+          type="number"
+          min={0}
+          defaultValue={property?.sofaBedSleeps ?? ""}
+          placeholder="e.g. 2"
+          className={`${inputCompact} max-w-32`}
+        />
+        <p className="text-xs text-zinc-500">
+          Extra guests the sofa bed itself sleeps, already counted into Sleeps above -- leave blank if
+          there&apos;s no sofa bed. A cleaning task flags the sofa bed for prep when a booking&apos;s
+          guest count runs higher than the bedrooms alone sleep.
+        </p>
       </div>
 
       <fieldset className="flex flex-col gap-2">
