@@ -7,8 +7,13 @@ import { NextResponse } from "next/server";
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isLoginPage = req.nextUrl.pathname === "/login";
+  // "/" is the public landing page for a signed-out visitor (see
+  // src/app/page.tsx) -- it redirects a signed-in one straight to their own
+  // area itself, so this middleware just needs to let it through rather
+  // than bouncing to /login the way every other route does.
+  const isPublicLandingPage = req.nextUrl.pathname === "/";
 
-  if (!isLoggedIn && !isLoginPage) {
+  if (!isLoggedIn && !isLoginPage && !isPublicLandingPage) {
     const loginUrl = new URL("/login", req.nextUrl);
     loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
