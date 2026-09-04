@@ -21,6 +21,12 @@ function cost(formData: FormData): number {
   return n;
 }
 
+function facility(formData: FormData): string {
+  const raw = str(formData, "facility");
+  if (!raw) throw new Error("Enter which launderette or facility this went to.");
+  return raw;
+}
+
 function selectedCleanLogIds(formData: FormData): string[] {
   return formData.getAll("cleanLogIds").filter((v): v is string => typeof v === "string");
 }
@@ -64,6 +70,7 @@ export async function createLaundryLoad(formData: FormData) {
     data: {
       id: laundryLoadId,
       cost: cost(formData),
+      facility: facility(formData),
       receiptPath,
       recordedById: session.user.id,
       logs: { connect: eligible.map((l) => ({ id: l.id })) },

@@ -1,6 +1,6 @@
 import type { InvoiceCadence } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { toIsoDate } from "@/lib/schedule";
+import { formatDate } from "@/lib/schedule";
 
 // The period offered when generating, based on the cadence setting -- "the
 // most recent full period", never including today (a period ending today
@@ -45,7 +45,7 @@ export function defaultPeriodForCadence(
 // once rather than being reimplemented per page.
 export function formatPeriod(periodStart: Date, periodEnd: Date): string {
   const lastIncludedDay = new Date(periodEnd.getTime() - 1);
-  return `${toIsoDate(periodStart)} – ${toIsoDate(lastIncludedDay)}`;
+  return `${formatDate(periodStart)} – ${formatDate(lastIncludedDay)}`;
 }
 
 export function formatCurrency(amount: number): string {

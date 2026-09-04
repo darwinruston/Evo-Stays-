@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
-import { toIsoDate } from "@/lib/schedule";
+import { formatDate } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { createLaundryLoad } from "./actions";
 
@@ -61,7 +61,7 @@ export default async function LaundryPage() {
                   <label key={log.id} className="flex items-start gap-2 text-sm text-zinc-600">
                     <input type="checkbox" name="cleanLogIds" value={log.id} className="mt-0.5" />
                     <span>
-                      {propertyDisplayName(log.clean.property)} · {toIsoDate(log.departedAt!)} ·{" "}
+                      {propertyDisplayName(log.clean.property)} · {formatDate(log.departedAt!)} ·{" "}
                       {log.clean.assignedTo?.name ?? "Unassigned"}
                     </span>
                   </label>
@@ -70,6 +70,19 @@ export default async function LaundryPage() {
             </fieldset>
 
             <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="facility" className="text-sm font-medium">
+                  Launderette / facility
+                </label>
+                <input
+                  id="facility"
+                  name="facility"
+                  type="text"
+                  required
+                  placeholder="e.g. Sudsy Wash, High Street"
+                  className={`${inputCompact} w-56`}
+                />
+              </div>
               <div className="flex flex-col gap-1">
                 <label htmlFor="cost" className="text-sm font-medium">
                   Cost
@@ -125,12 +138,14 @@ export default async function LaundryPage() {
                     className="h-16 w-16 shrink-0 rounded-md object-cover"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{formatCurrency(load.cost)}</p>
+                    <p className="font-medium">
+                      {formatCurrency(load.cost)} · {load.facility}
+                    </p>
                     <p className="truncate text-sm text-zinc-500">
                       {load.logs.map((l) => propertyDisplayName(l.clean.property)).join(", ")}
                     </p>
                     <p className="text-xs text-zinc-500">
-                      {toIsoDate(load.createdAt)} · logged by {load.recordedBy.name}
+                      {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">

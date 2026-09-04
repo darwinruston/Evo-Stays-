@@ -341,6 +341,10 @@ model InvoiceLine {
 model LaundryLoad {
   id           String     @id @default(cuid())
   cost         Float
+  // Free text, e.g. "Sudsy Wash, High Street" -- which launderette or
+  // facility the linen was actually dropped off at. A business using more
+  // than one over time needs this to know where to go back to.
+  facility     String
   // One ticket photo, same storage convention as PropertyImage/CleanPhoto
   // (see src/lib/uploads.ts) but under its own storage root, since a load
   // isn't scoped to a single property the way those are.

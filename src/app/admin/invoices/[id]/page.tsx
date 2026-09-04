@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
-import { toIsoDate, formatScheduledFor } from "@/lib/schedule";
+import { formatDate, formatScheduledFor } from "@/lib/schedule";
 import { badge, button, card } from "@/lib/ui";
 import { setInvoicePaid } from "../actions";
 
@@ -57,7 +57,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </p>
           </div>
           <span className={badge(invoice.paidAt ? "solid" : "neutral")}>
-            {invoice.paidAt ? `Paid ${toIsoDate(invoice.paidAt)}` : "Unpaid"}
+            {invoice.paidAt ? `Paid ${formatDate(invoice.paidAt)}` : "Unpaid"}
           </span>
         </div>
       </div>

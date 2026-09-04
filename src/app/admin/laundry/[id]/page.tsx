@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
-import { toIsoDate, formatScheduledFor } from "@/lib/schedule";
+import { formatDate, formatScheduledFor } from "@/lib/schedule";
 import { badge, button, card } from "@/lib/ui";
 import { deleteLaundryLoad, setLaundryLoadCollected } from "../actions";
 
@@ -39,12 +39,13 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{formatCurrency(load.cost)}</h1>
+            <p className="mt-0.5 text-sm text-zinc-500">{load.facility}</p>
             <p className="mt-0.5 text-sm text-zinc-500">
-              {toIsoDate(load.createdAt)} · logged by {load.recordedBy.name}
+              {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
             </p>
           </div>
           <span className={badge(load.collectedAt ? "solid" : "neutral")}>
-            {load.collectedAt ? `Collected ${toIsoDate(load.collectedAt)}` : "Out at the laundrette"}
+            {load.collectedAt ? `Collected ${formatDate(load.collectedAt)}` : "Out at the laundrette"}
           </span>
         </div>
       </div>

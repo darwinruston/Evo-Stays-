@@ -4,9 +4,18 @@ function pad(n: number): string {
 
 // YYYY-MM-DD in local time -- used as both the calendar grid's per-day key
 // and the ?day= query param, so it must never drift with timezone/UTC
-// conversion the way toISOString() would.
+// conversion the way toISOString() would. Internal/machine use only --
+// for anything a person reads, use formatDate below instead.
 export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// dd/mm/yyyy, for every date shown as text to a person. Kept separate from
+// toIsoDate, which stays YYYY-MM-DD on purpose for sortable keys and
+// <input type="date"> values (that HTML attribute requires ISO format
+// regardless of display locale).
+export function formatDate(date: Date): string {
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 }
 
 // Local-time value an <input type="datetime-local"> expects for its

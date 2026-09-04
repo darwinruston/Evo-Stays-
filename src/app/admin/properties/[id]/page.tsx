@@ -9,7 +9,7 @@ import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
 import { stockLevelBand } from "@/lib/stock";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
-import { toIsoDate } from "@/lib/schedule";
+import { formatDate } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import {
   addPropertyPhotos,
@@ -343,9 +343,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       className="h-14 w-14 shrink-0 rounded-md object-cover"
                     />
                     <div className="min-w-0">
-                      <p className="font-medium">{formatCurrency(load.cost)}</p>
+                      <p className="font-medium">
+                        {formatCurrency(load.cost)} · {load.facility}
+                      </p>
                       <p className="truncate text-sm text-zinc-500">
-                        {toIsoDate(load.createdAt)} · logged by {load.recordedBy.name}
+                        {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
                         {otherProperties.length > 0 && ` · also covers ${otherProperties.join(", ")}`}
                       </p>
                     </div>
