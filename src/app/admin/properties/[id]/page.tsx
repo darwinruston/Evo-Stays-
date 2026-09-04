@@ -9,6 +9,7 @@ import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
 import { stockLevelBand } from "@/lib/stock";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
+import { toIsoDate } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import {
   addPropertyPhotos,
@@ -20,6 +21,7 @@ import {
   removePropertyStockLevel,
   updatePropertyMinBillableHours,
 } from "../actions";
+import { setLaundryLoadCollected } from "../../laundry/actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -52,6 +54,20 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   const availableItems = await prisma.stockItem.findMany({
     where: { active: true, id: { notIn: [...configuredItemIds] } },
     orderBy: { name: "asc" },
+  });
+
+  // Loads still out at the laundrette that include at least one visit at
+  // this property. Filtered to collectedAt: null, not just fetched and
+  // hidden -- once a load is marked collected it stops matching this query
+  // on its own, which is what keeps this section from clogging up with old
+  // resolved drop-offs.
+  const laundryOut = await prisma.laundryLoad.findMany({
+    where: { collectedAt: null, logs: { some: { clean: { propertyId: property.id } } } },
+    orderBy: { createdAt: "desc" },
+    include: {
+      recordedBy: { select: { name: true } },
+      logs: { include: { clean: { include: { property: { select: { id: true, name: true, address: true } } } } } },
+    },
   });
 
   return (
@@ -299,6 +315,52 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </p>
         )}
       </section>
+
+      {laundryOut.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+            At the launderette{" "}
+            <span className="text-sm font-normal text-zinc-500">({laundryOut.length})</span>
+            <InfoTooltip text="Linen from this property that's out being cleaned. Mark it collected once it's back -- it then drops off this list on its own, so this only ever shows what's actually still out." />
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {laundryOut.map((load) => {
+              const otherProperties = [
+                ...new Set(
+                  load.logs
+                    .map((l) => l.clean.property)
+                    .filter((p) => p.id !== property.id)
+                    .map((p) => propertyDisplayName(p)),
+                ),
+              ];
+              return (
+                <li key={load.id} className={card("flex items-center gap-4 p-4")}>
+                  <Link href={`/admin/laundry/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/laundry-photos/${load.receiptPath}`}
+                      alt="Laundry ticket"
+                      className="h-14 w-14 shrink-0 rounded-md object-cover"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium">{formatCurrency(load.cost)}</p>
+                      <p className="truncate text-sm text-zinc-500">
+                        {toIsoDate(load.createdAt)} · logged by {load.recordedBy.name}
+                        {otherProperties.length > 0 && ` · also covers ${otherProperties.join(", ")}`}
+                      </p>
+                    </div>
+                  </Link>
+                  <form action={setLaundryLoadCollected.bind(null, load.id, property.id, true)}>
+                    <button type="submit" className={button("secondary", "sm")}>
+                      Mark as collected
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-zinc-900">

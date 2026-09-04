@@ -5,8 +5,8 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
 import { toIsoDate, formatScheduledFor } from "@/lib/schedule";
-import { button, card } from "@/lib/ui";
-import { deleteLaundryLoad } from "../actions";
+import { badge, button, card } from "@/lib/ui";
+import { deleteLaundryLoad, setLaundryLoadCollected } from "../actions";
 
 export const metadata = { title: "Laundry load" };
 
@@ -43,8 +43,17 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
               {toIsoDate(load.createdAt)} · logged by {load.recordedBy.name}
             </p>
           </div>
+          <span className={badge(load.collectedAt ? "solid" : "neutral")}>
+            {load.collectedAt ? `Collected ${toIsoDate(load.collectedAt)}` : "Out at the laundrette"}
+          </span>
         </div>
       </div>
+
+      <form action={setLaundryLoadCollected.bind(null, load.id, null, !load.collectedAt)}>
+        <button type="submit" className={button(load.collectedAt ? "secondary" : "primary", "sm")}>
+          {load.collectedAt ? "Mark as not collected" : "Mark as collected"}
+        </button>
+      </form>
 
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

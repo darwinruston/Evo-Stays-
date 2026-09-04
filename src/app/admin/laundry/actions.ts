@@ -84,3 +84,23 @@ export async function deleteLaundryLoad(id: string) {
   revalidatePath("/cleaner/laundry");
   redirect("/admin/laundry");
 }
+
+// Toggle, same shape as setInvoicePaid: collectedAt null means still out at
+// the laundrette. This is what makes a property's "currently out" section
+// self-closing -- once set, the load just stops matching that section's
+// `collectedAt: null` filter instead of needing to be removed by hand.
+// propertyId is only for revalidating the property page this was called
+// from (a load can cover several properties, so there's no single one to
+// derive) -- pass null when there isn't one, e.g. from the load detail page.
+export async function setLaundryLoadCollected(id: string, propertyId: string | null, collected: boolean) {
+  await requireStaff();
+
+  await prisma.laundryLoad.update({
+    where: { id },
+    data: { collectedAt: collected ? new Date() : null },
+  });
+
+  revalidatePath("/admin/laundry");
+  revalidatePath(`/admin/laundry/${id}`);
+  if (propertyId) revalidatePath(`/admin/properties/${propertyId}`);
+}

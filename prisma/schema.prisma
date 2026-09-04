@@ -349,6 +349,11 @@ model LaundryLoad {
   recordedById String
   logs         CleanLog[]
   createdAt    DateTime   @default(now())
+  // Null while the linen is still out at the laundrette -- that's what
+  // makes a property's "currently out" section self-closing: once this is
+  // set, the load just drops out of that filtered view instead of needing
+  // to be manually cleared away.
+  collectedAt  DateTime?
 
   @@index([recordedById])
 }

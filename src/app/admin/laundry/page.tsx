@@ -133,9 +133,14 @@ export default async function LaundryPage() {
                       {toIsoDate(load.createdAt)} · logged by {load.recordedBy.name}
                     </p>
                   </div>
-                  <span className={badge("neutral")}>
-                    {load.logs.length} {load.logs.length === 1 ? "visit" : "visits"}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className={badge("neutral")}>
+                      {load.logs.length} {load.logs.length === 1 ? "visit" : "visits"}
+                    </span>
+                    <span className={badge(load.collectedAt ? "solid" : "neutral")}>
+                      {load.collectedAt ? "Collected" : "Out"}
+                    </span>
+                  </div>
                 </Link>
               </li>
             ))}
