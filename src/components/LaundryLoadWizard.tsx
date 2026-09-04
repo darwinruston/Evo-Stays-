@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useActionState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { StepProgress } from "@/components/StepProgress";
 import { button, card, inputCompact } from "@/lib/ui";
 
 export type WizardVisit = { id: string; label: string };
 export type WizardFacility = { id: string; name: string };
+
+// Returned by the create-load server actions instead of thrown: a throw
+// from a plain <form action> surfaces as an uncaught exception that wipes
+// out every step's answer and leaves the user stuck. Returning it lets
+// useActionState below show it inline and keep everything already entered.
+export type LaundryLoadFormState = { error?: string };
 
 const WIZARD_STEPS = ["Visits", "Launderette", "Cost", "Photo"] as const;
 
@@ -35,17 +41,60 @@ export function LaundryLoadWizard({
   // just fail server-side.
   onCreateFacility?: (name: string) => Promise<WizardFacility>;
   capturePhoto?: boolean;
-  action: (formData: FormData) => void;
+  action: (prevState: LaundryLoadFormState, formData: FormData) => Promise<LaundryLoadFormState>;
 }) {
   const [step, setStep] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [facilityId, setFacilityId] = useState("");
   const [cost, setCost] = useState("");
+  const [photoSelected, setPhotoSelected] = useState(false);
   const [localFacilities, setLocalFacilities] = useState(facilities);
   const [addingFacility, setAddingFacility] = useState(facilities.length === 0);
   const [newFacilityName, setNewFacilityName] = useState("");
   const [creatingFacility, setCreatingFacility] = useState(false);
   const [createFacilityError, setCreateFacilityError] = useState<string | null>(null);
+
+  const formRef = useRef<HTMLFormElement>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [resetToken, setResetToken] = useState(0);
+  const [state, formAction, pending] = useActionState<LaundryLoadFormState, FormData>(action, {});
+
+  // A successful submit clears the wizard back to a blank first step, ready
+  // for the next drop-off, rather than leaving a filled-in form sitting
+  // there or needing a manual page reload. Done during render (React's own
+  // pattern for "reset state when a value changes") rather than in an
+  // effect, since setState-in-an-effect causes an extra render pass; the
+  // `submitted` flag (set in the Save button's onClick) gates it so this
+  // never fires on first mount, only after an actual save.
+  const [prevState, setPrevState] = useState(state);
+  if (state !== prevState) {
+    setPrevState(state);
+    if (submitted) {
+      setSubmitted(false);
+      if (!state.error) {
+        setStep(0);
+        setSelectedIds(new Set());
+        setFacilityId("");
+        setCost("");
+        setPhotoSelected(false);
+        setResetToken((t) => t + 1);
+      }
+    }
+  }
+
+  // The photo <input> is uncontrolled (a file picker's value can't be set
+  // from React state), so clearing it needs the actual DOM API -- an
+  // imperative side effect, which belongs in an effect (refs may only be
+  // read/written there, never during render). Skips the very first run so
+  // mounting doesn't reset a freshly-rendered, still-empty form.
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    formRef.current?.reset();
+  }, [resetToken]);
 
   if (eligibleVisits.length === 0) {
     return (
@@ -58,6 +107,7 @@ export function LaundryLoadWizard({
   const costValue = Number.parseFloat(cost);
   const costValid = cost.trim() !== "" && Number.isFinite(costValue) && costValue >= 0;
   const canProceed = step === 0 ? selectedIds.size > 0 : step === 1 ? facilityId !== "" : costValid;
+  const canSave = selectedIds.size > 0 && facilityId !== "" && costValid && photoSelected;
 
   function toggleVisit(id: string) {
     setSelectedIds((prev) => {
@@ -93,7 +143,7 @@ export function LaundryLoadWizard({
   }
 
   return (
-    <form action={action} className={card("flex flex-col gap-4 p-4")}>
+    <form ref={formRef} onSubmit={(e) => e.preventDefault()} className={card("flex flex-col gap-4 p-4")}>
       <StepProgress steps={WIZARD_STEPS} current={step} />
 
       <fieldset className={step === 0 ? "flex flex-col gap-2" : "hidden"}>
@@ -223,9 +273,15 @@ export function LaundryLoadWizard({
           type="file"
           accept="image/*"
           capture={capturePhoto ? "environment" : undefined}
+          onChange={(e) => setPhotoSelected(!!e.target.files && e.target.files.length > 0)}
           className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
         />
+        {step === 3 && !photoSelected && (
+          <p className="text-xs text-zinc-500">A ticket photo is needed before this can be saved.</p>
+        )}
       </div>
+
+      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
 
       <div className="flex items-center gap-2">
         {step > 0 && (
@@ -243,8 +299,16 @@ export function LaundryLoadWizard({
             Next
           </button>
         ) : (
-          <button type="submit" className={button("primary", "sm")}>
-            Save
+          <button
+            type="button"
+            disabled={!canSave || pending}
+            onClick={() => {
+              setSubmitted(true);
+              if (formRef.current) formAction(new FormData(formRef.current));
+            }}
+            className={`${button("primary", "sm")} disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            {pending ? "Saving…" : "Save"}
           </button>
         )}
       </div>

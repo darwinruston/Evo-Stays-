@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { saveLaundryPhoto } from "@/lib/uploads";
+import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -14,29 +15,26 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-function cost(formData: FormData): number {
+function cost(formData: FormData): number | null {
   const raw = str(formData, "cost");
   const n = raw === null ? NaN : Number.parseFloat(raw);
-  if (!Number.isFinite(n) || n < 0) throw new Error("Enter a valid cost.");
-  return n;
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-async function facilityId(formData: FormData): Promise<string> {
+async function resolveFacilityId(formData: FormData): Promise<string | null> {
   const raw = str(formData, "facilityId");
-  if (!raw) throw new Error("Pick which launderette this went to.");
+  if (!raw) return null;
   const facility = await prisma.laundryFacility.findUnique({ where: { id: raw }, select: { id: true } });
-  if (!facility) throw new Error("Pick which launderette this went to.");
-  return facility.id;
+  return facility?.id ?? null;
 }
 
 function selectedCleanLogIds(formData: FormData): string[] {
   return formData.getAll("cleanLogIds").filter((v): v is string => typeof v === "string");
 }
 
-function photoFile(formData: FormData): File {
+function photoFile(formData: FormData): File | null {
   const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) throw new Error("Upload a photo of the ticket.");
-  return file;
+  return file instanceof File && file.size > 0 ? file : null;
 }
 
 // Any completed visit not already claimed by another load -- same
@@ -48,11 +46,29 @@ const ELIGIBLE_LOG_WHERE = {
   clean: { status: "COMPLETED" as const },
 };
 
-export async function createLaundryLoad(formData: FormData) {
+// Returns an error to display inline (via useActionState in
+// LaundryLoadWizard) instead of throwing. A throw here would surface as an
+// uncaught exception in the browser -- the wizard's whole client-side state
+// (visits picked, facility, cost) would be wiped out and the user would be
+// stuck with no way to just fix the one bad field and retry, which is
+// exactly the "error and it doesn't let me finish it" this fixes.
+export async function createLaundryLoad(
+  _prevState: LaundryLoadFormState,
+  formData: FormData,
+): Promise<LaundryLoadFormState> {
   const session = await requireStaff();
 
   const requestedIds = selectedCleanLogIds(formData);
-  if (requestedIds.length === 0) throw new Error("Pick at least one clean.");
+  if (requestedIds.length === 0) return { error: "Pick at least one clean." };
+
+  const loadCost = cost(formData);
+  if (loadCost === null) return { error: "Enter a valid cost." };
+
+  const facilityId = await resolveFacilityId(formData);
+  if (!facilityId) return { error: "Pick which launderette this went to." };
+
+  const photo = photoFile(formData);
+  if (!photo) return { error: "Upload a photo of the ticket." };
 
   // Re-validated server-side: only logs that are actually still eligible get
   // connected, regardless of what the submitted checkboxes claimed -- the
@@ -61,18 +77,18 @@ export async function createLaundryLoad(formData: FormData) {
     where: { id: { in: requestedIds }, ...ELIGIBLE_LOG_WHERE },
     select: { id: true },
   });
-  if (eligible.length === 0) throw new Error("None of the selected visits are eligible.");
+  if (eligible.length === 0) return { error: "None of the selected visits are eligible." };
 
   // Generated up front so the photo can be saved under {id}/{filename} and
   // the whole row written in one create() -- see saveLaundryPhoto.
   const laundryLoadId = randomUUID();
-  const receiptPath = await saveLaundryPhoto(laundryLoadId, photoFile(formData));
+  const receiptPath = await saveLaundryPhoto(laundryLoadId, photo);
 
   await prisma.laundryLoad.create({
     data: {
       id: laundryLoadId,
-      cost: cost(formData),
-      facilityId: await facilityId(formData),
+      cost: loadCost,
+      facilityId,
       receiptPath,
       recordedById: session.user.id,
       logs: { connect: eligible.map((l) => ({ id: l.id })) },
@@ -81,6 +97,7 @@ export async function createLaundryLoad(formData: FormData) {
 
   revalidatePath("/admin/laundry");
   revalidatePath("/cleaner/laundry");
+  return {};
 }
 
 // Row only -- frees the linked logs back to unlinked (onDelete: SetNull on

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { savePropertyPhotos, saveLaundryPhoto } from "@/lib/uploads";
 import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
+import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -208,13 +209,33 @@ export async function completeClean(cleanId: string, formData: FormData) {
 // Mirrors src/app/admin/laundry/actions.ts's createLaundryLoad, but every
 // requested visit must belong to THIS cleaner -- re-validated here rather
 // than trusted from the submitted checkboxes.
-export async function createLaundryLoad(formData: FormData) {
+//
+// Returns an error to display inline (via useActionState in
+// LaundryLoadWizard) instead of throwing -- a throw would surface as an
+// uncaught exception and wipe out everything picked in the wizard so far.
+export async function createLaundryLoad(
+  _prevState: LaundryLoadFormState,
+  formData: FormData,
+): Promise<LaundryLoadFormState> {
   const session = await requireCleaner();
 
   const requestedIds = formData
     .getAll("cleanLogIds")
     .filter((v): v is string => typeof v === "string");
-  if (requestedIds.length === 0) throw new Error("Pick at least one clean.");
+  if (requestedIds.length === 0) return { error: "Pick at least one clean." };
+
+  const rawCost = str(formData, "cost");
+  const cost = rawCost === null ? NaN : Number.parseFloat(rawCost);
+  if (!Number.isFinite(cost) || cost < 0) return { error: "Enter a valid cost." };
+
+  const rawFacilityId = str(formData, "facilityId");
+  const facility = rawFacilityId
+    ? await prisma.laundryFacility.findUnique({ where: { id: rawFacilityId }, select: { id: true } })
+    : null;
+  if (!facility) return { error: "Pick which launderette this went to." };
+
+  const photo = formData.get("photo");
+  if (!(photo instanceof File) || photo.size === 0) return { error: "Upload a photo of the ticket." };
 
   const eligible = await prisma.cleanLog.findMany({
     where: {
@@ -226,20 +247,7 @@ export async function createLaundryLoad(formData: FormData) {
     },
     select: { id: true },
   });
-  if (eligible.length === 0) throw new Error("None of the selected visits are eligible.");
-
-  const photo = formData.get("photo");
-  if (!(photo instanceof File) || photo.size === 0) throw new Error("Upload a photo of the ticket.");
-
-  const rawCost = str(formData, "cost");
-  const cost = rawCost === null ? NaN : Number.parseFloat(rawCost);
-  if (!Number.isFinite(cost) || cost < 0) throw new Error("Enter a valid cost.");
-
-  const rawFacilityId = str(formData, "facilityId");
-  const facility = rawFacilityId
-    ? await prisma.laundryFacility.findUnique({ where: { id: rawFacilityId }, select: { id: true } })
-    : null;
-  if (!facility) throw new Error("Pick which launderette this went to.");
+  if (eligible.length === 0) return { error: "None of the selected visits are eligible." };
 
   // Generated up front so the photo can be saved under {id}/{filename} and
   // the whole row written in one create() -- see saveLaundryPhoto.
@@ -259,4 +267,5 @@ export async function createLaundryLoad(formData: FormData) {
 
   revalidatePath("/cleaner/laundry");
   revalidatePath("/admin/laundry");
+  return {};
 }
