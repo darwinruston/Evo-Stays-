@@ -199,29 +199,69 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           Billing
           <InfoTooltip text="Optional floor on billed hours per visit, so a cleaner who finishes quickly because the property was left in good condition isn't penalised for it — invoices bill whichever is higher, actual time or this minimum. Leave blank to bill actual time only." />
         </h2>
-        <form
-          action={updatePropertyMinBillableHours.bind(null, property.id)}
-          className={card("flex flex-wrap items-end gap-3 p-4")}
-        >
-          <div className="flex flex-col gap-1">
-            <label htmlFor="minBillableHours" className="text-sm font-medium">
-              Minimum hours per visit
-            </label>
-            <input
-              id="minBillableHours"
-              name="minBillableHours"
-              type="number"
-              min={0}
-              step="0.25"
-              defaultValue={property.minBillableHours ?? ""}
-              placeholder="e.g. 2"
-              className={`${inputCompact} w-28`}
-            />
+        {property.minBillableHours !== null ? (
+          <div className={card("flex flex-col gap-3 p-4")}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-medium">Minimum hours per visit</p>
+              <p className="text-lg font-semibold">{property.minBillableHours}h</p>
+            </div>
+
+            {/* Once a minimum is set it's a settled business fact, not
+                something to accidentally overwrite while glancing at this
+                page -- same "tucked behind a disclosure" treatment as par
+                settings above. */}
+            <details className="border-t border-black/5 pt-3">
+              <summary className="cursor-pointer text-xs text-zinc-500">Edit</summary>
+              <form
+                action={updatePropertyMinBillableHours.bind(null, property.id)}
+                className="mt-3 flex flex-wrap items-end gap-3"
+              >
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="minBillableHours" className="text-xs text-zinc-500">
+                    Minimum hours per visit
+                  </label>
+                  <input
+                    id="minBillableHours"
+                    name="minBillableHours"
+                    type="number"
+                    min={0}
+                    step="0.25"
+                    defaultValue={property.minBillableHours}
+                    placeholder="e.g. 2"
+                    className={`${inputCompact} w-28`}
+                  />
+                </div>
+                <button type="submit" className={button("secondary", "sm")}>
+                  Save
+                </button>
+                <p className="w-full text-xs text-zinc-500">Clear the field and save to turn it off.</p>
+              </form>
+            </details>
           </div>
-          <button type="submit" className={button("secondary", "sm")}>
-            Save
-          </button>
-        </form>
+        ) : (
+          <form
+            action={updatePropertyMinBillableHours.bind(null, property.id)}
+            className={card("flex flex-wrap items-end gap-3 p-4")}
+          >
+            <div className="flex flex-col gap-1">
+              <label htmlFor="minBillableHours" className="text-sm font-medium">
+                Minimum hours per visit
+              </label>
+              <input
+                id="minBillableHours"
+                name="minBillableHours"
+                type="number"
+                min={0}
+                step="0.25"
+                placeholder="e.g. 2"
+                className={`${inputCompact} w-28`}
+              />
+            </div>
+            <button type="submit" className={button("secondary", "sm")}>
+              Save
+            </button>
+          </form>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">
