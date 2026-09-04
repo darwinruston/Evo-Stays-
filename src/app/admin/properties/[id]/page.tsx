@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
 import { stockLevelBand } from "@/lib/stock";
@@ -77,15 +78,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       <PropertyDetails property={property} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">
-          Stock ({property.stockLevels.length})
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+          Stock <span className="text-sm font-normal text-zinc-500">({property.stockLevels.length})</span>
+          <InfoTooltip text="Nobody counts bin bags exactly, before or after topping them up — set the level the same way a cleaner records it. Par is the one real number here: what a full restock brings this property up to, e.g. a pack or order size (6 hand soaps, 50 bin bags), not the bare minimum needed." />
         </h2>
-        <p className="text-sm text-zinc-600">
-          Nobody counts bin bags exactly, before or after topping them up — set the level the same
-          way a cleaner records it. Par is the one real number here: what a full restock brings
-          this property up to, e.g. a pack or order size (6 hand soaps, 50 bin bags), not the bare
-          minimum needed.
-        </p>
 
         {property.stockLevels.length > 0 && (
           <ul className="flex flex-col gap-2">
@@ -199,12 +195,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">Billing</h2>
-        <p className="text-sm text-zinc-600">
-          Optional floor on billed hours per visit, so a cleaner who finishes quickly because the
-          property was left in good condition isn&apos;t penalised for it — invoices bill whichever
-          is higher, actual time or this minimum. Leave blank to bill actual time only.
-        </p>
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+          Billing
+          <InfoTooltip text="Optional floor on billed hours per visit, so a cleaner who finishes quickly because the property was left in good condition isn't penalised for it — invoices bill whichever is higher, actual time or this minimum. Leave blank to bill actual time only." />
+        </h2>
         <form
           action={updatePropertyMinBillableHours.bind(null, property.id)}
           className={card("flex flex-wrap items-end gap-3 p-4")}
@@ -231,13 +225,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">
-          Cleaning costs ({property.invoices.length})
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+          Cleaning costs <span className="text-sm font-normal text-zinc-500">({property.invoices.length})</span>
+          <InfoTooltip text="Every invoice generated for this property, one per cleaner per billing period — this client's cleaning spend, on its own, separate from every other property." />
         </h2>
-        <p className="text-sm text-zinc-600">
-          Every invoice generated for this property, one per cleaner per billing period — this
-          client&apos;s cleaning spend, on its own, separate from every other property.
-        </p>
 
         {property.invoices.length > 0 ? (
           <ul className="flex flex-col gap-2">
@@ -277,7 +268,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">Photos ({property.images.length})</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">
+          Photos <span className="text-sm font-normal text-zinc-500">({property.images.length})</span>
+        </h2>
 
         {property.images.length > 0 && (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
