@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState, useRef, useEffect } from "react";
+import { useState, useActionState, useRef, useEffect, startTransition } from "react";
 import Link from "next/link";
 import { StepProgress } from "@/components/StepProgress";
 import { button, card, inputCompact } from "@/lib/ui";
@@ -304,7 +304,14 @@ export function LaundryLoadWizard({
             disabled={!canSave || pending}
             onClick={() => {
               setSubmitted(true);
-              if (formRef.current) formAction(new FormData(formRef.current));
+              const fd = formRef.current ? new FormData(formRef.current) : null;
+              // useActionState's dispatcher expects to run inside a
+              // transition (it's normally invoked by React itself via the
+              // form's action prop) -- calling it bare from an event
+              // handler works but leaves `pending` out of sync with the
+              // actual request. Wrapping it here is what makes "Saving…"
+              // reflect reality.
+              if (fd) startTransition(() => formAction(fd));
             }}
             className={`${button("primary", "sm")} disabled:cursor-not-allowed disabled:opacity-40`}
           >
