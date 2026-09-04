@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { button } from "@/lib/ui";
 
 type NavItem = { href: string; label: string };
 
 const linkClass =
   "rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-black/5 hover:text-zinc-950";
+
+const signOutClass = button("secondary", "sm");
 
 // Shared by both the admin and cleaner headers, so mobile navigation looks
 // and behaves the same way everywhere in the app rather than each area
@@ -16,11 +19,19 @@ const linkClass =
 // sideways, a different pattern from admin's for what's the same kind of
 // bar). Below sm: a hamburger opens a stacked dropdown; sm: and up render a
 // flat row.
+//
+// `items` sits left, right after the logo -- the day-to-day work areas.
+// `rightItems` (optional) sits at the far right, before Sign out -- for a
+// section like admin's Clients/Cleaners, which are more like profile
+// directories than daily tools and read better grouped off on their own.
+// Cleaner has no such split and just omits the prop.
 export function NavMenu({
   items,
+  rightItems = [],
   logoutAction,
 }: {
   items: NavItem[];
+  rightItems?: NavItem[];
   logoutAction: (formData: FormData) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -48,8 +59,17 @@ export function NavMenu({
       </div>
 
       <div className="ml-auto hidden items-center gap-3 sm:flex">
+        {rightItems.length > 0 && (
+          <div className="flex items-center gap-1">
+            {rightItems.map((item) => (
+              <Link key={item.href} href={item.href} className={linkClass}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
         <form action={logoutAction}>
-          <button type="submit" className={linkClass}>
+          <button type="submit" className={signOutClass}>
             Sign out
           </button>
         </form>
@@ -78,8 +98,18 @@ export function NavMenu({
               {item.label}
             </Link>
           ))}
-          <form action={logoutAction}>
-            <button type="submit" className={`${linkClass} w-full text-left`}>
+          {rightItems.length > 0 && (
+            <>
+              <div className="my-1 border-t border-black/5" />
+              {rightItems.map((item) => (
+                <Link key={item.href} href={item.href} className={linkClass}>
+                  {item.label}
+                </Link>
+              ))}
+            </>
+          )}
+          <form action={logoutAction} className="mt-1">
+            <button type="submit" className={`${signOutClass} w-full`}>
               Sign out
             </button>
           </form>
