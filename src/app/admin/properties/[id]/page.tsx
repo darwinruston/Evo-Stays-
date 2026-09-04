@@ -90,10 +90,38 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium">{level.stockItem.name}</p>
-                    <p className="text-xs text-zinc-500">
-                      Par {level.parQty}
-                      {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
-                    </p>
+                    {/* Par is a one-time setup fact (a pack or order size),
+                        not something that needs adjusting on every visit --
+                        tucked behind this same line instead of a separate
+                        section, so editing it stays contained and compact. */}
+                    <details className="group/par">
+                      <summary className="w-fit cursor-pointer list-none text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700 [&::-webkit-details-marker]:hidden">
+                        Par {level.parQty}
+                        {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
+                      </summary>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <form
+                          action={updatePropertyStockPar.bind(null, property.id, level.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <input
+                            name="parQty"
+                            type="number"
+                            min={1}
+                            defaultValue={level.parQty}
+                            className={`${inputCompact} w-16`}
+                          />
+                          <button type="submit" className={button("secondary", "sm")}>
+                            Save
+                          </button>
+                        </form>
+                        <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
+                          <button type="submit" className="text-xs text-red-600 hover:underline">
+                            Remove
+                          </button>
+                        </form>
+                      </div>
+                    </details>
                   </div>
                   <StockLevelIndicator level={level} />
                 </div>
@@ -102,41 +130,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   action={setPropertyStockLevel.bind(null, property.id, level.id)}
                   current={stockLevelBand(level)}
                 />
-
-                {/* Par is a one-time setup fact (a pack or order size), not
-                    something that needs adjusting on every visit to this
-                    page -- tucked away by default so the level toggle above
-                    is what actually draws the eye. */}
-                <details className="border-t border-black/5 pt-3">
-                  <summary className="cursor-pointer text-xs text-zinc-500">
-                    Par settings
-                  </summary>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <form
-                      action={updatePropertyStockPar.bind(null, property.id, level.id)}
-                      className="flex items-end gap-2"
-                    >
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Par</label>
-                        <input
-                          name="parQty"
-                          type="number"
-                          min={1}
-                          defaultValue={level.parQty}
-                          className={`${inputCompact} w-20`}
-                        />
-                      </div>
-                      <button type="submit" className={button("secondary", "sm")}>
-                        Save
-                      </button>
-                    </form>
-                    <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
-                      <button type="submit" className={button("danger", "sm")}>
-                        Remove from this property
-                      </button>
-                    </form>
-                  </div>
-                </details>
               </li>
             ))}
           </ul>
