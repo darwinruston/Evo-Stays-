@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.github
+.claude
+storage
+*.db
+*.db-journal
+.env*
+npm-debug.log*
+.DS_Store
+README.md
