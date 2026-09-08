@@ -12,6 +12,7 @@ import { CleanPrepSummary } from "@/components/CleanPrepSummary";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { StockLevelStep } from "@/components/StockLevelStep";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
+import { DetailsCard } from "@/components/DetailsCard";
 import { stockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
@@ -293,37 +294,24 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
             </>
           )}
 
-          {/* Kept to hand throughout -- key safe codes and quirks still matter
-              mid-turnover, not just on the doorstep. */}
-          <details className="text-sm">
-            <summary className="cursor-pointer text-zinc-500">Property details</summary>
-            <div className="mt-3">
-              <PropertyDetails property={clean.property} />
-            </div>
-          </details>
+          {/* Kept to hand throughout -- worth checking back against mid-clean,
+              not just once before starting. Property details last: access
+              codes and quirks matter most on the doorstep, so once you're in
+              and working, the checklist and reference photos are what you're
+              actually reaching for first. */}
+          <DetailsCard summary="Cleaning checklist">
+            <CleaningChecklist />
+          </DetailsCard>
 
-          {/* Same idea for the checklist read on arrival -- worth checking
-              back against mid-clean, not just once before starting. */}
-          <details className="text-sm">
-            <summary className="cursor-pointer text-zinc-500">Cleaning checklist</summary>
-            <div className="mt-3">
-              <CleaningChecklist />
-            </div>
-          </details>
-
-          {/* Same idea for the reference photos shown on arrival -- worth
-              checking back against at any point while cleaning, not just
-              once before starting. */}
           {referencePhotos.length > 0 && (
-            <details className="text-sm">
-              <summary className="cursor-pointer text-zinc-500">
-                Reference photos ({referencePhotos.length})
-              </summary>
-              <div className="mt-3">
-                <PhotoGrid paths={referencePhotos} alt={title} />
-              </div>
-            </details>
+            <DetailsCard summary={`Reference photos (${referencePhotos.length})`}>
+              <PhotoGrid paths={referencePhotos} alt={title} />
+            </DetailsCard>
           )}
+
+          <DetailsCard summary="Property details">
+            <PropertyDetails property={clean.property} />
+          </DetailsCard>
         </>
       )}
 
