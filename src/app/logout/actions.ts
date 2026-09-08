@@ -3,5 +3,7 @@
 import { signOut } from "@/auth";
 
 export async function logoutAction() {
-  await signOut({ redirectTo: "/login" });
+  // "/" itself decides what a signed-out visitor sees -- the landing page --
+  // so this doesn't skip past it to /login the way it used to.
+  await signOut({ redirectTo: "/" });
 }

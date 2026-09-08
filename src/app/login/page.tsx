@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LoginForm } from "./LoginForm";
 import { EvoTick } from "@/components/EvoTick";
 import { card } from "@/lib/ui";
@@ -15,7 +16,9 @@ export default async function LoginPage({
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
-          <EvoTick className="h-9 w-auto" />
+          <Link href="/" aria-label="Evo Stays home">
+            <EvoTick className="h-9 w-auto" />
+          </Link>
         </div>
         <div className={card("p-6 sm:p-8")}>
           <h1 className="mb-1 text-xl font-semibold tracking-tight">Sign in</h1>
