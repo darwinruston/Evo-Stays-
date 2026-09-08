@@ -10,7 +10,8 @@ import { CleanLogView } from "@/components/CleanLogView";
 import { StepProgress } from "@/components/StepProgress";
 import { CleanPrepSummary } from "@/components/CleanPrepSummary";
 import { cleanPrep } from "@/lib/cleanPrep";
-import { STOCK_BAND_LABELS, stockLevelBand, type StockLevelBand } from "@/lib/stock";
+import { StockLevelStep } from "@/components/StockLevelStep";
+import { stockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
 import { checkInClean, uploadCleanPhotos, recordStockLevel, completeClean } from "../../actions";
@@ -66,73 +67,6 @@ function PhotoUploadStep({
       <button type="submit" className={`w-full ${button("primary", "lg")}`}>
         {submitLabel}
       </button>
-    </form>
-  );
-}
-
-const BAND_ORDER: StockLevelBand[] = ["high", "medium", "low", "none"];
-
-// One item at a time, tap-only: no typing, which is the whole point.
-// predicted is highlighted as the fast "this looks right" path; the other
-// three bands sit below at equal size, so correcting a wrong guess is still
-// exactly one tap, not a reveal-then-tap. Always the same four options in
-// the same order for every item, regardless of that item's par -- a
-// consistent interface a cleaner can work from muscle memory beats a
-// numerically tidier one that changes shape from item to item. (A par of 1
-// or 2 doesn't have enough distinct on-hand values to make Medium and Low
-// truly different numbers underneath -- see the fallback in
-// bandToOnHandQty -- but the choice stays on screen either way.)
-function StockLevelStep({
-  action,
-  itemName,
-  unit,
-  predicted,
-  reason,
-  position,
-  total,
-}: {
-  action: (formData: FormData) => void;
-  itemName: string;
-  unit: string | null;
-  predicted: StockLevelBand;
-  reason: string;
-  position: number;
-  total: number;
-}) {
-  const alternatives = BAND_ORDER.filter((b) => b !== predicted);
-
-  return (
-    <form action={action} className={card("flex flex-col gap-4 p-4")}>
-      <div>
-        <p className="text-xs text-zinc-500">
-          Stock {position} of {total}
-        </p>
-        <h2 className="text-sm font-medium">
-          {itemName}
-          {unit ? ` (${unit})` : ""}
-        </h2>
-        <p className="mt-1 text-sm text-zinc-600">{reason}</p>
-      </div>
-
-      <button
-        type="submit"
-        name="band"
-        value={predicted}
-        className={`w-full ${button("primary", "lg")}`}
-      >
-        Confirm: {STOCK_BAND_LABELS[predicted]}
-      </button>
-
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-zinc-500">Not right? Pick the actual level:</p>
-        <div className="grid grid-cols-3 gap-2">
-          {alternatives.map((b) => (
-            <button key={b} type="submit" name="band" value={b} className={button("secondary", "md")}>
-              {STOCK_BAND_LABELS[b]}
-            </button>
-          ))}
-        </div>
-      </div>
     </form>
   );
 }
@@ -309,6 +243,7 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
               step is skipped entirely. */}
           {step === 3 && currentStockStep && (
             <StockLevelStep
+              key={currentStockStep.level.stockItemId}
               action={recordStockLevel.bind(null, clean.id, currentStockStep.level.stockItemId)}
               itemName={currentStockStep.level.stockItem.name}
               unit={currentStockStep.level.stockItem.unit}
