@@ -23,7 +23,7 @@ export const metadata = { title: "Clean" };
 // derived from what's been captured rather than stored on the Clean -- a
 // column would be a second source of truth that could disagree with the
 // photos (and now stock counts) themselves.
-const STEPS = ["Arrive", "Before", "Clean", "Stock", "Finish"] as const;
+const STEPS = ["Arrive", "Before", "After", "Stock", "Finish"] as const;
 
 function PhotoGrid({ paths, alt }: { paths: string[]; alt: string }) {
   return (
