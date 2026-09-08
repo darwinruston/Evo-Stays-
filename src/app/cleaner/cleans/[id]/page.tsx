@@ -11,6 +11,7 @@ import { StepProgress } from "@/components/StepProgress";
 import { CleanPrepSummary } from "@/components/CleanPrepSummary";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { StockLevelStep } from "@/components/StockLevelStep";
+import { CleaningChecklist } from "@/components/CleaningChecklist";
 import { stockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
@@ -196,6 +197,10 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
               <PhotoGrid paths={referencePhotos} alt={title} />
             </section>
           )}
+          <section className="flex flex-col gap-2">
+            <h2 className="text-sm font-medium text-zinc-500">Cleaning checklist</h2>
+            <CleaningChecklist />
+          </section>
           <form action={checkInClean.bind(null, clean.id)}>
             <button type="submit" className={`w-full ${button("primary", "lg")}`}>
               I&apos;ve arrived — check in
@@ -294,6 +299,15 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
             <summary className="cursor-pointer text-zinc-500">Property details</summary>
             <div className="mt-3">
               <PropertyDetails property={clean.property} />
+            </div>
+          </details>
+
+          {/* Same idea for the checklist read on arrival -- worth checking
+              back against mid-clean, not just once before starting. */}
+          <details className="text-sm">
+            <summary className="cursor-pointer text-zinc-500">Cleaning checklist</summary>
+            <div className="mt-3">
+              <CleaningChecklist />
             </div>
           </details>
 
