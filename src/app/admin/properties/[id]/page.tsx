@@ -517,13 +517,21 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-medium">Listing #{property.hostifyListingId}</p>
-                <p className="truncate text-sm text-zinc-500">
+                <p className="text-sm text-zinc-500">
                   {property.hostifyLastSyncError
                     ? `Last sync failed: ${property.hostifyLastSyncError}`
                     : property.hostifyLastSyncedAt
                       ? `Synced ${formatScheduledFor(property.hostifyLastSyncedAt)}`
                       : "Never synced"}
                 </p>
+                {property.hostifyLastSyncError && (
+                  <Link
+                    href={`/admin/clients/${property.client.id}/edit`}
+                    className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-900"
+                  >
+                    Check the Hostify API key on {property.client.name}
+                  </Link>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <form action={syncPropertyHostifyListing.bind(null, property.id)}>

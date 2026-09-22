@@ -39,6 +39,25 @@ function isoDateParam(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+// Distinguished from a plain Error so the catch block in syncHostifyListing
+// can point staff at the API key specifically, rather than a generic
+// message that could mean anything from a typo'd listing id to an outage.
+class HostifyAuthError extends Error {}
+
+// Node's fetch throws a bare `TypeError: fetch failed` for anything at the
+// network layer (DNS, connection refused, TLS) -- accurate, but meaningless
+// to whoever's staring at it on the property page. Translated here into
+// something that tells staff what to actually do about it.
+function describeSyncError(err: unknown): string {
+  if (err instanceof HostifyAuthError) {
+    return `Hostify rejected the API key (${err.message}) -- check it on the client.`;
+  }
+  if (err instanceof TypeError && err.message === "fetch failed") {
+    return "Couldn't reach Hostify -- check your connection and try again shortly.";
+  }
+  return err instanceof Error ? err.message : "Couldn't reach Hostify";
+}
+
 // Hostify's own docs don't pin down whether start_date/end_date filter by
 // check-in, check-out, or booking-creation date -- so this passes them as a
 // best-effort narrowing, but syncHostifyListing still re-checks the horizon
@@ -67,6 +86,9 @@ async function fetchReservations(
     const body = (await res.json()) as HostifyReservationsResponse;
     if (!res.ok || !body.success) {
       const reason = (!body.success && (body.error || body.message)) || undefined;
+      if (res.status === 401 || res.status === 403) {
+        throw new HostifyAuthError(reason || `rejected, ${res.status}`);
+      }
       throw new Error(reason || `Hostify request failed (${res.status})`);
     }
 
@@ -143,7 +165,15 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
   const lookback = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
 
   try {
-    const apiKey = decrypt(property.client.hostifyApiKey);
+    let apiKey: string;
+    try {
+      apiKey = decrypt(property.client.hostifyApiKey);
+    } catch {
+      // ENCRYPTION_KEY rotated, or the stored ciphertext is corrupt --
+      // either way the key on file can no longer be used, and re-entering
+      // it is the only fix.
+      throw new Error("Couldn't decrypt the stored API key -- re-enter it on the client.");
+    }
     const reservations = await fetchReservations(apiKey, property.hostifyListingId, lookback, cutoff);
 
     for (const reservation of reservations) {
@@ -263,10 +293,9 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       data: { hostifyLastSyncedAt: new Date(), hostifyLastSyncError: null },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Couldn't reach Hostify";
     await prisma.property.update({
       where: { id: propertyId },
-      data: { hostifyLastSyncError: message },
+      data: { hostifyLastSyncError: describeSyncError(err) },
     });
   }
 }
