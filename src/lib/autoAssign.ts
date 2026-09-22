@@ -9,8 +9,12 @@ import { dayBounds } from "@/lib/schedule";
 // this number.
 const DESIGNATED_OVERLOAD_THRESHOLD = 2;
 
-// Same familiarity/load scoring for whichever candidate pool is passed in --
-// shared by the designated-pool tier and the full-pool fallback below.
+// Picks the best-scoring candidate from a property's designated cleaners --
+// familiarity (who's completed the most cleans here) first, same-day load as
+// the tiebreaker. Returns null on an empty list, which is what makes an
+// undesignated property (or one where every designated cleaner is
+// unavailable/overloaded) correctly come back Unassigned rather than
+// guessing.
 function pickBest(
   candidateIds: string[],
   familiarityById: Map<string, number>,
@@ -28,46 +32,27 @@ function pickBest(
   return bestId;
 }
 
-// Suggests a cleaner when staff leave the assignee blank. Tries a
-// property's designated cleaners first (if any are set and not already
-// overloaded that day), then falls back to scoring every cleaner on two
-// signals, both from data this app actually holds:
+// Suggests a cleaner when staff leave the assignee blank -- but only ever
+// from a property's own designated cleaners (if any are set, available that
+// day, and not already overloaded -- see DESIGNATED_OVERLOAD_THRESHOLD).
+// There is deliberately no fallback that guesses across the whole cleaner
+// pool: a property with no designation (or where every designated cleaner
+// is unavailable/overloaded) comes back null, leaving the clean Unassigned
+// for an admin to direct to the right person by hand. Reassigning existing
+// work is likewise always a manual admin action (see reassignUpcomingCleans
+// in src/app/admin/cleaners/actions.ts) -- nothing in this app moves a
+// clean between cleaners on its own.
 //
-//  - Familiarity: who has completed the most cleans at this property. This
-//    matters more for short-lets than it did for the sibling app's one-off
-//    jobs -- someone who already knows where the linen lives and how the
-//    keypad behaves is faster and makes fewer mistakes. It's also why the
-//    weighting is heavy (x10): a familiar cleaner is worth a busier day.
-//  - Load: among equally familiar cleaners, prefer whoever has fewest cleans
-//    already booked that day.
-//
-// Designation isn't folded into that same score -- familiarity accumulates
-// without bound (every completed clean adds 10) while load never realistically
-// gets past single digits, so no flat bonus could both reliably beat an
-// experienced non-designated cleaner AND still yield to load the way "a
-// strong preference, not a hard rule" is supposed to. Trying the designated
-// pool as its own first tier sidesteps that instead of trying to arithmetic
-// its way around it.
-//
-// The sibling app also scored on geographic proximity, using lat/lng from
-// visit history. That's deliberately not ported: nothing in this app sets
-// Property.latitude/longitude yet (there's no address autocomplete), so the
-// signal would be dead weight scoring zero for everyone. Worth adding back
-// with the autocomplete, not before.
-//
-// Returns null only when there are no cleaners at all, leaving the clean
-// unassigned for an admin to sort out.
+// This used to also fall back to scoring every cleaner by familiarity
+// (who's completed the most cleans here) and same-day load when no
+// designated pick was available -- removed because, with no real signal to
+// go on for an undesignated property, that fallback just landed on
+// whichever cleaner account happened to be created first on every tie,
+// which reads as a real assignment decision when it isn't one.
 export async function autoAssignCleaner(
   propertyId: string,
   scheduledFor: Date | null,
 ): Promise<string | null> {
-  const cleaners = await prisma.user.findMany({
-    where: { role: "CLEANER" },
-    select: { id: true },
-    orderBy: { createdAt: "asc" },
-  });
-  if (cleaners.length === 0) return null;
-
   const familiarity = await prisma.clean.groupBy({
     by: ["assignedToId"],
     where: { propertyId, status: "COMPLETED", assignedToId: { not: null } },
@@ -110,12 +95,6 @@ export async function autoAssignCleaner(
   const availableDesignated = designated
     .map((d) => d.cleanerId)
     .filter((id) => !unavailableIds.has(id) && (loadById.get(id) ?? 0) < DESIGNATED_OVERLOAD_THRESHOLD);
-  const designatedPick = pickBest(availableDesignated, familiarityById, loadById);
-  if (designatedPick !== null) return designatedPick;
 
-  return pickBest(
-    cleaners.map((c) => c.id).filter((id) => !unavailableIds.has(id)),
-    familiarityById,
-    loadById,
-  );
+  return pickBest(availableDesignated, familiarityById, loadById);
 }

@@ -95,9 +95,12 @@ export async function updateCleanerScheduleHorizon(id: string, formData: FormDat
 }
 
 // Designates this cleaner as a regular/preferred worker for a property --
-// autoAssignCleaner (src/lib/autoAssign.ts) tries this pool first for a new
-// clean there. A strong preference, not exclusivity: it doesn't stop
-// anyone else from being assigned, by hand or by that same fallback scoring.
+// autoAssignCleaner (src/lib/autoAssign.ts) only ever picks from a
+// property's designated cleaners, never anyone else. A strong preference
+// among them, not exclusivity: someone else designated on the same property
+// can still be picked instead (by load/familiarity), or assigned by hand
+// regardless. A property with no designation at all is left Unassigned for
+// an admin to direct, rather than auto-assign guessing at random.
 export async function assignCleanerProperty(cleanerId: string, formData: FormData) {
   await requireStaff();
 

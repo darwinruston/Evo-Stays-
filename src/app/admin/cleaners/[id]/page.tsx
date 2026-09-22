@@ -148,7 +148,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
           <span className="text-sm font-normal text-zinc-500">
             ({cleaner.designatedProperties.length})
           </span>
-          <InfoTooltip text="Designating this cleaner on a property makes auto-assign try them first for a new clean there, ahead of the usual familiarity/workload scoring -- a strong preference, not exclusivity. Someone else can still be assigned by hand, or automatically if this cleaner already has a full day." />
+          <InfoTooltip text="Auto-assign only ever picks from a property's designated cleaners -- never anyone else, and never a guess when there isn't one. A strong preference among designated cleaners, not exclusivity: someone else designated here can still be picked instead if this cleaner already has a full day, or anyone can be assigned by hand regardless." />
         </h2>
 
         {cleaner.designatedProperties.length > 0 && (
