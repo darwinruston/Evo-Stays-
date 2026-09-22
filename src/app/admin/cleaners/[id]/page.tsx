@@ -6,11 +6,12 @@ import { AddPropertyForm } from "@/components/AddPropertyForm";
 import { Avatar } from "@/components/Avatar";
 import { EditableNumberField } from "@/components/EditableNumberField";
 import { InfoTooltip } from "@/components/InfoTooltip";
+import { ReassignForm } from "@/components/ReassignForm";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { formatCurrency } from "@/lib/invoices";
 import { formatDate } from "@/lib/schedule";
-import { badge, button, card, inputCompact } from "@/lib/ui";
+import { badge, button, card } from "@/lib/ui";
 import { isCleanFinished } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
 import {
@@ -105,7 +106,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <section className={card("flex flex-wrap items-end gap-3 p-4")}>
+      <section className={card("flex flex-wrap gap-6 p-4")}>
         <div className="flex flex-col gap-1">
           <label htmlFor="hourlyRate" className="flex items-center gap-1.5 text-sm font-medium">
             Hourly rate
@@ -121,9 +122,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
             step="0.01"
           />
         </div>
-      </section>
 
-      <section className={card("flex flex-wrap items-end gap-3 p-4")}>
         <div className="flex flex-col gap-1">
           <label htmlFor="scheduleHorizonDays" className="flex items-center gap-1.5 text-sm font-medium">
             Schedule horizon
@@ -206,42 +205,11 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
             Reassign upcoming work
             <InfoTooltip text="Moves every not-yet-started clean currently assigned to this cleaner to someone else in one go -- for when they're off sick, on leave, or leaving. Only PENDING cleans move; anything already in progress or completed stays exactly as it is." />
           </h2>
-          <form
+          <ReassignForm
             action={reassignUpcomingCleans.bind(null, cleaner.id)}
-            className={card("flex flex-wrap items-end gap-3 p-4")}
-          >
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="targetCleanerId" className="text-sm font-medium">
-                Reassign to
-              </label>
-              <select id="targetCleanerId" name="targetCleanerId" required className={inputCompact}>
-                {otherCleaners.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="fromDate" className="text-sm font-medium">
-                From
-              </label>
-              <input id="fromDate" name="fromDate" type="date" className={`${inputCompact} w-40`} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="toDate" className="text-sm font-medium">
-                To
-              </label>
-              <input id="toDate" name="toDate" type="date" className={`${inputCompact} w-40`} />
-            </div>
-            <button type="submit" className={button("primary", "sm")}>
-              Reassign
-            </button>
-            <p className="w-full text-xs text-zinc-500">
-              {pendingCount} upcoming {pendingCount === 1 ? "clean" : "cleans"} not yet started. Leave
-              both dates blank to reassign all of them.
-            </p>
-          </form>
+            cleaners={otherCleaners}
+            pendingCount={pendingCount}
+          />
         </section>
       )}
 
