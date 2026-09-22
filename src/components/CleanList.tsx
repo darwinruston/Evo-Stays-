@@ -95,9 +95,13 @@ export function CleanList({
 
         return (
           <div key={group} className="flex flex-col gap-2">
-            <h2 className="text-sm font-medium text-zinc-500">{group}</h2>
+            {/* Bolder + darker than the "None" placeholder below it, and
+                than the row text within -- otherwise an empty section reads
+                as one flat block of same-weight grey, and the heading stops
+                looking like a heading. */}
+            <h2 className="text-sm font-semibold text-zinc-900">{group}</h2>
             {rows.length === 0 ? (
-              <p className="text-sm text-zinc-500">None</p>
+              <p className="text-sm text-zinc-400 italic">None</p>
             ) : (
               <CleanRows rows={rows} />
             )}
