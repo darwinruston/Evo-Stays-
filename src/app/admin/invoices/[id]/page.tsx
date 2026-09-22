@@ -135,7 +135,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                       type="number"
                       step="0.25"
                       min={0}
-                      defaultValue={line.hours}
+                      // Rounded for display -- an unadjusted line's hours come
+                      // straight from arrivedAt/departedAt (e.g.
+                      // 0.01068444444444444), which reads as noise in an
+                      // editable field. Matches the 0.25 step below.
+                      defaultValue={Math.round(line.hours * 100) / 100}
                       className={`${inputCompact} w-24`}
                     />
                     <button type="submit" className={button("secondary", "sm")}>
