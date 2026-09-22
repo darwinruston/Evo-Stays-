@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import { AddPropertyForm } from "@/components/AddPropertyForm";
 import { Avatar } from "@/components/Avatar";
 import { EditableNumberField } from "@/components/EditableNumberField";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -106,8 +107,9 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
 
       <section className={card("flex flex-wrap items-end gap-3 p-4")}>
         <div className="flex flex-col gap-1">
-          <label htmlFor="hourlyRate" className="text-sm font-medium">
+          <label htmlFor="hourlyRate" className="flex items-center gap-1.5 text-sm font-medium">
             Hourly rate
+            <InfoTooltip text="Used to generate invoices -- see the Invoices page. Changing it only affects invoices generated after today." />
           </label>
           <EditableNumberField
             id="hourlyRate"
@@ -119,19 +121,13 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
             step="0.01"
           />
         </div>
-        <p className="text-xs text-zinc-500">
-          Used to generate invoices — see{" "}
-          <Link href="/admin/invoices" className="underline underline-offset-2">
-            Invoices
-          </Link>
-          . Changing it only affects invoices generated after today.
-        </p>
       </section>
 
       <section className={card("flex flex-wrap items-end gap-3 p-4")}>
         <div className="flex flex-col gap-1">
-          <label htmlFor="scheduleHorizonDays" className="text-sm font-medium">
+          <label htmlFor="scheduleHorizonDays" className="flex items-center gap-1.5 text-sm font-medium">
             Schedule horizon
+            <InfoTooltip text='Days ahead "My cleans" shows on their schedule. Leave blank to show everything -- overdue and past work always shows either way.' />
           </label>
           <EditableNumberField
             id="scheduleHorizonDays"
@@ -144,10 +140,6 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
             placeholder="e.g. 14"
           />
         </div>
-        <p className="text-xs text-zinc-500">
-          Days ahead &quot;My cleans&quot; shows on their schedule. Leave blank to show everything
-          — overdue and past work always shows either way.
-        </p>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -178,26 +170,13 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         )}
 
         {availableProperties.length > 0 ? (
-          <form
+          <AddPropertyForm
             action={assignCleanerProperty.bind(null, cleaner.id)}
-            className={card("flex flex-wrap items-end gap-3 p-4")}
-          >
-            <div className="flex flex-1 flex-col gap-1.5">
-              <label htmlFor="propertyId" className="text-sm font-medium">
-                Property
-              </label>
-              <select id="propertyId" name="propertyId" required className={inputCompact}>
-                {availableProperties.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {propertyDisplayName(p)} — {p.client.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button type="submit" className={button("primary", "sm")}>
-              Add
-            </button>
-          </form>
+            options={availableProperties.map((p) => ({
+              id: p.id,
+              label: `${propertyDisplayName(p)} — ${p.client.name}`,
+            }))}
+          />
         ) : (
           cleaner.designatedProperties.length > 0 && (
             <p className="text-sm text-zinc-500">Every property is already designated to this cleaner.</p>
