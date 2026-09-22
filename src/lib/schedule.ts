@@ -36,7 +36,27 @@ export function toDateTimeLocalValue(date: Date): string {
   return `${toIsoDate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+// A synced booking's checkout can arrive as just a date with no real time --
+// both an all-day iCal VEVENT and Hostify's date-only checkOut field parse
+// to exactly midnight UTC. Showing that as "01:00" (or whatever the
+// server's local offset makes it) presents a fabricated time as if it were
+// a real checkout, next to cleans that do have one -- so that one case
+// drops the time and shows just the date instead. A clean genuinely
+// scheduled at exactly midnight UTC is not a real scenario this app
+// creates, so there's no meaningful case this misreads.
+function isDateOnly(date: Date): boolean {
+  return (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  );
+}
+
 export function formatScheduledFor(date: Date): string {
+  if (isDateOnly(date)) {
+    return date.toLocaleString("en-GB", { day: "numeric", month: "short" });
+  }
   return date.toLocaleString("en-GB", {
     day: "numeric",
     month: "short",
