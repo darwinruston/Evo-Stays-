@@ -74,6 +74,14 @@ async function fetchReservations(
   for (;;) {
     const params = new URLSearchParams({
       listing_id: listingId,
+      // Booking.com (and possibly other channels) can map a property to a
+      // "child" listing under our own -- confirmed by Hostify support after
+      // a real reservation only turned up once this was added. Without it,
+      // a reservation booked against the child never appears against the
+      // parent listing_id we sync on, silently dropping that channel's
+      // bookings while every other channel (booked directly on the parent)
+      // keeps working -- exactly what made this so easy to miss.
+      withChildren: "1",
       start_date: isoDateParam(startDate),
       page: String(page),
       per_page: String(PAGE_SIZE),
