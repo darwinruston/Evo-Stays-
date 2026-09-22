@@ -49,6 +49,13 @@ function rate(formData: FormData, key: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function int(formData: FormData, key: string): number | null {
+  const raw = str(formData, key);
+  if (raw === null) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 // Only affects invoices generated after this is saved -- past ones keep
 // whatever rate was snapshotted onto them at the time (see
 // Invoice.hourlyRate / src/lib/invoices.ts).
@@ -66,6 +73,22 @@ export async function updateCleanerRate(id: string, formData: FormData) {
     entityType: "Cleaner",
     entityId: id,
     summary: hourlyRate !== null ? `Hourly rate set to ${formatCurrency(hourlyRate)}` : "Hourly rate cleared",
+  });
+
+  revalidatePath(`/admin/cleaners/${id}`);
+}
+
+// How far ahead "My cleans" shows this cleaner's upcoming work -- see the
+// scheduleHorizonDays comment on User in schema.prisma. Not audited, unlike
+// most of what's on this page: it's a display preference, not something
+// worth being able to answer for later the way a pay rate or reassignment
+// is.
+export async function updateCleanerScheduleHorizon(id: string, formData: FormData) {
+  await requireStaff();
+
+  await prisma.user.update({
+    where: { id, role: "CLEANER" },
+    data: { scheduleHorizonDays: int(formData, "scheduleHorizonDays") },
   });
 
   revalidatePath(`/admin/cleaners/${id}`);

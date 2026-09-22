@@ -14,6 +14,7 @@ import { cleanPrep } from "@/lib/cleanPrep";
 import {
   deleteCleaner,
   updateCleanerRate,
+  updateCleanerScheduleHorizon,
   assignCleanerProperty,
   removeCleanerProperty,
   reassignUpcomingCleans,
@@ -129,6 +130,36 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
             Invoices
           </Link>
           . Changing it only affects invoices generated after today.
+        </p>
+      </section>
+
+      <section className={card("flex flex-wrap items-end gap-3 p-4")}>
+        <form
+          action={updateCleanerScheduleHorizon.bind(null, cleaner.id)}
+          className="flex items-end gap-2"
+        >
+          <div className="flex flex-col gap-1">
+            <label htmlFor="scheduleHorizonDays" className="text-sm font-medium">
+              Schedule horizon
+            </label>
+            <input
+              id="scheduleHorizonDays"
+              name="scheduleHorizonDays"
+              type="number"
+              min={0}
+              step="1"
+              defaultValue={cleaner.scheduleHorizonDays ?? ""}
+              placeholder="e.g. 14"
+              className={`${inputCompact} w-28`}
+            />
+          </div>
+          <button type="submit" className={button("secondary", "sm")}>
+            Save
+          </button>
+        </form>
+        <p className="text-xs text-zinc-500">
+          Days ahead &quot;My cleans&quot; shows on their schedule. Leave blank to show everything
+          — overdue and past work always shows either way.
         </p>
       </section>
 

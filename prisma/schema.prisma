@@ -27,6 +27,13 @@ model User {
   // generation time (see src/lib/invoices.ts), so changing this later never
   // rewrites a past invoice.
   hourlyRate     Float?
+  // Only meaningful for CLEANER. Caps how far into the future "My cleans"
+  // (src/app/cleaner/page.tsx) shows work -- some cleaners want to see their
+  // whole run of upcoming bookings, others find a long tail of far-future
+  // dates just noise. Null (the default) shows everything, same as an unset
+  // Property.syncHorizonDays never cutting anything off. Never bounds the
+  // past -- overdue and completed work always still shows.
+  scheduleHorizonDays Int?
   assignedCleans Clean[]       @relation("CleanAssignee")
   createdCleans  Clean[]       @relation("CleanCreator")
   cleanLogs      CleanLog[]
