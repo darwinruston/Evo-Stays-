@@ -106,8 +106,8 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <section className={card("flex flex-wrap gap-6 p-4")}>
-        <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap gap-4">
+        <section className={card("flex flex-col gap-1 p-4")}>
           <label htmlFor="hourlyRate" className="flex items-center gap-1.5 text-sm font-medium">
             Hourly rate
             <InfoTooltip text="Used to generate invoices -- see the Invoices page. Changing it only affects invoices generated after today." />
@@ -121,9 +121,9 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
             placeholder="e.g. 15.00"
             step="0.01"
           />
-        </div>
+        </section>
 
-        <div className="flex flex-col gap-1">
+        <section className={card("flex flex-col gap-1 p-4")}>
           <label htmlFor="scheduleHorizonDays" className="flex items-center gap-1.5 text-sm font-medium">
             Schedule horizon
             <InfoTooltip text='Days ahead "My cleans" shows on their schedule. Leave blank to show everything -- overdue and past work always shows either way.' />
@@ -138,8 +138,8 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
             }
             placeholder="e.g. 14"
           />
-        </div>
-      </section>
+        </section>
+      </div>
 
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
