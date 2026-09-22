@@ -3,7 +3,7 @@ import { requireStaff } from "@/lib/authz";
 import { createLaundryFacility } from "../actions";
 import { button, inputCompact } from "@/lib/ui";
 
-export const metadata = { title: "New launderette" };
+export const metadata = { title: "New laundry company" };
 
 export default async function NewLaundryFacilityPage() {
   await requireStaff();
@@ -12,9 +12,9 @@ export default async function NewLaundryFacilityPage() {
     <div className="flex flex-col gap-6">
       <div>
         <Link href="/admin/laundry-facilities" className="text-sm text-zinc-500 hover:text-zinc-900">
-          ← Launderettes
+          ← Laundry companies
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">New launderette</h1>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">New laundry company</h1>
       </div>
 
       <form action={createLaundryFacility} className="flex max-w-lg flex-col gap-4">
@@ -26,7 +26,7 @@ export default async function NewLaundryFacilityPage() {
             id="name"
             name="name"
             required
-            placeholder="Sudsy Wash, High Street"
+            placeholder="Sudsy Wash Laundry Services"
             className={inputCompact}
           />
         </div>

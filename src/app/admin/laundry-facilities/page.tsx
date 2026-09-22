@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { badge, button, card } from "@/lib/ui";
 
-export const metadata = { title: "Launderettes" };
+export const metadata = { title: "Laundry companies" };
 
 export default async function LaundryFacilitiesPage() {
   await requireStaff();
@@ -16,7 +16,7 @@ export default async function LaundryFacilitiesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Launderettes</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Laundry companies</h1>
         <Link href="/admin/laundry-facilities/new" className={button("primary", "sm")}>
           New facility
         </Link>
@@ -30,7 +30,7 @@ export default async function LaundryFacilitiesPage() {
       </p>
 
       {facilities.length === 0 ? (
-        <p className="text-sm text-zinc-600">No launderettes yet.</p>
+        <p className="text-sm text-zinc-600">No laundry companies yet.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {facilities.map((facility) => (

@@ -20,6 +20,7 @@ const NAV = [
 const PROFILE_NAV = [
   { href: "/admin/clients", label: "Clients" },
   { href: "/admin/cleaners", label: "Cleaners" },
+  { href: "/admin/audit", label: "Activity" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

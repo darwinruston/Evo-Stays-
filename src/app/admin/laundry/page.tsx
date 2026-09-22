@@ -52,11 +52,11 @@ export default async function LaundryPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Laundry</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Ticket photo and cost for each laundrette drop-off, and which visits&apos; linen it covered.
+            Who&apos;s collecting each drop-off, and which visits&apos; linen it covers.
           </p>
         </div>
         <Link href="/admin/laundry-facilities" className="shrink-0 text-sm text-zinc-500 hover:text-zinc-900">
-          Manage launderettes →
+          Manage laundry companies →
         </Link>
       </div>
 
@@ -86,15 +86,18 @@ export default async function LaundryPage() {
                   href={`/admin/laundry/${load.id}`}
                   className={card("flex items-center gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/laundry-photos/${load.receiptPath}`}
-                    alt="Laundry ticket"
-                    className="h-16 w-16 shrink-0 rounded-md object-cover"
-                  />
+                  {load.receiptPath && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/laundry-photos/${load.receiptPath}`}
+                      alt="Laundry ticket"
+                      className="h-16 w-16 shrink-0 rounded-md object-cover"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
-                      {formatCurrency(load.cost)} · {load.facility.name}
+                      {load.cost !== null ? `${formatCurrency(load.cost)} · ` : ""}
+                      {load.facility.name}
                     </p>
                     <p className="truncate text-sm text-zinc-500">
                       {load.logs.map((l) => propertyDisplayName(l.clean.property)).join(", ")}
@@ -108,7 +111,7 @@ export default async function LaundryPage() {
                       {load.logs.length} {load.logs.length === 1 ? "visit" : "visits"}
                     </span>
                     <span className={badge(load.collectedAt ? "solid" : "neutral")}>
-                      {load.collectedAt ? "Collected" : "Out"}
+                      {load.collectedAt ? "Returned" : "Out"}
                     </span>
                   </div>
                 </Link>

@@ -14,22 +14,22 @@ export type WizardFacility = { id: string; name: string };
 // useActionState below show it inline and keep everything already entered.
 export type LaundryLoadFormState = { error?: string };
 
-const WIZARD_STEPS = ["Visits", "Launderette", "Cost", "Photo"] as const;
+const WIZARD_STEPS = ["Visits", "Laundry company"] as const;
 
-// One thing at a time -- what linen, then where it went, then how much,
-// then the ticket photo -- instead of one dense form. All four steps'
-// inputs stay mounted for the form's whole lifetime (see the `hidden`
-// className below); only which one is *visible* changes with `step`, so
-// the submitted FormData always has the same shape the server actions
-// (createLaundryLoad in src/app/admin/laundry/actions.ts and
-// src/app/cleaner/actions.ts) already expect -- this component only
+// Which linen, then who's collecting it -- no cost or ticket-photo step any
+// more, since the laundry company now invoices monthly (not per load) and
+// collects/drops off at the property directly (no paper ticket to
+// photograph). Both steps' inputs stay mounted for the form's whole
+// lifetime (see the `hidden` className below); only which one is *visible*
+// changes with `step`, so the submitted FormData always has the same shape
+// the server actions (createLaundryLoad in src/app/admin/laundry/actions.ts
+// and src/app/cleaner/actions.ts) already expect -- this component only
 // changes how the fields are presented, not what gets submitted.
 export function LaundryLoadWizard({
   eligibleVisits,
   facilities,
   manageFacilitiesHref,
   onCreateFacility,
-  capturePhoto,
   action,
 }: {
   eligibleVisits: WizardVisit[];
@@ -40,14 +40,11 @@ export function LaundryLoadWizard({
   // pointed at manageFacilitiesHref instead of getting a button that would
   // just fail server-side.
   onCreateFacility?: (name: string) => Promise<WizardFacility>;
-  capturePhoto?: boolean;
   action: (prevState: LaundryLoadFormState, formData: FormData) => Promise<LaundryLoadFormState>;
 }) {
   const [step, setStep] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [facilityId, setFacilityId] = useState("");
-  const [cost, setCost] = useState("");
-  const [photoSelected, setPhotoSelected] = useState(false);
   const [localFacilities, setLocalFacilities] = useState(facilities);
   const [addingFacility, setAddingFacility] = useState(facilities.length === 0);
   const [newFacilityName, setNewFacilityName] = useState("");
@@ -75,18 +72,11 @@ export function LaundryLoadWizard({
         setStep(0);
         setSelectedIds(new Set());
         setFacilityId("");
-        setCost("");
-        setPhotoSelected(false);
         setResetToken((t) => t + 1);
       }
     }
   }
 
-  // The photo <input> is uncontrolled (a file picker's value can't be set
-  // from React state), so clearing it needs the actual DOM API -- an
-  // imperative side effect, which belongs in an effect (refs may only be
-  // read/written there, never during render). Skips the very first run so
-  // mounting doesn't reset a freshly-rendered, still-empty form.
   const mountedRef = useRef(false);
   useEffect(() => {
     if (!mountedRef.current) {
@@ -104,10 +94,8 @@ export function LaundryLoadWizard({
     );
   }
 
-  const costValue = Number.parseFloat(cost);
-  const costValid = cost.trim() !== "" && Number.isFinite(costValue) && costValue >= 0;
-  const canProceed = step === 0 ? selectedIds.size > 0 : step === 1 ? facilityId !== "" : costValid;
-  const canSave = selectedIds.size > 0 && facilityId !== "" && costValid && photoSelected;
+  const canProceed = step === 0 ? selectedIds.size > 0 : facilityId !== "";
+  const canSave = selectedIds.size > 0 && facilityId !== "";
 
   function toggleVisit(id: string) {
     setSelectedIds((prev) => {
@@ -136,7 +124,7 @@ export function LaundryLoadWizard({
       setNewFacilityName("");
       setAddingFacility(false);
     } catch (err) {
-      setCreateFacilityError(err instanceof Error ? err.message : "Couldn't add that launderette.");
+      setCreateFacilityError(err instanceof Error ? err.message : "Couldn't add that laundry company.");
     } finally {
       setCreatingFacility(false);
     }
@@ -167,7 +155,7 @@ export function LaundryLoadWizard({
 
       <div className={step === 1 ? "flex flex-col gap-2" : "hidden"}>
         <label htmlFor="facilityId" className="text-sm font-medium">
-          Where did it go?
+          Who&apos;s collecting it?
         </label>
 
         {localFacilities.length > 0 && (
@@ -178,7 +166,7 @@ export function LaundryLoadWizard({
             onChange={(e) => setFacilityId(e.target.value)}
             className={inputCompact}
           >
-            <option value="">Choose a launderette</option>
+            <option value="">Choose a laundry company</option>
             {localFacilities.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
@@ -194,7 +182,7 @@ export function LaundryLoadWizard({
                 type="text"
                 value={newFacilityName}
                 onChange={(e) => setNewFacilityName(e.target.value)}
-                placeholder="New launderette name"
+                placeholder="New laundry company name"
                 className={inputCompact}
               />
               <button
@@ -224,13 +212,13 @@ export function LaundryLoadWizard({
               onClick={() => setAddingFacility(true)}
               className="w-fit text-xs text-zinc-500 underline decoration-dotted underline-offset-2 hover:text-zinc-700"
             >
-              + Add new launderette
+              + Add new laundry company
             </button>
           )
         ) : (
           localFacilities.length === 0 && (
             <p className="text-sm text-zinc-600">
-              No launderettes set up yet.
+              No laundry companies set up yet.
               {manageFacilitiesHref && (
                 <>
                   {" "}
@@ -244,41 +232,6 @@ export function LaundryLoadWizard({
         )}
 
         {createFacilityError && <p className="text-xs text-red-600">{createFacilityError}</p>}
-      </div>
-
-      <div className={step === 2 ? "flex flex-col gap-1" : "hidden"}>
-        <label htmlFor="cost" className="text-sm font-medium">
-          Cost
-        </label>
-        <input
-          id="cost"
-          name="cost"
-          type="number"
-          min={0}
-          step="0.01"
-          value={cost}
-          onChange={(e) => setCost(e.target.value)}
-          placeholder="e.g. 18.50"
-          className={inputCompact}
-        />
-      </div>
-
-      <div className={step === 3 ? "flex flex-col gap-1" : "hidden"}>
-        <label htmlFor="photo" className="text-sm font-medium">
-          Ticket photo
-        </label>
-        <input
-          id="photo"
-          name="photo"
-          type="file"
-          accept="image/*"
-          capture={capturePhoto ? "environment" : undefined}
-          onChange={(e) => setPhotoSelected(!!e.target.files && e.target.files.length > 0)}
-          className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-        />
-        {step === 3 && !photoSelected && (
-          <p className="text-xs text-zinc-500">A ticket photo is needed before this can be saved.</p>
-        )}
       </div>
 
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}

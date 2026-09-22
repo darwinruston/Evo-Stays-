@@ -24,6 +24,9 @@ import {
   removePropertyCalendarFeed,
   syncPropertyCalendarFeed,
   updatePropertySyncHorizon,
+  updatePropertyHostifyListingId,
+  removePropertyHostifyListing,
+  syncPropertyHostifyListing,
 } from "../actions";
 import { setLaundryLoadCollected } from "../../laundry/actions";
 
@@ -43,7 +46,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   const property = await prisma.property.findUnique({
     where: { id },
     include: {
-      client: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true, hostifyApiKey: true } },
       images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       stockLevels: { orderBy: { createdAt: "asc" }, include: { stockItem: true } },
       invoices: {
@@ -75,6 +78,46 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       logs: { include: { clean: { include: { property: { select: { id: true, name: true, address: true } } } } } },
     },
   });
+
+  const hasHostifyListing = property.hostifyListingId !== null;
+
+  // Shared by whichever sync source is actually active -- hostifySync
+  // respects this cutoff exactly the same way calendar sync does, so it
+  // isn't Calendars-specific even though it originally lived there. Lives
+  // under Calendars while that's the active source, and under Hostify once
+  // a listing's linked (see the placement below).
+  const syncHorizonControl = (
+    <details className="w-fit">
+      <summary className="cursor-pointer list-none text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700 [&::-webkit-details-marker]:hidden">
+        {property.syncHorizonDays !== null
+          ? `Only creating cleans up to ${property.syncHorizonDays} days out`
+          : "No limit on how far out cleans are created"}
+      </summary>
+      <form
+        action={updatePropertySyncHorizon.bind(null, property.id)}
+        className="mt-2 flex flex-wrap items-end gap-2"
+      >
+        <div className="flex flex-col gap-1">
+          <label htmlFor="syncHorizonDays" className="text-xs text-zinc-500">
+            Days ahead
+          </label>
+          <input
+            id="syncHorizonDays"
+            name="syncHorizonDays"
+            type="number"
+            min={0}
+            defaultValue={property.syncHorizonDays ?? ""}
+            placeholder="e.g. 31"
+            className={`${inputCompact} w-24`}
+          />
+        </div>
+        <button type="submit" className={button("secondary", "sm")}>
+          Save
+        </button>
+        <p className="w-full text-xs text-zinc-500">Clear the field and save to remove the limit.</p>
+      </form>
+    </details>
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -322,123 +365,189 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         )}
       </section>
 
+      {/* Fully hidden once Hostify is linked and there's nothing left to
+          clean up -- Hostify already aggregates every channel, so running
+          both at once only risks a duplicate clean for the same booking.
+          Stays visible (trimmed to just the warning + feed list + Remove,
+          no add-form, no horizon control -- that's moved to Hostify below)
+          as long as old feeds are still actually there, so staff have
+          somewhere to go clear the conflict rather than it silently
+          vanishing while still synced in the background. */}
+      {(!hasHostifyListing || property.calendarFeeds.length > 0) && (
+        <section className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+            Calendars <span className="text-sm font-normal text-zinc-500">({property.calendarFeeds.length})</span>
+            <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing -- add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
+          </h2>
+
+          {!hasHostifyListing && syncHorizonControl}
+
+          {hasHostifyListing && property.calendarFeeds.length > 0 && (
+            <p className="text-xs font-medium text-zinc-600">
+              This property syncs via Hostify now -- these calendar feeds are still active too and
+              could create a duplicate clean for the same booking. Remove them below.
+            </p>
+          )}
+
+          {property.calendarFeeds.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {property.calendarFeeds.map((feed) => (
+                <li key={feed.id} className={card("flex flex-col gap-2 p-4")}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{feed.label}</p>
+                      <p className="truncate text-sm text-zinc-500">
+                        {feed.lastSyncError
+                          ? `Last sync failed: ${feed.lastSyncError}`
+                          : feed.lastSyncedAt
+                            ? `Synced ${formatScheduledFor(feed.lastSyncedAt)}`
+                            : "Never synced"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <form action={syncPropertyCalendarFeed.bind(null, property.id, feed.id)}>
+                        <button type="submit" className={button("secondary", "sm")}>
+                          Sync now
+                        </button>
+                      </form>
+                      <form action={removePropertyCalendarFeed.bind(null, property.id, feed.id)}>
+                        <button type="submit" className="text-xs text-red-600 hover:underline">
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Adding a new iCal feed alongside an active Hostify listing is
+              exactly the double-sync risk warned about above -- once
+              Hostify is connected, this form is the one part of Calendars
+              that's fully hidden, not just discouraged. */}
+          {!hasHostifyListing && (
+            <form
+              action={addPropertyCalendarFeed.bind(null, property.id)}
+              className={card("flex flex-wrap items-end gap-3 p-4")}
+            >
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="label" className="text-sm font-medium">
+                  Platform
+                </label>
+                <input
+                  id="label"
+                  name="label"
+                  type="text"
+                  required
+                  placeholder="e.g. Airbnb"
+                  className={`${inputCompact} w-32`}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <label htmlFor="url" className="text-sm font-medium">
+                  Calendar URL
+                </label>
+                <input
+                  id="url"
+                  name="url"
+                  type="url"
+                  required
+                  placeholder="https://www.airbnb.co.uk/calendar/ical/....ics"
+                  className={`${inputCompact} w-full`}
+                />
+              </div>
+              <button type="submit" className={button("primary", "sm")}>
+                Add
+              </button>
+            </form>
+          )}
+        </section>
+      )}
+
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
-          Calendars <span className="text-sm font-normal text-zinc-500">({property.calendarFeeds.length})</span>
-          <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing -- add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
+          Hostify
+          <InfoTooltip text="A Hostify listing already aggregates every channel (Airbnb, Vrbo, ...) into one reservation feed, so this is one listing per property rather than the several feeds Calendars needs. Syncing also runs automatically in the background every so often, not just on click." />
         </h2>
 
-        {/* One lookahead for every feed on this property -- some properties
-            take bookings a year out and staff only want the next month of
-            cleans generated, not the whole year at once. Tucked behind a
-            disclosure, same treatment as Par and Minimum hours above: a
-            setting changed rarely, not something to bump into by accident. */}
-        <details className="w-fit">
-          <summary className="cursor-pointer list-none text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700 [&::-webkit-details-marker]:hidden">
-            {property.syncHorizonDays !== null
-              ? `Only creating cleans up to ${property.syncHorizonDays} days out`
-              : "No limit on how far out cleans are created"}
-          </summary>
+        {hasHostifyListing && syncHorizonControl}
+
+        {!property.client.hostifyApiKey ? (
+          <p className={card("p-4 text-sm text-zinc-500")}>
+            No Hostify API key configured on{" "}
+            <Link
+              href={`/admin/clients/${property.client.id}/edit`}
+              className="underline underline-offset-2"
+            >
+              {property.client.name}
+            </Link>{" "}
+            yet.
+          </p>
+        ) : property.hostifyListingId === null ? (
           <form
-            action={updatePropertySyncHorizon.bind(null, property.id)}
-            className="mt-2 flex flex-wrap items-end gap-2"
+            action={updatePropertyHostifyListingId.bind(null, property.id)}
+            className={card("flex flex-wrap items-end gap-3 p-4")}
           >
-            <div className="flex flex-col gap-1">
-              <label htmlFor="syncHorizonDays" className="text-xs text-zinc-500">
-                Days ahead
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="hostifyListingId" className="text-sm font-medium">
+                Hostify listing ID
               </label>
+              {/* text, not number -- real Hostify listing ids run well past
+                  what a number input reliably handles at that many digits,
+                  and this is an opaque id, never arithmetic. inputMode still
+                  gets a numeric keyboard on mobile. */}
               <input
-                id="syncHorizonDays"
-                name="syncHorizonDays"
-                type="number"
-                min={0}
-                defaultValue={property.syncHorizonDays ?? ""}
-                placeholder="e.g. 31"
-                className={`${inputCompact} w-24`}
+                id="hostifyListingId"
+                name="hostifyListingId"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                required
+                placeholder="e.g. 12345"
+                className={`${inputCompact} w-40`}
               />
             </div>
-            <button type="submit" className={button("secondary", "sm")}>
-              Save
+            <button type="submit" className={button("primary", "sm")}>
+              Link
             </button>
-            <p className="w-full text-xs text-zinc-500">Clear the field and save to remove the limit.</p>
           </form>
-        </details>
-
-        {property.calendarFeeds.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {property.calendarFeeds.map((feed) => (
-              <li key={feed.id} className={card("flex flex-col gap-2 p-4")}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium">{feed.label}</p>
-                    <p className="truncate text-sm text-zinc-500">
-                      {feed.lastSyncError
-                        ? `Last sync failed: ${feed.lastSyncError}`
-                        : feed.lastSyncedAt
-                          ? `Synced ${formatScheduledFor(feed.lastSyncedAt)}`
-                          : "Never synced"}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <form action={syncPropertyCalendarFeed.bind(null, property.id, feed.id)}>
-                      <button type="submit" className={button("secondary", "sm")}>
-                        Sync now
-                      </button>
-                    </form>
-                    <form action={removePropertyCalendarFeed.bind(null, property.id, feed.id)}>
-                      <button type="submit" className="text-xs text-red-600 hover:underline">
-                        Remove
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+        ) : (
+          <div className={card("flex flex-col gap-2 p-4")}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium">Listing #{property.hostifyListingId}</p>
+                <p className="truncate text-sm text-zinc-500">
+                  {property.hostifyLastSyncError
+                    ? `Last sync failed: ${property.hostifyLastSyncError}`
+                    : property.hostifyLastSyncedAt
+                      ? `Synced ${formatScheduledFor(property.hostifyLastSyncedAt)}`
+                      : "Never synced"}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <form action={syncPropertyHostifyListing.bind(null, property.id)}>
+                  <button type="submit" className={button("secondary", "sm")}>
+                    Sync now
+                  </button>
+                </form>
+                <form action={removePropertyHostifyListing.bind(null, property.id)}>
+                  <button type="submit" className="text-xs text-red-600 hover:underline">
+                    Remove
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
         )}
-
-        <form
-          action={addPropertyCalendarFeed.bind(null, property.id)}
-          className={card("flex flex-wrap items-end gap-3 p-4")}
-        >
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="label" className="text-sm font-medium">
-              Platform
-            </label>
-            <input
-              id="label"
-              name="label"
-              type="text"
-              required
-              placeholder="e.g. Airbnb"
-              className={`${inputCompact} w-32`}
-            />
-          </div>
-          <div className="flex flex-1 flex-col gap-1.5">
-            <label htmlFor="url" className="text-sm font-medium">
-              Calendar URL
-            </label>
-            <input
-              id="url"
-              name="url"
-              type="url"
-              required
-              placeholder="https://www.airbnb.co.uk/calendar/ical/....ics"
-              className={`${inputCompact} w-full`}
-            />
-          </div>
-          <button type="submit" className={button("primary", "sm")}>
-            Add
-          </button>
-        </form>
       </section>
 
       {laundryOut.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
-            At the launderette{" "}
+            Out for laundry{" "}
             <span className="text-sm font-normal text-zinc-500">({laundryOut.length})</span>
-            <InfoTooltip text="Linen from this property that's out being cleaned. Mark it collected once it's back -- it then drops off this list on its own, so this only ever shows what's actually still out." />
+            <InfoTooltip text="Linen from this property that's out with the laundry company. Mark it returned once it's back -- it then drops off this list on its own, so this only ever shows what's actually still out." />
           </h2>
           <ul className="flex flex-col gap-2">
             {laundryOut.map((load) => {
@@ -453,15 +562,18 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               return (
                 <li key={load.id} className={card("flex items-center gap-4 p-4")}>
                   <Link href={`/admin/laundry/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/laundry-photos/${load.receiptPath}`}
-                      alt="Laundry ticket"
-                      className="h-14 w-14 shrink-0 rounded-md object-cover"
-                    />
+                    {load.receiptPath && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/laundry-photos/${load.receiptPath}`}
+                        alt="Laundry ticket"
+                        className="h-14 w-14 shrink-0 rounded-md object-cover"
+                      />
+                    )}
                     <div className="min-w-0">
                       <p className="font-medium">
-                        {formatCurrency(load.cost)} · {load.facility.name}
+                        {load.cost !== null ? `${formatCurrency(load.cost)} · ` : ""}
+                        {load.facility.name}
                       </p>
                       <p className="truncate text-sm text-zinc-500">
                         {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
@@ -471,7 +583,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   </Link>
                   <form action={setLaundryLoadCollected.bind(null, load.id, property.id, true)}>
                     <button type="submit" className={button("secondary", "sm")}>
-                      Mark as collected
+                      Mark as returned
                     </button>
                   </form>
                 </li>

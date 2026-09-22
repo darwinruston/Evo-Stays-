@@ -51,6 +51,12 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
 
   const prep = cleanPrep(clean.property, clean.guestCount);
 
+  const activity = await prisma.auditLog.findMany({
+    where: { entityType: "Clean", entityId: clean.id },
+    orderBy: { createdAt: "desc" },
+    include: { actor: { select: { name: true } } },
+  });
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -122,6 +128,23 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-zinc-500">What happened</h2>
           <CleanLogView log={clean.log} alt={propertyDisplayName(clean.property)} />
+        </section>
+      )}
+
+      {activity.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-zinc-500">Activity</h2>
+          <ul className="flex flex-col gap-1.5">
+            {activity.map((entry) => (
+              <li key={entry.id} className="text-sm text-zinc-600">
+                {entry.summary}
+                <span className="text-zinc-400">
+                  {" "}
+                  — {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>

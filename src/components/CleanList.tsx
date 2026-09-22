@@ -21,9 +21,51 @@ export type CleanRow = {
   prep?: CleanPrep | null;
 };
 
-export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string }) {
+function CleanRows({ rows }: { rows: CleanRow[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {rows.map((c) => (
+        <li key={c.id}>
+          <Link
+            href={c.href}
+            className={card("flex items-center justify-between gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
+          >
+            <div className="min-w-0">
+              <p className="font-medium">{c.title}</p>
+              <p className="truncate text-sm text-zinc-500">
+                {c.scheduledFor ? formatScheduledFor(c.scheduledFor) : "Not scheduled"}
+                {c.subtitle ? ` · ${c.subtitle}` : ""}
+              </p>
+              {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
+            </div>
+            <span className="shrink-0 text-sm text-zinc-500">{CLEAN_STATUS_LABELS[c.status]}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function CleanList({
+  cleans,
+  empty,
+  flat,
+}: {
+  cleans: CleanRow[];
+  empty: string;
+  // Skips the time-bucketing (and the "Past" collapse) for a flat
+  // chronological list instead -- for when the caller already narrowed the
+  // set on purpose (e.g. filtered to a specific status or property), where
+  // burying most of the results behind a collapsed "Past" disclosure would
+  // work against the filter rather than for it.
+  flat?: boolean;
+}) {
   if (cleans.length === 0) {
     return <p className="text-sm text-zinc-600">{empty}</p>;
+  }
+
+  if (flat) {
+    return <CleanRows rows={cleans} />;
   }
 
   const groups = groupCleansByTime(
@@ -35,31 +77,6 @@ export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string
   return (
     <div className="flex flex-col gap-6">
       {groups.map(({ group, cleans: rows }) => {
-        const list = (
-          <ul className="flex flex-col gap-2">
-            {rows.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={c.href}
-                  className={card("flex items-center justify-between gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium">{c.title}</p>
-                    <p className="truncate text-sm text-zinc-500">
-                      {c.scheduledFor ? formatScheduledFor(c.scheduledFor) : "Not scheduled"}
-                      {c.subtitle ? ` · ${c.subtitle}` : ""}
-                    </p>
-                    {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
-                  </div>
-                  <span className="shrink-0 text-sm text-zinc-500">
-                    {CLEAN_STATUS_LABELS[c.status]}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        );
-
         // Past cleans just accumulate forever -- collapsed by default so
         // the list reads as what's coming up, not a growing history, but
         // still one click away when someone actually needs it.
@@ -69,7 +86,9 @@ export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string
               <summary className="cursor-pointer text-sm font-medium text-zinc-500">
                 Past ({rows.length})
               </summary>
-              <div className="mt-2">{list}</div>
+              <div className="mt-2">
+                <CleanRows rows={rows} />
+              </div>
             </details>
           );
         }
@@ -77,7 +96,7 @@ export function CleanList({ cleans, empty }: { cleans: CleanRow[]; empty: string
         return (
           <div key={group} className="flex flex-col gap-2">
             <h2 className="text-sm font-medium text-zinc-500">{group}</h2>
-            {list}
+            <CleanRows rows={rows} />
           </div>
         );
       })}

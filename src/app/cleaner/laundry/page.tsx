@@ -48,7 +48,7 @@ export default async function CleanerLaundryPage() {
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Laundry</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Log where dirty linen went and what it cost -- one drop-off can cover several visits.
+          Log who&apos;s collecting the dirty linen -- one drop-off can cover several visits.
         </p>
       </div>
 
@@ -60,7 +60,6 @@ export default async function CleanerLaundryPage() {
             label: `${propertyDisplayName(log.clean.property)} · ${formatDate(log.departedAt!)}`,
           }))}
           facilities={facilities}
-          capturePhoto
           action={createLaundryLoad}
         />
       </section>
@@ -73,15 +72,18 @@ export default async function CleanerLaundryPage() {
           <ul className="flex flex-col gap-2">
             {loads.map((load) => (
               <li key={load.id} className={card("flex items-center gap-3 p-3")}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/laundry-photos/${load.receiptPath}`}
-                  alt="Laundry ticket"
-                  className="h-14 w-14 shrink-0 rounded-md object-cover"
-                />
+                {load.receiptPath && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/api/laundry-photos/${load.receiptPath}`}
+                    alt="Laundry ticket"
+                    className="h-14 w-14 shrink-0 rounded-md object-cover"
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">
-                    {formatCurrency(load.cost)} · {load.facility.name}
+                    {load.cost !== null ? `${formatCurrency(load.cost)} · ` : ""}
+                    {load.facility.name}
                   </p>
                   <p className="truncate text-xs text-zinc-500">
                     {load.logs.map((l) => propertyDisplayName(l.clean.property)).join(", ")}

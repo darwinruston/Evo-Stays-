@@ -6,6 +6,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { CleanForm } from "../../CleanForm";
 import { updateClean, deleteClean } from "../../actions";
 import { button } from "@/lib/ui";
+import { getCleanerOptions } from "@/lib/cleans";
 
 export const metadata = { title: "Edit clean" };
 
@@ -19,11 +20,7 @@ export default async function EditCleanPage({ params }: { params: Promise<{ id: 
   });
   if (!clean) notFound();
 
-  const cleaners = await prisma.user.findMany({
-    where: { role: "CLEANER" },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const cleaners = await getCleanerOptions();
 
   return (
     <div className="flex flex-col gap-8">

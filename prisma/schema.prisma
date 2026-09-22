@@ -32,8 +32,38 @@ model User {
   cleanLogs      CleanLog[]
   invoices       Invoice[]
   laundryLoads   LaundryLoad[]
+  designatedProperties PropertyCleaner[]
+  unavailability CleanerUnavailability[]
+  auditLogs      AuditLog[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+// A permanent record of who changed what, for the handful of entities where
+// "who did this and when" actually matters operationally later: clean
+// reassignment/rescheduling/status changes, property/client edits and
+// deletions, a cleaner's pay rate or removal, and Hostify API key changes.
+// Deliberately not everything -- stock counts, laundry, photo uploads stay
+// unlogged; this is for changes worth being able to answer for, not a
+// request log. See src/lib/audit.ts.
+//
+// actorId is nullable with onDelete: SetNull, not Cascade -- deleting the
+// user who did something shouldn't erase the record that they did it.
+// entityId is a plain string, not a relation, for the same reason in the
+// other direction: the audited row itself (a Clean, a Property...) can be
+// deleted while its history survives -- the summary is written to stand on
+// its own rather than depend on a join that might no longer resolve.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorId    String?
+  entityType String
+  entityId   String
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 // The property owner/management client an Evo Stays portfolio belongs to.
@@ -49,6 +79,12 @@ model Client {
   // Profile photo -- see src/lib/profilePhotos.ts. Optional; shows an
   // initials placeholder until one is set.
   photoPath  String?
+  // AES-256-GCM ciphertext (see src/lib/encryption.ts), never plaintext -- a
+  // live Hostify key grants ongoing read access to this client's whole
+  // Hostify account, not just one property. Null means Hostify isn't
+  // connected for this client. One key per client (a Hostify account),
+  // covering every property under it -- see Property.hostifyListingId.
+  hostifyApiKey String?
   properties Property[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -108,11 +144,27 @@ model Property {
   // property (one property can list on several platforms). See
   // syncCalendarFeed in src/lib/icalSync.ts.
   syncHorizonDays  Int?
+  // Hostify listing id this property maps to -- a listing already aggregates
+  // every channel (Airbnb, Vrbo, ...) into one reservation feed, unlike iCal
+  // where each channel publishes its own separate URL, so this is a single
+  // field rather than a one-to-many feed list. Unique: two properties on the
+  // same listing would double-schedule every booking. Null means not
+  // connected via Hostify. See src/lib/hostifySync.ts.
+  //
+  // String, not Int -- real Hostify listing ids run well past 2^53 (rules
+  // out a JS number without silent rounding) and past 32-bit INT range too.
+  // Never used numerically, only as an opaque id sent back to Hostify, so
+  // there's no reason it needs to be one.
+  hostifyListingId     String?   @unique
+  hostifyLastSyncedAt  DateTime?
+  hostifyLastSyncError String?
   images           PropertyImage[]
   cleans           Clean[]
   stockLevels      PropertyStockLevel[]
   invoices         Invoice[]
   calendarFeeds    PropertyCalendarFeed[]
+  hostifyReservations SyncedHostifyReservation[]
+  designatedCleaners PropertyCleaner[]
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -172,6 +224,9 @@ model Clean {
   // Required by Prisma to declare the relation on both sides; nothing in
   // the app queries through it from this direction yet.
   syncedBookingEvent SyncedBookingEvent?
+  // Same as syncedBookingEvent above, but for a Hostify-sourced reservation --
+  // see SyncedHostifyReservation.
+  syncedHostifyReservation SyncedHostifyReservation?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -264,6 +319,42 @@ model PropertyStockLevel {
 
   @@unique([propertyId, stockItemId])
   @@index([propertyId])
+}
+
+// A cleaner designated as the regular/preferred worker for a property.
+// autoAssignCleaner (src/lib/autoAssign.ts) tries this pool first for a new
+// clean, before falling back to its familiarity/load scoring across every
+// cleaner -- so this is a strong preference, not a hard rule. More than one
+// cleaner can be designated on the same property (a small cover/rotation
+// pool), and the same cleaner can be designated on more than one property.
+model PropertyCleaner {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+  cleaner    User     @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  cleanerId  String
+  createdAt  DateTime @default(now())
+
+  @@unique([propertyId, cleanerId])
+  @@index([cleanerId])
+}
+
+// A day a cleaner has marked themselves unavailable. autoAssignCleaner
+// (src/lib/autoAssign.ts) skips them entirely for a clean scheduled that
+// day -- staff can still assign them by hand (CleanForm shows a warning
+// when they do), this only changes what auto-assign guesses. Can't be
+// created for a day the cleaner already has a clean scheduled -- see
+// blockDay in src/app/cleaner/actions.ts.
+model CleanerUnavailability {
+  id        String   @id @default(cuid())
+  cleaner   User     @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  cleanerId String
+  // Local midnight of the blocked day -- compared via dayBounds, the same
+  // convention autoAssignCleaner already uses for same-day load.
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([cleanerId, date])
 }
 
 // One item, one completed (or in-progress) visit: what the cleaner counted
@@ -360,16 +451,20 @@ model InvoiceLine {
 // cleaner or admin/office staff can create one -- see recordedBy.
 model LaundryLoad {
   id           String          @id @default(cuid())
-  cost         Float
+  // Nullable -- the laundry company now invoices monthly rather than per
+  // load, so there's no longer a per-load cost to enter. Kept (not dropped)
+  // so loads recorded before that change keep showing what they cost.
+  cost         Float?
   // Which launderette/facility the linen actually went to -- picked from
   // the LaundryFacility catalogue rather than typed fresh each time, since
   // a business only ever uses a handful of these on repeat.
   facility     LaundryFacility @relation(fields: [facilityId], references: [id])
   facilityId   String
-  // One ticket photo, same storage convention as PropertyImage/CleanPhoto
-  // (see src/lib/uploads.ts) but under its own storage root, since a load
-  // isn't scoped to a single property the way those are.
-  receiptPath  String
+  // Nullable -- the laundry company now collects from and drops back off at
+  // the property directly, so there's no paper ticket to photograph any
+  // more. Same reasoning as cost above: kept for loads recorded before the
+  // change, just never set going forward.
+  receiptPath  String?
   recordedBy   User            @relation(fields: [recordedById], references: [id])
   recordedById String
   logs         CleanLog[]
@@ -431,4 +526,34 @@ model SyncedBookingEvent {
   updatedAt      DateTime              @updatedAt
 
   @@unique([feedId, externalUid])
+}
+
+// Same role as SyncedBookingEvent, but for reservations pulled from the
+// Hostify API instead of an iCal feed -- keyed directly to Property since
+// Hostify has no per-channel "feed" concept (one listing already aggregates
+// every channel). Unlike iCal, cancellation is read from `status` rather
+// than inferred from a booking disappearing from a re-fetched feed -- see
+// src/lib/hostifySync.ts.
+model SyncedHostifyReservation {
+  id                   String    @id @default(cuid())
+  property             Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId           String
+  // String, not Int -- same reasoning as Property.hostifyListingId. Some
+  // Hostify ids in the wild run well past 32-bit INT range.
+  hostifyReservationId String
+  // Raw Hostify status string ("accepted", "pending", "denied",
+  // "cancelled_by_host", "cancelled_by_guest", "no_show", ...), stored as-is
+  // rather than a Prisma enum so a future status value Hostify adds doesn't
+  // fail an insert -- see the status-mapping step in hostifySync.ts.
+  status               String
+  checkIn              DateTime
+  checkOut             DateTime
+  guests               Int?
+  clean                Clean?    @relation(fields: [cleanId], references: [id], onDelete: SetNull)
+  cleanId              String?   @unique
+  cancelled            Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([propertyId, hostifyReservationId])
 }

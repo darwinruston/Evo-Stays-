@@ -1,6 +1,7 @@
 import type { CleanStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { autoAssignCleaner } from "@/lib/autoAssign";
+import { toIsoDate } from "@/lib/schedule";
 
 // The actual "make a Clean row" step, shared by the admin create-clean form
 // (src/app/admin/cleans/actions.ts) and iCal sync (src/lib/icalSync.ts) --
@@ -29,6 +30,22 @@ export async function createCleanRecord(input: {
       instructions: input.instructions ?? null,
     },
   });
+}
+
+// Shared by the create and edit clean pages -- every cleaner plus the days
+// they've blocked (see CleanerUnavailability in schema.prisma), for
+// CleanForm's live "this cleaner is unavailable that day" warning.
+export async function getCleanerOptions() {
+  const cleaners = await prisma.user.findMany({
+    where: { role: "CLEANER" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, unavailability: { select: { date: true } } },
+  });
+  return cleaners.map((c) => ({
+    id: c.id,
+    name: c.name,
+    unavailableDates: c.unavailability.map((u) => toIsoDate(u.date)),
+  }));
 }
 
 export const CLEAN_STATUS_LABELS: Record<CleanStatus, string> = {

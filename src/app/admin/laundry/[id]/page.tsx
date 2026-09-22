@@ -39,30 +39,32 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
         </Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{formatCurrency(load.cost)}</h1>
-            <p className="mt-0.5 text-sm text-zinc-500">{load.facility.name}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{load.facility.name}</h1>
+            {load.cost !== null && <p className="mt-0.5 text-sm text-zinc-500">{formatCurrency(load.cost)}</p>}
             <p className="mt-0.5 text-sm text-zinc-500">
               {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
             </p>
           </div>
           <span className={badge(load.collectedAt ? "solid" : "neutral")}>
-            {load.collectedAt ? `Collected ${formatDate(load.collectedAt)}` : "Out at the laundrette"}
+            {load.collectedAt ? `Returned ${formatDate(load.collectedAt)}` : "Still out"}
           </span>
         </div>
       </div>
 
       <form action={setLaundryLoadCollected.bind(null, load.id, null, !load.collectedAt)}>
         <button type="submit" className={button(load.collectedAt ? "secondary" : "primary", "sm")}>
-          {load.collectedAt ? "Mark as not collected" : "Mark as collected"}
+          {load.collectedAt ? "Mark as not returned" : "Mark as returned"}
         </button>
       </form>
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`/api/laundry-photos/${load.receiptPath}`}
-        alt="Laundry ticket"
-        className={card("max-w-sm overflow-hidden object-cover")}
-      />
+      {load.receiptPath && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/laundry-photos/${load.receiptPath}`}
+          alt="Laundry ticket"
+          className={card("max-w-sm overflow-hidden object-cover")}
+        />
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-zinc-500">Visits covered ({load.logs.length})</h2>
@@ -89,8 +91,8 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
       <section className="flex flex-col items-start gap-2 border-t border-black/5 pt-6">
         <h2 className="text-sm font-medium text-zinc-500">Remove</h2>
         <p className="text-sm text-zinc-600">
-          Frees the visits above to be included in a different load. The ticket photo isn&apos;t deleted from
-          storage.
+          Frees the visits above to be included in a different load.
+          {load.receiptPath && " The ticket photo isn't deleted from storage."}
         </p>
         <form action={deleteLaundryLoad.bind(null, load.id)}>
           <button type="submit" className={button("danger", "sm")}>

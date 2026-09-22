@@ -1,11 +1,12 @@
 "use server";
 
-import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
-import { savePropertyPhotos, saveLaundryPhoto } from "@/lib/uploads";
+import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
+import { dayBounds, parseIsoDate } from "@/lib/schedule";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 
 function str(formData: FormData, key: string): string | null {
@@ -224,18 +225,11 @@ export async function createLaundryLoad(
     .filter((v): v is string => typeof v === "string");
   if (requestedIds.length === 0) return { error: "Pick at least one clean." };
 
-  const rawCost = str(formData, "cost");
-  const cost = rawCost === null ? NaN : Number.parseFloat(rawCost);
-  if (!Number.isFinite(cost) || cost < 0) return { error: "Enter a valid cost." };
-
   const rawFacilityId = str(formData, "facilityId");
   const facility = rawFacilityId
     ? await prisma.laundryFacility.findUnique({ where: { id: rawFacilityId }, select: { id: true } })
     : null;
-  if (!facility) return { error: "Pick which launderette this went to." };
-
-  const photo = formData.get("photo");
-  if (!(photo instanceof File) || photo.size === 0) return { error: "Upload a photo of the ticket." };
+  if (!facility) return { error: "Pick who's collecting it." };
 
   const eligible = await prisma.cleanLog.findMany({
     where: {
@@ -249,17 +243,11 @@ export async function createLaundryLoad(
   });
   if (eligible.length === 0) return { error: "None of the selected visits are eligible." };
 
-  // Generated up front so the photo can be saved under {id}/{filename} and
-  // the whole row written in one create() -- see saveLaundryPhoto.
-  const laundryLoadId = randomUUID();
-  const receiptPath = await saveLaundryPhoto(laundryLoadId, photo);
-
+  // No cost or receipt photo any more -- see the comment on
+  // LaundryLoad.cost in schema.prisma.
   await prisma.laundryLoad.create({
     data: {
-      id: laundryLoadId,
-      cost,
       facilityId: facility.id,
-      receiptPath,
       recordedById: session.user.id,
       logs: { connect: eligible.map((l) => ({ id: l.id })) },
     },
@@ -268,4 +256,51 @@ export async function createLaundryLoad(
   revalidatePath("/cleaner/laundry");
   revalidatePath("/admin/laundry");
   return {};
+}
+
+// Marks a whole day unavailable -- autoAssignCleaner (src/lib/autoAssign.ts)
+// then leaves this cleaner out of consideration for anything scheduled that
+// day. Staff can still assign them by hand regardless (see the warning in
+// CleanForm.tsx); this only changes what auto-assign guesses.
+export async function blockDay(formData: FormData) {
+  const session = await requireCleaner();
+
+  const raw = str(formData, "date");
+  const date = raw ? parseIsoDate(raw) : null;
+  if (!date) throw new Error("Choose a date");
+
+  const { start, end } = dayBounds(date);
+  const existingClean = await prisma.clean.findFirst({
+    where: {
+      assignedToId: session.user.id,
+      scheduledFor: { gte: start, lt: end },
+      status: { not: "CANCELLED" },
+    },
+    select: { id: true },
+  });
+  if (existingClean) {
+    throw new Error(
+      "You already have a clean scheduled that day -- ask an admin to reassign it before blocking the day.",
+    );
+  }
+
+  try {
+    await prisma.cleanerUnavailability.create({
+      data: { cleanerId: session.user.id, date: start },
+    });
+  } catch (err) {
+    // Already blocked -- nothing to do.
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== "P2002") throw err;
+  }
+
+  revalidatePath("/cleaner/calendar");
+}
+
+export async function unblockDay(id: string) {
+  const session = await requireCleaner();
+
+  // Scoped to the caller so this can't be used to unblock someone else's day.
+  await prisma.cleanerUnavailability.deleteMany({ where: { id, cleanerId: session.user.id } });
+
+  revalidatePath("/cleaner/calendar");
 }

@@ -4,7 +4,8 @@ import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { buildMonthGrid, toIsoDate, formatScheduledFor } from "@/lib/schedule";
-import { button } from "@/lib/ui";
+import { button, card } from "@/lib/ui";
+import { blockDay, unblockDay } from "../actions";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_LABELS = [
@@ -48,14 +49,19 @@ export default async function CleanerCalendarPage({
   const selectedIso =
     dayParamRaw && /^\d{4}-\d{2}-\d{2}$/.test(dayParamRaw) ? dayParamRaw : todayIso;
 
-  const cleans = await prisma.clean.findMany({
-    where: {
-      assignedToId: session.user.id,
-      scheduledFor: { gte: gridStart, lt: gridEnd },
-    },
-    include: { property: { select: { name: true, address: true } } },
-    orderBy: { scheduledFor: "asc" },
-  });
+  const [cleans, blockedDays] = await Promise.all([
+    prisma.clean.findMany({
+      where: {
+        assignedToId: session.user.id,
+        scheduledFor: { gte: gridStart, lt: gridEnd },
+      },
+      include: { property: { select: { name: true, address: true } } },
+      orderBy: { scheduledFor: "asc" },
+    }),
+    prisma.cleanerUnavailability.findMany({
+      where: { cleanerId: session.user.id, date: { gte: gridStart, lt: gridEnd } },
+    }),
+  ]);
 
   const byDay = new Map<string, typeof cleans>();
   for (const c of cleans) {
@@ -65,6 +71,9 @@ export default async function CleanerCalendarPage({
     byDay.set(iso, list);
   }
   const selected = byDay.get(selectedIso) ?? [];
+
+  const blockedByDay = new Map(blockedDays.map((b) => [toIsoDate(b.date), b]));
+  const selectedBlocked = blockedByDay.get(selectedIso) ?? null;
 
   const [selYear, selMonth, selDay] = selectedIso.split("-").map(Number);
   const selectedDateLabel =
@@ -114,6 +123,7 @@ export default async function CleanerCalendarPage({
             const dayCleans = byDay.get(iso) ?? [];
             const isToday = iso === todayIso;
             const isSelected = iso === selectedIso;
+            const isBlocked = blockedByDay.has(iso);
             return (
               <Link
                 key={iso}
@@ -124,15 +134,23 @@ export default async function CleanerCalendarPage({
                     ? "border-zinc-900 bg-zinc-900 text-white"
                     : isToday
                       ? "border-black/25 font-medium"
-                      : "border-black/[0.06]") +
+                      : isBlocked
+                        ? "border-black/[0.06] bg-black/[0.04] text-zinc-400"
+                        : "border-black/[0.06]") +
                   (inCurrentMonth ? "" : " opacity-30")
                 }
               >
                 <span>{date.getDate()}</span>
-                {dayCleans.length > 0 && (
+                {dayCleans.length > 0 ? (
                   <span
                     className={"h-1.5 w-1.5 rounded-full " + (isSelected ? "bg-white" : "bg-zinc-900")}
                   />
+                ) : (
+                  isBlocked && (
+                    <span
+                      className={"h-1.5 w-1.5 rounded-full " + (isSelected ? "bg-white/60" : "bg-zinc-400")}
+                    />
+                  )
                 )}
               </Link>
             );
@@ -165,6 +183,29 @@ export default async function CleanerCalendarPage({
               </li>
             ))}
           </ul>
+        )}
+
+        {selected.length > 0 ? (
+          <p className="text-xs text-zinc-500">
+            Can&apos;t block this day — you have {selected.length === 1 ? "a clean" : "cleans"} scheduled.
+            Ask an admin to reassign {selected.length === 1 ? "it" : "them"} first.
+          </p>
+        ) : selectedBlocked ? (
+          <div className={card("flex items-center justify-between gap-3 p-3.5")}>
+            <p className="text-sm text-zinc-600">You&apos;ve marked this day unavailable.</p>
+            <form action={unblockDay.bind(null, selectedBlocked.id)}>
+              <button type="submit" className={button("secondary", "sm")}>
+                Unblock
+              </button>
+            </form>
+          </div>
+        ) : (
+          <form action={blockDay}>
+            <input type="hidden" name="date" value={selectedIso} />
+            <button type="submit" className={button("secondary", "sm")}>
+              Block this day
+            </button>
+          </form>
         )}
       </div>
     </div>

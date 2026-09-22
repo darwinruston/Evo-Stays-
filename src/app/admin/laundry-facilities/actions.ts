@@ -25,7 +25,7 @@ export async function createLaundryFacility(formData: FormData) {
 }
 
 // Called directly from the laundry-load wizard (src/components/LaundryLoadWizard.tsx)
-// when the launderette someone wants isn't in the list yet -- creates it and
+// when the laundry company someone wants isn't in the list yet -- creates it and
 // hands back {id, name} to select immediately, no redirect and no leaving
 // the wizard (which would lose the visits already picked on an earlier
 // step). A name that already exists is reused rather than erroring --
@@ -35,7 +35,7 @@ export async function createLaundryFacilityQuick(name: string): Promise<{ id: st
   await requireStaff();
 
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Enter a name for the launderette.");
+  if (!trimmed) throw new Error("Enter a name for the laundry company.");
 
   const existing = await prisma.laundryFacility.findUnique({ where: { name: trimmed } });
   const facility = existing

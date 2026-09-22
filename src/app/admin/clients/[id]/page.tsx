@@ -51,12 +51,19 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           <h2 className="text-sm font-medium text-zinc-500">
             Portfolio ({client.properties.length})
           </h2>
-          <Link
-            href={`/admin/properties/new?clientId=${client.id}`}
-            className={button("secondary", "sm")}
-          >
-            Add property
-          </Link>
+          <div className="flex items-center gap-2">
+            {client.hostifyApiKey && (
+              <Link href={`/admin/clients/${client.id}/import`} className={button("secondary", "sm")}>
+                Import from Hostify
+              </Link>
+            )}
+            <Link
+              href={`/admin/properties/new?clientId=${client.id}`}
+              className={button("secondary", "sm")}
+            >
+              Add property
+            </Link>
+          </div>
         </div>
         {client.properties.length === 0 ? (
           <p className="text-sm text-zinc-600">No properties yet.</p>

@@ -10,6 +10,17 @@ export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+// The inverse of toIsoDate -- "YYYY-MM-DD" from an <input type="date">,
+// read as a local date. new Date("YYYY-MM-DD") would parse it as UTC
+// midnight instead and could land on the wrong day depending on the
+// server's timezone.
+export function parseIsoDate(raw: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d));
+}
+
 // dd/mm/yyyy, for every date shown as text to a person. Kept separate from
 // toIsoDate, which stays YYYY-MM-DD on purpose for sortable keys and
 // <input type="date"> values (that HTML attribute requires ISO format

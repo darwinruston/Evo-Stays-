@@ -29,5 +29,10 @@ export const config = {
   // always have a file extension, app pages never do). The photo-serving
   // routes under /api match this pattern too, but enforce their own auth()
   // check -- see src/app/api/profile-photos/[...path]/route.ts.
-  matcher: ["/((?!api/auth|_next/static|_next/image|.*\\..*).*)"],
+  //
+  // api/sync is also skipped -- it has no session to check (an external
+  // cron caller, or the unattended in-process scheduler's own HTTP calls,
+  // never carry a login cookie) and enforces its own bearer-token check
+  // instead, same reasoning as api/auth needing to be reachable pre-login.
+  matcher: ["/((?!api/auth|api/sync|_next/static|_next/image|.*\\..*).*)"],
 };
