@@ -165,17 +165,23 @@ export function CleanForm({
         />
       </div>
 
-      {clean && (clean.status === "PENDING" || clean.status === "CANCELLED") && (
+      {clean && clean.status !== "COMPLETED" && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor="status" className="text-sm font-medium">
             Status
           </label>
           <select id="status" name="status" defaultValue={clean.status} className={inputCompact}>
-            <option value="PENDING">Not started</option>
+            {clean.status === "IN_PROGRESS" ? (
+              <option value="IN_PROGRESS">In progress</option>
+            ) : (
+              <option value="PENDING">Not started</option>
+            )}
             <option value="CANCELLED">Cancelled</option>
           </select>
           <p className="text-xs text-zinc-500">
-            In progress and completed are set by the cleaner on site.
+            {clean.status === "IN_PROGRESS"
+              ? "A cleaner has checked in. Cancel it if the visit won't be finished -- e.g. they got called away -- rather than leaving it stuck in progress."
+              : "In progress and completed are set by the cleaner on site."}
           </p>
         </div>
       )}

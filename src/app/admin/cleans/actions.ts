@@ -69,6 +69,16 @@ export async function updateClean(id: string, formData: FormData) {
     include: { assignedTo: { select: { name: true } } },
   });
 
+  // Staff can cancel a clean from PENDING or IN_PROGRESS (e.g. a cleaner got
+  // called away mid-visit and it's stuck), or reopen a CANCELLED one back to
+  // PENDING. They can never set IN_PROGRESS or move a COMPLETED/IN_PROGRESS
+  // clean back to PENDING themselves -- IN_PROGRESS already has a CleanLog
+  // from check-in, and resetting to PENDING would orphan it (the cleaner's
+  // next check-in would collide with it, since a clean has at most one log).
+  const allowedStatusChange =
+    (status === "CANCELLED" && before.status !== "COMPLETED") ||
+    (status === "PENDING" && (before.status === "PENDING" || before.status === "CANCELLED"));
+
   const after = await prisma.clean.update({
     where: { id },
     data: {
@@ -76,10 +86,7 @@ export async function updateClean(id: string, formData: FormData) {
       scheduledFor,
       guestCount: int(formData, "guestCount"),
       instructions: str(formData, "instructions"),
-      // Only PENDING/CANCELLED are settable by staff. IN_PROGRESS and
-      // COMPLETED are owned by the cleaner's check-in/check-out, and letting
-      // an edit form set them would leave a COMPLETED clean with no log.
-      ...(status === "PENDING" || status === "CANCELLED" ? { status } : {}),
+      ...(allowedStatusChange ? { status } : {}),
     },
     include: { assignedTo: { select: { name: true } } },
   });
