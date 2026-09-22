@@ -96,7 +96,11 @@ export function CleanList({
         return (
           <div key={group} className="flex flex-col gap-2">
             <h2 className="text-sm font-medium text-zinc-500">{group}</h2>
-            <CleanRows rows={rows} />
+            {rows.length === 0 ? (
+              <p className="text-sm text-zinc-500">None</p>
+            ) : (
+              <CleanRows rows={rows} />
+            )}
           </div>
         );
       })}

@@ -148,6 +148,13 @@ export function groupCleansByTime<T>(
     if (list) list.push(clean);
     else buckets.set(group, [clean]);
   }
+  // "Today" and "Tomorrow" always show, even with nothing in them -- the
+  // rest only appear when they have something, but a cleaner scanning their
+  // schedule for what's on today shouldn't have to wonder whether an empty
+  // "Today" was just never rendered versus genuinely empty.
+  if (!buckets.has("Today")) buckets.set("Today", []);
+  if (!buckets.has("Tomorrow")) buckets.set("Tomorrow", []);
+
   return CLEAN_TIME_GROUP_ORDER.filter((group) => buckets.has(group)).map((group) => ({
     group,
     cleans: buckets.get(group)!,
