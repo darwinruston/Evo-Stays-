@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
+import { EditableNumberField } from "@/components/EditableNumberField";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
@@ -104,26 +105,20 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <section className={card("flex flex-wrap items-end gap-3 p-4")}>
-        <form action={updateCleanerRate.bind(null, cleaner.id)} className="flex items-end gap-2">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="hourlyRate" className="text-sm font-medium">
-              Hourly rate
-            </label>
-            <input
-              id="hourlyRate"
-              name="hourlyRate"
-              type="number"
-              min={0}
-              step="0.01"
-              defaultValue={cleaner.hourlyRate ?? ""}
-              placeholder="e.g. 15.00"
-              className={`${inputCompact} w-28`}
-            />
-          </div>
-          <button type="submit" className={button("secondary", "sm")}>
-            Save
-          </button>
-        </form>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="hourlyRate" className="text-sm font-medium">
+            Hourly rate
+          </label>
+          <EditableNumberField
+            id="hourlyRate"
+            fieldName="hourlyRate"
+            action={updateCleanerRate.bind(null, cleaner.id)}
+            value={cleaner.hourlyRate}
+            displayValue={cleaner.hourlyRate !== null ? `${formatCurrency(cleaner.hourlyRate)}/hr` : "Not set"}
+            placeholder="e.g. 15.00"
+            step="0.01"
+          />
+        </div>
         <p className="text-xs text-zinc-500">
           Used to generate invoices — see{" "}
           <Link href="/admin/invoices" className="underline underline-offset-2">
@@ -134,29 +129,21 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className={card("flex flex-wrap items-end gap-3 p-4")}>
-        <form
-          action={updateCleanerScheduleHorizon.bind(null, cleaner.id)}
-          className="flex items-end gap-2"
-        >
-          <div className="flex flex-col gap-1">
-            <label htmlFor="scheduleHorizonDays" className="text-sm font-medium">
-              Schedule horizon
-            </label>
-            <input
-              id="scheduleHorizonDays"
-              name="scheduleHorizonDays"
-              type="number"
-              min={0}
-              step="1"
-              defaultValue={cleaner.scheduleHorizonDays ?? ""}
-              placeholder="e.g. 14"
-              className={`${inputCompact} w-28`}
-            />
-          </div>
-          <button type="submit" className={button("secondary", "sm")}>
-            Save
-          </button>
-        </form>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="scheduleHorizonDays" className="text-sm font-medium">
+            Schedule horizon
+          </label>
+          <EditableNumberField
+            id="scheduleHorizonDays"
+            fieldName="scheduleHorizonDays"
+            action={updateCleanerScheduleHorizon.bind(null, cleaner.id)}
+            value={cleaner.scheduleHorizonDays}
+            displayValue={
+              cleaner.scheduleHorizonDays !== null ? `${cleaner.scheduleHorizonDays} days` : "Shows everything"
+            }
+            placeholder="e.g. 14"
+          />
+        </div>
         <p className="text-xs text-zinc-500">
           Days ahead &quot;My cleans&quot; shows on their schedule. Leave blank to show everything
           — overdue and past work always shows either way.
