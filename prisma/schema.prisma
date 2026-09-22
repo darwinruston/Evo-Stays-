@@ -440,6 +440,12 @@ model InvoiceLine {
   departedAt DateTime
   hours      Float
   amount     Float
+  // True once staff have overridden the billed hours away from what
+  // arrivedAt/departedAt (and any per-property minimum) would compute --
+  // e.g. a visit with an obviously bad checkout timestamp. arrivedAt/
+  // departedAt are left untouched (the real record of what happened); only
+  // what's actually billed changes. See adjustInvoiceLineHours.
+  adjusted   Boolean  @default(false)
 
   @@index([invoiceId])
 }

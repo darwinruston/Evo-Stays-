@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 // Kept to the entities this app actually tracks history for -- see the
 // AuditLog model comment in schema.prisma for what's deliberately excluded.
-export type AuditEntityType = "Clean" | "Property" | "Client" | "Cleaner";
+export type AuditEntityType = "Clean" | "Property" | "Client" | "Cleaner" | "Invoice";
 
 // Where an audit row's entity still lives, for linking back to it from the
 // activity list. The entity may since have been deleted -- callers don't
@@ -12,6 +12,7 @@ export const AUDIT_ENTITY_HREF: Record<AuditEntityType, (id: string) => string> 
   Property: (id) => `/admin/properties/${id}`,
   Client: (id) => `/admin/clients/${id}`,
   Cleaner: (id) => `/admin/cleaners/${id}`,
+  Invoice: (id) => `/admin/invoices/${id}`,
 };
 
 export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {
@@ -19,6 +20,7 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {
   Property: "Property",
   Client: "Client",
   Cleaner: "Cleaner",
+  Invoice: "Invoice",
 };
 
 // actorId is nullable to match the schema -- an automated change (Hostify
