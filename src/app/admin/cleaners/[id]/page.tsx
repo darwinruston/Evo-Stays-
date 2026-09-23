@@ -6,6 +6,7 @@ import { AddPropertyForm } from "@/components/AddPropertyForm";
 import { Avatar } from "@/components/Avatar";
 import { DesignatedPropertyRow } from "@/components/DesignatedPropertyRow";
 import { EditableNumberField } from "@/components/EditableNumberField";
+import { EditCleanerDetailsForm } from "@/components/EditCleanerDetailsForm";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { ReassignForm } from "@/components/ReassignForm";
 import { propertyDisplayName } from "@/lib/address";
@@ -17,6 +18,7 @@ import { isCleanFinished } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
 import {
   deleteCleaner,
+  updateCleaner,
   updateCleanerRate,
   updateCleanerScheduleHorizon,
   assignCleanerProperty,
@@ -118,7 +120,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         <Link href="/admin/cleaners" className="text-sm text-zinc-500 hover:text-zinc-900">
           ← Cleaners
         </Link>
-        <div className="mt-2 flex items-center gap-4">
+        <div className="mt-2 flex items-start gap-4">
           <Avatar name={cleaner.name} size={56} />
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{cleaner.name}</h1>
@@ -126,6 +128,11 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
               {cleaner.email}
               {cleaner.hourlyRate !== null && ` · ${formatCurrency(cleaner.hourlyRate)}/hr`}
             </p>
+            <EditCleanerDetailsForm
+              action={updateCleaner.bind(null, cleaner.id)}
+              name={cleaner.name}
+              email={cleaner.email}
+            />
           </div>
         </div>
       </div>

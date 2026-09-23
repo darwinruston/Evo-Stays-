@@ -42,6 +42,60 @@ export async function createCleaner(formData: FormData) {
   redirect("/admin/cleaners");
 }
 
+// Name, email, and (optionally) password -- the details set once at
+// creation but otherwise had no edit path at all. Password is the same
+// "blank means leave it alone" convention as Client.hostifyApiKey: a
+// secret field defaults to no change rather than clearing it, and it's
+// never read back into the form to prefill (a decrypted secret showing up
+// in page source is bad practice regardless of how it got there).
+export async function updateCleaner(id: string, formData: FormData) {
+  const session = await requireStaff();
+
+  const name = str(formData, "name");
+  const email = str(formData, "email");
+  if (!name || !email) throw new Error("Name and email are both required");
+
+  const emailOwner = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (emailOwner && emailOwner.id !== id) throw new Error("That email address already has a login");
+
+  const password = str(formData, "password");
+  if (password !== null && password.length < 8) throw new Error("Password must be at least 8 characters");
+
+  const before = await prisma.user.findUniqueOrThrow({
+    where: { id, role: "CLEANER" },
+    select: { name: true, email: true },
+  });
+
+  await prisma.user.update({
+    where: { id, role: "CLEANER" },
+    data: {
+      name,
+      email,
+      ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}),
+    },
+  });
+
+  if (before.name !== name) {
+    await logAudit({
+      actorId: session.user.id,
+      entityType: "Cleaner",
+      entityId: id,
+      summary: `Renamed from ${before.name} to ${name}`,
+    });
+  }
+  if (before.email !== email) {
+    await logAudit({
+      actorId: session.user.id,
+      entityType: "Cleaner",
+      entityId: id,
+      summary: `Email changed from ${before.email} to ${email}`,
+    });
+  }
+
+  revalidatePath(`/admin/cleaners/${id}`);
+  revalidatePath("/admin/cleaners");
+}
+
 function rate(formData: FormData, key: string): number | null {
   const raw = str(formData, key);
   if (raw === null) return null;
