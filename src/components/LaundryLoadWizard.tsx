@@ -89,7 +89,7 @@ export function LaundryLoadWizard({
   if (eligibleVisits.length === 0) {
     return (
       <p className="text-sm text-zinc-600">
-        Nothing unclaimed right now -- every completed visit&apos;s linen is already logged.
+        Nothing unclaimed right now — every completed visit&apos;s linen is already logged.
       </p>
     );
   }

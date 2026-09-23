@@ -48,7 +48,7 @@ export default async function CleanerLaundryPage() {
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Laundry</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Log who&apos;s collecting the dirty linen -- one drop-off can cover several visits.
+          Log who&apos;s collecting the dirty linen — one drop-off can cover several visits.
         </p>
       </div>
 

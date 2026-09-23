@@ -280,7 +280,7 @@ export async function deleteCleaner(id: string) {
     actorId: session.user.id,
     entityType: "Cleaner",
     entityId: id,
-    summary: `Removed -- ${cleaner.name}`,
+    summary: `Removed — ${cleaner.name}`,
   });
 
   revalidatePath("/admin/cleaners");

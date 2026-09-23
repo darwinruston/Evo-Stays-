@@ -50,10 +50,10 @@ class HostifyAuthError extends Error {}
 // something that tells staff what to actually do about it.
 function describeSyncError(err: unknown): string {
   if (err instanceof HostifyAuthError) {
-    return `Hostify rejected the API key (${err.message}) -- check it on the client.`;
+    return `Hostify rejected the API key (${err.message}) — check it on the client.`;
   }
   if (err instanceof TypeError && err.message === "fetch failed") {
-    return "Couldn't reach Hostify -- check your connection and try again shortly.";
+    return "Couldn't reach Hostify — check your connection and try again shortly.";
   }
   return err instanceof Error ? err.message : "Couldn't reach Hostify";
 }
@@ -180,7 +180,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       // ENCRYPTION_KEY rotated, or the stored ciphertext is corrupt --
       // either way the key on file can no longer be used, and re-entering
       // it is the only fix.
-      throw new Error("Couldn't decrypt the stored API key -- re-enter it on the client.");
+      throw new Error("Couldn't decrypt the stored API key — re-enter it on the client.");
     }
     const reservations = await fetchReservations(apiKey, property.hostifyListingId, lookback, cutoff);
 
@@ -282,7 +282,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
             actorId: triggeredById,
             entityType: "Clean",
             entityId: existing.clean.id,
-            summary: `Cancelled -- Hostify reservation status changed to "${reservation.status}"`,
+            summary: `Cancelled — Hostify reservation status changed to "${reservation.status}"`,
           });
         } else {
           await prisma.clean.update({ where: { id: existing.clean.id }, data: { scheduledFor: checkOut } });

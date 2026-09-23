@@ -377,14 +377,14 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <section className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Calendars <span className="text-sm font-normal text-zinc-500">({property.calendarFeeds.length})</span>
-            <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing -- add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
+            <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing — add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
           </h2>
 
           {!hasHostifyListing && syncHorizonControl}
 
           {hasHostifyListing && property.calendarFeeds.length > 0 && (
             <p className="text-xs font-medium text-zinc-600">
-              This property syncs via Hostify now -- these calendar feeds are still active too and
+              This property syncs via Hostify now — these calendar feeds are still active too and
               could create a duplicate clean for the same booking. Remove them below.
             </p>
           )}
@@ -555,7 +555,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Out for laundry{" "}
             <span className="text-sm font-normal text-zinc-500">({laundryOut.length})</span>
-            <InfoTooltip text="Linen from this property that's out with the laundry company. Mark it returned once it's back -- it then drops off this list on its own, so this only ever shows what's actually still out." />
+            <InfoTooltip text="Linen from this property that's out with the laundry company. Mark it returned once it's back — it then drops off this list on its own, so this only ever shows what's actually still out." />
           </h2>
           <ul className="flex flex-col gap-2">
             {laundryOut.map((load) => {

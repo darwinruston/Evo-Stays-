@@ -26,27 +26,27 @@ const FEATURES = [
   {
     icon: BoxIcon,
     title: "Stock that doesn't run out mid-turnover",
-    body: "Set a par level once per property -- a pack or order size, not a guess -- and cleaners confirm a High/Medium/Low/None level with a tap, no typing a count off a shelf. A running-low view surfaces every property before a guest notices, not after.",
+    body: "Set a par level once per property — a pack or order size, not a guess — and cleaners confirm a High/Medium/Low/None level with a tap, no typing a count off a shelf. A running-low view surfaces every property before a guest notices, not after.",
   },
   {
     icon: ReceiptIcon,
     title: "Cleaner pay, generated in one click",
-    body: "Set an hourly rate once, then generate invoices straight from real check-in/check-out times -- grouped per property, since each one belongs to a different client who needs their own cleaning cost visible on its own, not lumped in with the rest of the portfolio.",
+    body: "Set an hourly rate once, then generate invoices straight from real check-in/check-out times — grouped per property, since each one belongs to a different client who needs their own cleaning cost visible on its own, not lumped in with the rest of the portfolio.",
   },
   {
     icon: WashingMachineIcon,
     title: "Laundry, tracked door to door",
-    body: "Which visits' linen went out and which laundry company is handling it -- covering however many visits went together in one trip. A property's own page shows exactly what's still out, and it clears itself once it's back.",
+    body: "Which visits' linen went out and which laundry company is handling it — covering however many visits went together in one trip. A property's own page shows exactly what's still out, and it clears itself once it's back.",
   },
   {
     icon: GridIcon,
     title: "One dashboard for the whole portfolio",
-    body: "This week's schedule, workload per cleaner, and every property running low on stock -- all in one place, not scattered across a spreadsheet and a group chat.",
+    body: "This week's schedule, workload per cleaner, and every property running low on stock — all in one place, not scattered across a spreadsheet and a group chat.",
   },
   {
     icon: ShieldIcon,
     title: "Access scoped to the job",
-    body: "A cleaner only ever sees a property they're actually assigned to -- including the access notes and key safe codes -- so onboarding someone new never means handing over the whole portfolio.",
+    body: "A cleaner only ever sees a property they're actually assigned to — including the access notes and key safe codes — so onboarding someone new never means handing over the whole portfolio.",
   },
 ];
 
@@ -55,7 +55,7 @@ const FEATURES = [
 // than generic marketing language.
 const USPS = [
   "Auto-assigned by familiarity, not just availability",
-  "Workflow gated server-side -- a step can't be faked from the browser",
+  "Workflow gated server-side — a step can't be faked from the browser",
   "Invoices generated from real check-in/check-out times",
 ];
 
@@ -84,7 +84,7 @@ export default async function Home() {
             </h1>
             <p className="mt-5 text-lg text-zinc-600">
               Evo Stays is the operations hub a short-let management company runs its own team
-              from -- scheduling turnovers, tracking stock and laundry, and paying cleaners, all
+              from — scheduling turnovers, tracking stock and laundry, and paying cleaners, all
               in one place instead of a spreadsheet and a group chat.
             </p>
             <div className="mt-8 flex justify-center">
@@ -138,7 +138,7 @@ export default async function Home() {
             </span>
             <h2 className="mt-4 text-2xl font-semibold tracking-tight">Built for the team, not the guest</h2>
             <p className="mt-3 text-zinc-600">
-              There&apos;s no guest-facing side and no client login by design -- this is a tool
+              There&apos;s no guest-facing side and no client login by design — this is a tool
               for a management company&apos;s own admin, office staff, and cleaners to run
               day-to-day operations, not something property owners sign into.
             </p>

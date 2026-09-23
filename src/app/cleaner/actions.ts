@@ -280,7 +280,7 @@ export async function blockDay(formData: FormData) {
   });
   if (existingClean) {
     throw new Error(
-      "You already have a clean scheduled that day -- ask an admin to reassign it before blocking the day.",
+      "You already have a clean scheduled that day — ask an admin to reassign it before blocking the day.",
     );
   }
 

@@ -191,7 +191,7 @@ export async function importHostifyListings(clientId: string, formData: FormData
       actorId: session.user.id,
       entityType: "Property",
       entityId: property.id,
-      summary: `Imported from Hostify -- listing #${listing.id}`,
+      summary: `Imported from Hostify — listing #${listing.id}`,
     });
 
     // Best-effort cover photo -- only the main one, not the full gallery
@@ -237,7 +237,7 @@ export async function deleteClient(id: string) {
     actorId: session.user.id,
     entityType: "Client",
     entityId: id,
-    summary: `Deleted -- ${client.name}`,
+    summary: `Deleted — ${client.name}`,
   });
 
   revalidatePath("/admin/clients");

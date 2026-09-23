@@ -134,11 +134,11 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
         const prediction = estimate
           ? {
               band: stockLevelBand({ onHandQty: estimate.estimatedRemaining, parQty: nextUp.parQty }),
-              reason: `Estimated from ${estimate.guestCount} ${estimate.guestCount === 1 ? "guest" : "guests"} × ${estimate.nights} ${estimate.nights === 1 ? "night" : "nights"} -- check the shelf.`,
+              reason: `Estimated from ${estimate.guestCount} ${estimate.guestCount === 1 ? "guest" : "guests"} × ${estimate.nights} ${estimate.nights === 1 ? "night" : "nights"} — check the shelf.`,
             }
           : {
               band: stockLevelBand(nextUp),
-              reason: "Based on what was last recorded -- check the shelf.",
+              reason: "Based on what was last recorded — check the shelf.",
             };
         return { level: nextUp, ...prediction };
       })()

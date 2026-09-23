@@ -180,7 +180,7 @@ export function CleanForm({
           </select>
           <p className="text-xs text-zinc-500">
             {clean.status === "IN_PROGRESS"
-              ? "A cleaner has checked in. Cancel it if the visit won't be finished -- e.g. they got called away -- rather than leaving it stuck in progress."
+              ? "A cleaner has checked in. Cancel it if the visit won't be finished — e.g. they got called away — rather than leaving it stuck in progress."
               : "In progress and completed are set by the cleaner on site."}
           </p>
         </div>

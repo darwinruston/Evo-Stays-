@@ -167,9 +167,9 @@ export function PropertyForm({
           className={`${inputCompact} max-w-32`}
         />
         <p className="text-xs text-zinc-500">
-          Extra guests the sofa bed itself sleeps, already counted into Sleeps above -- leave blank if
-          there&apos;s no sofa bed. A cleaning task flags the sofa bed for prep when a booking&apos;s
-          guest count runs higher than the bedrooms alone sleep.
+          Extra guests the sofa bed itself sleeps — already included in the Sleeps total above. Leave
+          blank if there&apos;s no sofa bed. A cleaning task flags the sofa bed for prep whenever a
+          booking&apos;s guest count is higher than what the bedrooms alone would sleep.
         </p>
       </div>
 

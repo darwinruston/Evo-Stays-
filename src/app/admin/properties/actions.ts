@@ -152,7 +152,7 @@ export async function deleteProperty(id: string) {
     actorId: session.user.id,
     entityType: "Property",
     entityId: id,
-    summary: `Deleted -- ${propertyDisplayName(property)}`,
+    summary: `Deleted — ${propertyDisplayName(property)}`,
   });
 
   revalidatePath("/admin/properties");

@@ -134,7 +134,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         <section className={card("flex flex-col gap-1 p-4")}>
           <label htmlFor="hourlyRate" className="flex items-center gap-1.5 text-sm font-medium">
             Hourly rate
-            <InfoTooltip text="Used to generate invoices -- see the Invoices page. Changing it only affects invoices generated after today." />
+            <InfoTooltip text="Used to generate invoices — see the Invoices page. Changing it only affects invoices generated after today." />
           </label>
           <EditableNumberField
             id="hourlyRate"
@@ -150,7 +150,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         <section className={card("flex flex-col gap-1 p-4")}>
           <label htmlFor="scheduleHorizonDays" className="flex items-center gap-1.5 text-sm font-medium">
             Schedule horizon
-            <InfoTooltip text='Days ahead "My cleans" shows on their schedule. Leave blank to show everything -- overdue and past work always shows either way.' />
+            <InfoTooltip text='Days ahead "My cleans" shows on their schedule. Leave blank to show everything — overdue and past work always shows either way.' />
           </label>
           <EditableNumberField
             id="scheduleHorizonDays"
@@ -171,7 +171,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
           <span className="text-sm font-normal text-zinc-500">
             ({cleaner.designatedProperties.length})
           </span>
-          <InfoTooltip text="Auto-assign only ever picks from a property's designated cleaners -- never anyone else, and never a guess when there isn't one. A strong preference among designated cleaners, not exclusivity: someone else designated here can still be picked instead if this cleaner already has a full day, or anyone can be assigned by hand regardless." />
+          <InfoTooltip text="Auto-assign only ever picks from a property's designated cleaners — never anyone else, and never a guess when there isn't one. A strong preference among designated cleaners, not exclusivity: someone else designated here can still be picked instead if this cleaner already has a full day, or anyone can be assigned by hand regardless." />
         </h2>
 
         {cleaner.designatedProperties.length > 0 && (
@@ -209,7 +209,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         <section className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Unavailable
-            <InfoTooltip text="Days this cleaner has blocked themselves, from their own calendar -- auto-assign skips them for anything scheduled on one of these days. You can still assign them by hand; CleanForm just warns you first." />
+            <InfoTooltip text="Days this cleaner has blocked themselves, from their own calendar — auto-assign skips them for anything scheduled on one of these days. You can still assign them by hand; you'll just be warned first." />
           </h2>
           <ul className="flex flex-wrap gap-2">
             {cleaner.unavailability.map((u) => (
@@ -225,7 +225,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         <section className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Reassign upcoming work
-            <InfoTooltip text="Moves every not-yet-started clean currently assigned to this cleaner to someone else in one go -- for when they're off sick, on leave, or leaving. Only PENDING cleans move; anything already in progress or completed stays exactly as it is." />
+            <InfoTooltip text="Moves every not-yet-started clean currently assigned to this cleaner to someone else in one go — for when they're off sick, on leave, or leaving. Only work that hasn't started moves; anything already in progress or completed stays exactly as it is." />
           </h2>
           <ReassignForm
             action={reassignUpcomingCleans.bind(null, cleaner.id)}

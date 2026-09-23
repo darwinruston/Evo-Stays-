@@ -110,7 +110,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                   </span>
                   <span className="shrink-0 text-sm text-zinc-500">
                     {formatHours(line.hours)}
-                    {line.adjusted && ` (adjusted -- actual visit ${formatHours(actualHours)})`}
+                    {line.adjusted && ` (adjusted — actual visit ${formatHours(actualHours)})`}
                     {toppedUp && ` (${formatHours(actualHours)} actual, topped up to minimum)`}
                     {" · "}
                     {formatCurrency(line.amount)}

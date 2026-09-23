@@ -46,7 +46,7 @@ export default async function ImportHostifyListingsPage({ params }: { params: Pr
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Import from Hostify</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Pulls this client&apos;s listings straight from Hostify -- address, bed/bath counts, and the
+          Pulls this client&apos;s listings straight from Hostify — address, bed/bath counts, and the
           listing ID all filled in automatically, and each imported property starts syncing
           reservations into cleans right away.
         </p>

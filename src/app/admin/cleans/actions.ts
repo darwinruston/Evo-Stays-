@@ -144,7 +144,7 @@ export async function deleteClean(id: string) {
     actorId: session.user.id,
     entityType: "Clean",
     entityId: id,
-    summary: `Deleted -- ${propertyDisplayName(clean.property)}, ${clean.scheduledFor ? formatScheduledFor(clean.scheduledFor) : "unscheduled"}, was assigned to ${clean.assignedTo?.name ?? "Unassigned"}`,
+    summary: `Deleted — ${propertyDisplayName(clean.property)}, ${clean.scheduledFor ? formatScheduledFor(clean.scheduledFor) : "unscheduled"}, was assigned to ${clean.assignedTo?.name ?? "Unassigned"}`,
   });
 
   revalidatePath("/admin/cleans");
