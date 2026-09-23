@@ -54,7 +54,7 @@ export default async function CleanDetailPage({
           client: { select: { id: true, name: true } },
         },
       },
-      assignedTo: { select: { name: true } },
+      assignedTo: { select: { id: true, name: true } },
       log: {
         include: {
           recordedBy: { select: { name: true } },
@@ -112,7 +112,15 @@ export default async function CleanDetailPage({
         </div>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Cleaner</span>
-          <span>{clean.assignedTo?.name ?? "Unassigned"}</span>
+          <span>
+            {clean.assignedTo ? (
+              <Link href={`/admin/cleaners/${clean.assignedTo.id}`} className="hover:underline">
+                {clean.assignedTo.name}
+              </Link>
+            ) : (
+              "Unassigned"
+            )}
+          </span>
         </div>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Guests</span>
