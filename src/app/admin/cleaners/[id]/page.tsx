@@ -187,6 +187,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
               <DesignatedPropertyRow
                 key={d.id}
                 propertyName={propertyDisplayName(d.property)}
+                propertyHref={`/admin/properties/${d.propertyId}`}
                 clientName={d.property.client.name}
                 cleanerName={cleaner.name}
                 removeAction={removeCleanerProperty.bind(null, cleaner.id, d.propertyId)}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRevealForm } from "@/lib/useRevealForm";
 import { button, card, inputCompact } from "@/lib/ui";
 
@@ -10,6 +11,7 @@ import { button, card, inputCompact } from "@/lib/ui";
 // was already on the books stays wherever it was unless someone does this.
 export function DesignatedPropertyRow({
   propertyName,
+  propertyHref,
   clientName,
   cleanerName,
   removeAction,
@@ -17,6 +19,7 @@ export function DesignatedPropertyRow({
   pendingCount,
 }: {
   propertyName: string;
+  propertyHref: string;
   clientName: string;
   cleanerName: string;
   removeAction: (formData: FormData) => void;
@@ -29,7 +32,11 @@ export function DesignatedPropertyRow({
     <li className={card("flex flex-col gap-3 p-4")}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-medium">{propertyName}</p>
+          <p className="font-medium">
+            <Link href={propertyHref} className="hover:underline">
+              {propertyName}
+            </Link>
+          </p>
           <p className="truncate text-sm text-zinc-500">{clientName}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
