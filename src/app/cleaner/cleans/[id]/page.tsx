@@ -73,9 +73,25 @@ function PhotoUploadStep({
   );
 }
 
-export default async function CleanerCleanPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CleanerCleanPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  // Set when reached from the Calendar's day agenda (see
+  // src/app/cleaner/calendar/page.tsx) so "back" returns to that same
+  // month/day instead of always dropping to My cleans / the current month.
+  searchParams: Promise<{ from?: string; month?: string; day?: string }>;
+}) {
   const session = await requireCleaner();
   const { id } = await params;
+  const { from, month, day } = await searchParams;
+
+  const backHref =
+    from === "calendar"
+      ? `/cleaner/calendar?${new URLSearchParams({ ...(month ? { month } : {}), ...(day ? { day } : {}) }).toString()}`
+      : "/cleaner";
+  const backLabel = from === "calendar" ? "← Calendar" : "← My cleans";
 
   // Scoped in the query: a clean assigned to someone else simply doesn't
   // resolve, so there's no branch where another cleaner's job could render.
@@ -160,8 +176,8 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/cleaner" className="text-sm text-zinc-500 hover:text-zinc-900">
-          ← My cleans
+        <Link href={backHref} className="text-sm text-zinc-500 hover:text-zinc-900">
+          {backLabel}
         </Link>
         <h1 className="mt-2 text-lg font-semibold tracking-tight">{title}</h1>
         <p className="mt-1 flex items-center gap-2 text-sm text-zinc-500">

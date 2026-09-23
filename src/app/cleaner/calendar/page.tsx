@@ -167,7 +167,7 @@ export default async function CleanerCalendarPage({
             {selected.map((c) => (
               <li key={c.id}>
                 <Link
-                  href={`/cleaner/cleans/${c.id}`}
+                  href={`/cleaner/cleans/${c.id}?from=calendar&month=${monthParam(year, monthIndex0)}&day=${selectedIso}`}
                   className="flex flex-col gap-1 rounded-lg border border-black/[0.06] bg-surface p-3.5 transition-colors hover:border-black/10"
                 >
                   <div className="flex items-center justify-between gap-3">
