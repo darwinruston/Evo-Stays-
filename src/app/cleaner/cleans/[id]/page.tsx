@@ -179,7 +179,11 @@ export default async function CleanerCleanPage({
         <Link href={backHref} className="text-sm text-zinc-500 hover:text-zinc-900">
           {backLabel}
         </Link>
-        <h1 className="mt-2 text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="mt-2 text-lg font-semibold tracking-tight">
+          <Link href={`/cleaner/properties/${clean.property.id}`} className="hover:underline">
+            {title}
+          </Link>
+        </h1>
         <p className="mt-1 flex items-center gap-2 text-sm text-zinc-500">
           {clean.scheduledFor ? formatScheduledFor(clean.scheduledFor) : "Not scheduled"}
           <span className={badge(clean.status === "COMPLETED" ? "solid" : "neutral")}>
