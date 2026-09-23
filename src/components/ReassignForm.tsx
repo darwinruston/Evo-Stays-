@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRevealForm } from "@/lib/useRevealForm";
 import { button, card, inputCompact } from "@/lib/ui";
 
 // Same reveal-on-click shape as AddPropertyForm/EditableNumberField -- a
@@ -12,11 +12,11 @@ export function ReassignForm({
   cleaners,
   pendingCount,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<void>;
   cleaners: { id: string; name: string }[];
   pendingCount: number;
 }) {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, error, pending, submit } = useRevealForm(action);
 
   if (!open) {
     return (
@@ -27,7 +27,7 @@ export function ReassignForm({
   }
 
   return (
-    <form action={action} className={card("flex flex-wrap items-end gap-3 p-4")}>
+    <form action={submit} className={card("flex flex-wrap items-end gap-3 p-4")}>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="targetCleanerId" className="text-sm font-medium">
           Reassign to
@@ -52,12 +52,13 @@ export function ReassignForm({
         </label>
         <input id="toDate" name="toDate" type="date" className={`${inputCompact} w-40`} />
       </div>
-      <button type="submit" className={button("primary", "sm")}>
-        Reassign
+      <button type="submit" disabled={pending} className={button("primary", "sm")}>
+        {pending ? "Reassigning…" : "Reassign"}
       </button>
       <button type="button" onClick={() => setOpen(false)} className={button("ghost", "sm")}>
         Cancel
       </button>
+      {error && <p className="w-full text-xs text-red-600">{error}</p>}
       <p className="w-full text-xs text-zinc-500">
         {pendingCount} upcoming {pendingCount === 1 ? "clean" : "cleans"} not yet started. Leave both
         dates blank to reassign all of them.

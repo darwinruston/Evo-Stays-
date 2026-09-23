@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRevealForm } from "@/lib/useRevealForm";
 import { button, card, inputCompact } from "@/lib/ui";
 
 // One designated property, with an optional reveal-on-click form to pick
@@ -20,10 +20,10 @@ export function DesignatedPropertyRow({
   clientName: string;
   cleanerName: string;
   removeAction: (formData: FormData) => void;
-  moveAction: (formData: FormData) => void;
+  moveAction: (formData: FormData) => Promise<void>;
   pendingCount: number;
 }) {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, error, pending, submit } = useRevealForm(moveAction);
 
   return (
     <li className={card("flex flex-col gap-3 p-4")}>
@@ -51,7 +51,7 @@ export function DesignatedPropertyRow({
       </div>
 
       {open && (
-        <form action={moveAction} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3">
+        <form action={submit} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor={`fromDate-${propertyName}`} className="text-sm font-medium">
               From
@@ -64,12 +64,13 @@ export function DesignatedPropertyRow({
             </label>
             <input id={`toDate-${propertyName}`} name="toDate" type="date" className={`${inputCompact} w-40`} />
           </div>
-          <button type="submit" className={button("primary", "sm")}>
-            Move
+          <button type="submit" disabled={pending} className={button("primary", "sm")}>
+            {pending ? "Moving…" : "Move"}
           </button>
           <button type="button" onClick={() => setOpen(false)} className={button("ghost", "sm")}>
             Cancel
           </button>
+          {error && <p className="w-full text-xs text-red-600">{error}</p>}
           <p className="w-full text-xs text-zinc-500">
             {pendingCount} upcoming {pendingCount === 1 ? "clean" : "cleans"} here not yet assigned to{" "}
             {cleanerName}. Leave both dates blank to move all of them.
