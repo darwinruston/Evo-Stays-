@@ -8,6 +8,11 @@ type ClientFields = {
   phone: string | null;
   notes: string | null;
   photoPath: string | null;
+  // Whether a Hostify key is already stored -- never the key itself (even
+  // decrypted, showing a secret back into an HTML form value is bad
+  // practice, visible in page source/devtools). Undefined on the create
+  // form, where there's nothing to have yet.
+  hasHostifyApiKey?: boolean;
 };
 
 // Shared between create and edit -- edit binds the id into the action, so
@@ -84,6 +89,29 @@ export function ClientForm({
           defaultValue={client?.notes ?? ""}
           className={inputCompact}
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5 border-t border-black/5 pt-4">
+        <label htmlFor="hostifyApiKey" className="text-sm font-medium">
+          Hostify API key
+        </label>
+        {/* Deliberately blank, not prefilled like every other field above --
+            the stored value is encrypted and never decrypted back into a
+            form. Blank on submit means "leave the current key alone" (see
+            updateClient), not "clear it". */}
+        <input
+          id="hostifyApiKey"
+          name="hostifyApiKey"
+          type="password"
+          autoComplete="off"
+          placeholder={client?.hasHostifyApiKey ? "•••••••• (unchanged)" : ""}
+          className={inputCompact}
+        />
+        <p className="text-xs text-zinc-500">
+          From Hostify → Settings → API Keys. Only needs the{" "}
+          <code>reservations:read_no_guest</code> scope.
+          {client?.hasHostifyApiKey && " Leave blank to keep the current key."}
+        </p>
       </div>
 
       <div>

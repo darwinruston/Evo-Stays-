@@ -5,8 +5,13 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
-import { badge, button, card } from "@/lib/ui";
-import { setInvoicePaid } from "../actions";
+import { badge, button, card, inputCompact } from "@/lib/ui";
+import { setInvoicePaid, adjustInvoiceLineHours } from "../actions";
+
+// Below this, a visit is worth a second look before it gets paid or billed
+// -- a real turnover doesn't take under 10 minutes, so it's almost always a
+// bad check-in/check-out timestamp rather than a genuinely fast clean.
+const SUSPICIOUSLY_SHORT_MINUTES = 10;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,6 +37,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     },
   });
   if (!invoice) notFound();
+
+  const activity = await prisma.auditLog.findMany({
+    where: { entityType: "Invoice", entityId: invoice.id },
+    orderBy: { createdAt: "desc" },
+    include: { actor: { select: { name: true } } },
+  });
 
   return (
     <div className="flex flex-col gap-8">
@@ -86,18 +97,56 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <ul className="flex flex-col gap-2">
           {invoice.lines.map((line) => {
             const actualHours = (line.departedAt.getTime() - line.arrivedAt.getTime()) / 3600000;
-            const toppedUp = line.hours > actualHours + 1 / 3600; // +1s slack for float rounding
+            // Once a line's been manually adjusted, the "topped up to
+            // minimum" note no longer applies -- the billed hours are
+            // whatever staff set, not derived from the visit any more.
+            const toppedUp = !line.adjusted && line.hours > actualHours + 1 / 3600; // +1s slack for float rounding
+            const suspiciouslyShort = actualHours * 60 < SUSPICIOUSLY_SHORT_MINUTES;
             return (
-              <li key={line.id} className={card("flex items-center justify-between gap-4 p-4")}>
-                <span className="text-sm">
-                  {formatScheduledFor(line.arrivedAt)} – {formatScheduledFor(line.departedAt)}
-                </span>
-                <span className="shrink-0 text-sm text-zinc-500">
-                  {formatHours(line.hours)}
-                  {toppedUp && ` (${formatHours(actualHours)} actual, topped up to minimum)`}
-                  {" · "}
-                  {formatCurrency(line.amount)}
-                </span>
+              <li key={line.id} className={card("flex flex-col gap-3 p-4")}>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm">
+                    {formatScheduledFor(line.arrivedAt)} – {formatScheduledFor(line.departedAt)}
+                  </span>
+                  <span className="shrink-0 text-sm text-zinc-500">
+                    {formatHours(line.hours)}
+                    {line.adjusted && ` (adjusted — actual visit ${formatHours(actualHours)})`}
+                    {toppedUp && ` (${formatHours(actualHours)} actual, topped up to minimum)`}
+                    {" · "}
+                    {formatCurrency(line.amount)}
+                  </span>
+                </div>
+                {suspiciouslyShort && (
+                  <p className="text-xs text-red-600">
+                    Only {formatHours(actualHours)} on site — worth checking before this gets paid.
+                  </p>
+                )}
+                {!invoice.paidAt && (
+                  <form
+                    action={adjustInvoiceLineHours.bind(null, line.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <label htmlFor={`hours-${line.id}`} className="text-xs text-zinc-500">
+                      Billed hours
+                    </label>
+                    <input
+                      id={`hours-${line.id}`}
+                      name="hours"
+                      type="number"
+                      step="0.25"
+                      min={0}
+                      // Rounded for display -- an unadjusted line's hours come
+                      // straight from arrivedAt/departedAt (e.g.
+                      // 0.01068444444444444), which reads as noise in an
+                      // editable field. Matches the 0.25 step below.
+                      defaultValue={Math.round(line.hours * 100) / 100}
+                      className={`${inputCompact} w-24`}
+                    />
+                    <button type="submit" className={button("secondary", "sm")}>
+                      Save
+                    </button>
+                  </form>
+                )}
               </li>
             );
           })}
@@ -109,6 +158,23 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           {invoice.paidAt ? "Mark as unpaid" : "Mark as paid"}
         </button>
       </form>
+
+      {activity.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-zinc-500">Activity</h2>
+          <ul className="flex flex-col gap-1.5">
+            {activity.map((entry) => (
+              <li key={entry.id} className="text-sm text-zinc-600">
+                {entry.summary}
+                <span className="text-zinc-400">
+                  {" "}
+                  — {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

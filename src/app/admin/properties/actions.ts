@@ -2,12 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { PropertyType } from "@prisma/client";
+import { Prisma, PropertyType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
-import { savePropertyPhotos } from "@/lib/uploads";
+import { savePropertyPhotos, saveHostifyCoverPhoto } from "@/lib/uploads";
 import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
 import { syncCalendarFeed } from "@/lib/icalSync";
+import { syncHostifyListing } from "@/lib/hostifySync";
+import { fetchHostifyCoverPhotoUrl } from "@/lib/hostifyListings";
+import { propertyDisplayName } from "@/lib/address";
+import { logAudit } from "@/lib/audit";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -103,7 +107,7 @@ export async function createProperty(formData: FormData) {
 }
 
 export async function updateProperty(id: string, formData: FormData) {
-  await requireStaff();
+  const session = await requireStaff();
 
   const address = str(formData, "address");
   if (!address) throw new Error("Address is required");
@@ -124,6 +128,16 @@ export async function updateProperty(id: string, formData: FormData) {
     },
   });
 
+  // One line for the whole edit rather than a field-by-field diff -- this
+  // app doesn't have generic diffing anywhere else, and "who touched this
+  // and when" already answers the question an audit trail is for.
+  await logAudit({
+    actorId: session.user.id,
+    entityType: "Property",
+    entityId: id,
+    summary: "Details updated",
+  });
+
   revalidatePath("/admin/properties");
   revalidatePath(`/admin/properties/${id}`);
   revalidatePath(`/admin/clients/${property.clientId}`);
@@ -131,9 +145,16 @@ export async function updateProperty(id: string, formData: FormData) {
 }
 
 export async function deleteProperty(id: string) {
-  await requireStaff();
+  const session = await requireStaff();
 
   const property = await prisma.property.delete({ where: { id } });
+
+  await logAudit({
+    actorId: session.user.id,
+    entityType: "Property",
+    entityId: id,
+    summary: `Deleted — ${propertyDisplayName(property)}`,
+  });
 
   revalidatePath("/admin/properties");
   revalidatePath(`/admin/clients/${property.clientId}`);
@@ -153,6 +174,44 @@ export async function addPropertyPhotos(id: string, formData: FormData) {
   await ensurePrimary(id);
 
   revalidatePath(`/admin/properties/${id}`);
+}
+
+// Pulls this property's cover photo from Hostify on demand -- for a
+// property whose import silently failed to grab one (fetchHostifyCoverPhotoUrl
+// swallows any failure with no trace of why), or one never run through the
+// import flow at all (linked to a listing by hand, e.g. from before the
+// import feature existed). Adds the photo without forcing it to be the
+// cover if one's already set -- ensurePrimary only promotes it when the
+// property has none, so this can't silently replace a photo staff already
+// chose.
+export async function fetchPropertyCoverPhoto(id: string) {
+  await requireStaff();
+
+  const property = await prisma.property.findUniqueOrThrow({
+    where: { id },
+    select: { hostifyListingId: true, client: { select: { hostifyApiKey: true } } },
+  });
+  if (!property.hostifyListingId) {
+    throw new Error("This property isn't linked to a Hostify listing.");
+  }
+  if (!property.client.hostifyApiKey) {
+    throw new Error("No Hostify API key configured on this client.");
+  }
+
+  const photoUrl = await fetchHostifyCoverPhotoUrl(
+    property.client.hostifyApiKey,
+    Number(property.hostifyListingId),
+  );
+  if (!photoUrl) {
+    throw new Error("Hostify doesn't have a cover photo for this listing.");
+  }
+
+  const photoPath = await saveHostifyCoverPhoto(id, photoUrl);
+  await prisma.propertyImage.create({ data: { propertyId: id, path: photoPath, isPrimary: false } });
+  await ensurePrimary(id);
+
+  revalidatePath(`/admin/properties/${id}`);
+  revalidatePath("/admin/properties");
 }
 
 export async function setPrimaryPhoto(propertyId: string, imageId: string) {
@@ -367,6 +426,79 @@ export async function syncPropertyCalendarFeed(propertyId: string, feedId: strin
   if (!feed) throw new Error("Calendar not found for this property");
 
   await syncCalendarFeed(feed.id, session.user.id);
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/cleans");
+  revalidatePath("/cleaner");
+}
+
+// The Hostify listing toggle: blank clears it, same "blank field is the
+// toggle" convention as updatePropertySyncHorizon/updatePropertyMinBillableHours.
+// A listing already aggregates every channel for one physical unit, so
+// unlike calendar feeds this is a single field, not a one-to-many list --
+// see hostifyListingId's @unique in schema.prisma.
+export async function updatePropertyHostifyListingId(propertyId: string, formData: FormData) {
+  const session = await requireStaff();
+
+  const hostifyListingId = str(formData, "hostifyListingId");
+  try {
+    await prisma.property.update({
+      where: { id: propertyId },
+      // str(), not int() -- real Hostify listing ids run well past what a
+      // JS number (or a 32-bit column) can hold without rounding, so this
+      // is stored and handled as an opaque string throughout, never parsed
+      // as a number. See hostifyListingId's comment in schema.prisma.
+      data: { hostifyListingId },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new Error("That Hostify listing is already linked to another property");
+    }
+    throw err;
+  }
+
+  await logAudit({
+    actorId: session.user.id,
+    entityType: "Property",
+    entityId: propertyId,
+    summary: `Hostify listing linked (#${hostifyListingId})`,
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+export async function removePropertyHostifyListing(propertyId: string) {
+  const session = await requireStaff();
+
+  await prisma.property.update({
+    where: { id: propertyId },
+    data: { hostifyListingId: null, hostifyLastSyncedAt: null, hostifyLastSyncError: null },
+  });
+
+  await logAudit({
+    actorId: session.user.id,
+    entityType: "Property",
+    entityId: propertyId,
+    summary: "Hostify listing unlinked",
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+// "Sync now" -- see src/lib/hostifySync.ts. Never throws; a failure is
+// recorded on the property itself (hostifyLastSyncError) for the page to
+// show, so there's nothing here to catch.
+export async function syncPropertyHostifyListing(propertyId: string) {
+  const session = await requireStaff();
+
+  const property = await prisma.property.findFirst({
+    where: { id: propertyId },
+    select: { id: true, hostifyListingId: true },
+  });
+  if (!property) throw new Error("Property not found");
+  if (property.hostifyListingId === null) throw new Error("No Hostify listing configured for this property");
+
+  await syncHostifyListing(propertyId, session.user.id);
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/cleans");

@@ -10,6 +10,17 @@ export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+// The inverse of toIsoDate -- "YYYY-MM-DD" from an <input type="date">,
+// read as a local date. new Date("YYYY-MM-DD") would parse it as UTC
+// midnight instead and could land on the wrong day depending on the
+// server's timezone.
+export function parseIsoDate(raw: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d));
+}
+
 // dd/mm/yyyy, for every date shown as text to a person. Kept separate from
 // toIsoDate, which stays YYYY-MM-DD on purpose for sortable keys and
 // <input type="date"> values (that HTML attribute requires ISO format
@@ -25,7 +36,27 @@ export function toDateTimeLocalValue(date: Date): string {
   return `${toIsoDate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+// A synced booking's checkout can arrive as just a date with no real time --
+// both an all-day iCal VEVENT and Hostify's date-only checkOut field parse
+// to exactly midnight UTC. Showing that as "01:00" (or whatever the
+// server's local offset makes it) presents a fabricated time as if it were
+// a real checkout, next to cleans that do have one -- so that one case
+// drops the time and shows just the date instead. A clean genuinely
+// scheduled at exactly midnight UTC is not a real scenario this app
+// creates, so there's no meaningful case this misreads.
+function isDateOnly(date: Date): boolean {
+  return (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  );
+}
+
 export function formatScheduledFor(date: Date): string {
+  if (isDateOnly(date)) {
+    return date.toLocaleString("en-GB", { day: "numeric", month: "short" });
+  }
   return date.toLocaleString("en-GB", {
     day: "numeric",
     month: "short",
@@ -117,6 +148,13 @@ export function groupCleansByTime<T>(
     if (list) list.push(clean);
     else buckets.set(group, [clean]);
   }
+  // "Today" and "Tomorrow" always show, even with nothing in them -- the
+  // rest only appear when they have something, but a cleaner scanning their
+  // schedule for what's on today shouldn't have to wonder whether an empty
+  // "Today" was just never rendered versus genuinely empty.
+  if (!buckets.has("Today")) buckets.set("Today", []);
+  if (!buckets.has("Tomorrow")) buckets.set("Tomorrow", []);
+
   return CLEAN_TIME_GROUP_ORDER.filter((group) => buckets.has(group)).map((group) => ({
     group,
     cleans: buckets.get(group)!,

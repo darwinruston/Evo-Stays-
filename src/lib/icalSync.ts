@@ -1,6 +1,8 @@
 import * as ical from "node-ical";
 import { prisma } from "@/lib/prisma";
 import { createCleanRecord } from "@/lib/cleans";
+import { formatScheduledFor } from "@/lib/schedule";
+import { logAudit } from "@/lib/audit";
 
 // One pass over a single PropertyCalendarFeed: fetch its iCal URL, upsert a
 // SyncedBookingEvent per VEVENT (keyed on [feedId, externalUid] so re-running
@@ -69,6 +71,12 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
           where: { id: existing.clean.id },
           data: { scheduledFor: checkOut },
         });
+        await logAudit({
+          actorId: triggeredById,
+          entityType: "Clean",
+          entityId: existing.clean.id,
+          summary: `Rescheduled to ${formatScheduledFor(checkOut)} (${feed.label} calendar sync)`,
+        });
       }
     }
 
@@ -88,6 +96,12 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
         await prisma.clean.update({
           where: { id: event.clean.id },
           data: { status: "CANCELLED" },
+        });
+        await logAudit({
+          actorId: triggeredById,
+          entityType: "Clean",
+          entityId: event.clean.id,
+          summary: `Cancelled — booking no longer on the ${feed.label} calendar`,
         });
       }
     }

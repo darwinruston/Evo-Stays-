@@ -38,8 +38,10 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  // Photos are stored under {laundryLoadId}/{filename} (see
-  // saveLaundryPhoto), so the first segment is the load this file belongs to.
+  // Photos (from before ticket photos stopped being taken -- see the
+  // comment on LAUNDRY_STORAGE_ROOT in src/lib/uploads.ts) are stored under
+  // {laundryLoadId}/{filename}, so the first segment is the load this file
+  // belongs to.
   const laundryLoadId = segments[0];
 
   if (session.user.role === "CLEANER") {

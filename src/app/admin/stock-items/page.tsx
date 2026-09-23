@@ -15,18 +15,20 @@ export default async function StockItemsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Stock items</h1>
-        <Link href="/admin/stock-items/new" className={button("primary", "sm")}>
-          New item
+      <div>
+        <Link href="/admin/stock" className="text-sm text-zinc-500 hover:text-zinc-900">
+          ← Stock
         </Link>
+        <div className="mt-2 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Stock items</h1>
+          <Link href="/admin/stock-items/new" className={button("primary", "sm")}>
+            New item
+          </Link>
+        </div>
       </div>
 
       <p className="text-sm text-zinc-600">
-        The catalogue every property&apos;s par levels are picked from.{" "}
-        <Link href="/admin/stock" className="underline underline-offset-2">
-          See what&apos;s running low →
-        </Link>
+        The catalogue every property&apos;s par levels are picked from.
       </p>
 
       {items.length === 0 ? (

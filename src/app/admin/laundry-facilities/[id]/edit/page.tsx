@@ -5,7 +5,7 @@ import { requireStaff } from "@/lib/authz";
 import { updateLaundryFacility, deleteLaundryFacility } from "../../actions";
 import { button, inputCompact } from "@/lib/ui";
 
-export const metadata = { title: "Edit launderette" };
+export const metadata = { title: "Edit laundry company" };
 
 export default async function EditLaundryFacilityPage({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
@@ -21,9 +21,9 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
     <div className="flex flex-col gap-8">
       <div>
         <Link href="/admin/laundry-facilities" className="text-sm text-zinc-500 hover:text-zinc-900">
-          ← Launderettes
+          ← Laundry companies
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Edit launderette</h1>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Edit laundry company</h1>
       </div>
 
       <form action={updateLaundryFacility.bind(null, facility.id)} className="flex max-w-lg flex-col gap-4">

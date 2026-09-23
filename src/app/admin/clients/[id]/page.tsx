@@ -5,6 +5,7 @@ import { requireStaff } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
 import { propertyDisplayName } from "@/lib/address";
 import { button, card } from "@/lib/ui";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,6 +25,20 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   });
   if (!client) notFound();
 
+  const invoiceCount = await prisma.invoice.count({ where: { property: { clientId: client.id } } });
+
+  // Every cleaner designated on any of this client's properties -- there's
+  // no direct Client-to-Cleaner relation, so this is the same designation
+  // data the property page's own Cleaners section reads, just aggregated
+  // and deduped across the whole portfolio instead of one property.
+  const designations = await prisma.propertyCleaner.findMany({
+    where: { property: { clientId: client.id } },
+    include: { cleaner: { select: { id: true, name: true } } },
+  });
+  const cleaners = [...new Map(designations.map((d) => [d.cleaner.id, d.cleaner])).values()].sort(
+    (a, b) => a.name.localeCompare(b.name),
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -39,24 +54,59 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               {client.phone ? ` · ${client.phone}` : ""}
             </p>
           </div>
-          <Link href={`/admin/clients/${client.id}/edit`} className={button("secondary", "sm")}>
-            Edit
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href={`/admin/invoices?clientId=${client.id}`} className={button("secondary", "sm")}>
+              Invoices ({invoiceCount})
+            </Link>
+            <Link href={`/admin/clients/${client.id}/edit`} className={button("secondary", "sm")}>
+              Edit
+            </Link>
+          </div>
         </div>
         {client.notes && <p className="mt-4 text-sm text-zinc-600">{client.notes}</p>}
       </div>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-sm font-medium text-zinc-500">
+          Cleaners ({cleaners.length})
+          <InfoTooltip text="Every cleaner designated on any property in this client's portfolio, deduped -- see a property's own page for which properties each one covers." />
+        </h2>
+        {cleaners.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {cleaners.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/admin/cleaners/${c.id}`}
+                  className={card("block p-4 transition-colors hover:bg-black/[0.02]")}
+                >
+                  {c.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-zinc-600">No cleaner designated on any property yet.</p>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-zinc-500">
             Portfolio ({client.properties.length})
           </h2>
-          <Link
-            href={`/admin/properties/new?clientId=${client.id}`}
-            className={button("secondary", "sm")}
-          >
-            Add property
-          </Link>
+          <div className="flex items-center gap-2">
+            {client.hostifyApiKey && (
+              <Link href={`/admin/clients/${client.id}/import`} className={button("secondary", "sm")}>
+                Import from Hostify
+              </Link>
+            )}
+            <Link
+              href={`/admin/properties/new?clientId=${client.id}`}
+              className={button("secondary", "sm")}
+            >
+              Add property
+            </Link>
+          </div>
         </div>
         {client.properties.length === 0 ? (
           <p className="text-sm text-zinc-600">No properties yet.</p>

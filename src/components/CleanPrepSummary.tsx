@@ -1,4 +1,5 @@
 import type { CleanPrep } from "@/lib/cleanPrep";
+import { card } from "@/lib/ui";
 
 // Line-art, matching the hamburger icon in NavMenu -- the app's one other
 // inline SVG. Kept to this file since nothing outside this changeover
@@ -34,7 +35,7 @@ function BathIcon({ className }: { className?: string }) {
   );
 }
 
-function SofaBedIcon({ className }: { className?: string }) {
+export function SofaBedIcon({ className }: { className?: string }) {
   return (
     <svg {...ICON_PROPS} className={className} role="img" aria-label="Sofa bed needs preparing">
       <path d="M3 15v-3.5A1.5 1.5 0 0 1 4.5 10h11A1.5 1.5 0 0 1 17 11.5V15" />
@@ -61,5 +62,19 @@ export function CleanPrepSummary({ prep, className = "" }: { prep: CleanPrep; cl
       </span>
       {prep.sofaBedNeeded && <SofaBedIcon className="h-3.5 w-3.5 shrink-0 text-zinc-700" />}
     </p>
+  );
+}
+
+// A single small icon at the top of the page is easy to walk straight past
+// -- this is the same fact stated as an actual line, kept on screen through
+// the whole visit (not just at check-in) so it's still there to catch
+// whenever the cleaner gets to the sofa bed, not just in the first few
+// seconds after arriving.
+export function SofaBedNotice({ className = "" }: { className?: string }) {
+  return (
+    <div className={`${card("flex items-center gap-3 border-2 border-zinc-900 p-4")} ${className}`}>
+      <SofaBedIcon className="h-6 w-6 shrink-0" />
+      <p className="text-sm font-semibold">Sofa bed needs making up for this booking</p>
+    </div>
   );
 }

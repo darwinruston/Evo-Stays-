@@ -18,9 +18,26 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: clean ? `Clean · ${propertyDisplayName(clean.property)}` : "Clean" };
 }
 
-export default async function CleanDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CleanDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  // Forwarded from the Cleans list's own filter query string (see
+  // src/app/admin/cleans/page.tsx) so "← Cleans" can return to the same
+  // filtered view instead of always resetting to the unfiltered list.
+  searchParams: Promise<{ status?: string; propertyId?: string; cleanerId?: string }>;
+}) {
   await requireStaff();
   const { id } = await params;
+  const { status, propertyId, cleanerId } = await searchParams;
+
+  const backParams = new URLSearchParams();
+  if (status) backParams.set("status", status);
+  if (propertyId) backParams.set("propertyId", propertyId);
+  if (cleanerId) backParams.set("cleanerId", cleanerId);
+  const backQuery = backParams.toString();
+  const backHref = `/admin/cleans${backQuery ? `?${backQuery}` : ""}`;
 
   const clean = await prisma.clean.findUnique({
     where: { id },
@@ -37,7 +54,7 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
           client: { select: { id: true, name: true } },
         },
       },
-      assignedTo: { select: { name: true } },
+      assignedTo: { select: { id: true, name: true } },
       log: {
         include: {
           recordedBy: { select: { name: true } },
@@ -51,10 +68,16 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
 
   const prep = cleanPrep(clean.property, clean.guestCount);
 
+  const activity = await prisma.auditLog.findMany({
+    where: { entityType: "Clean", entityId: clean.id },
+    orderBy: { createdAt: "desc" },
+    include: { actor: { select: { name: true } } },
+  });
+
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Link href="/admin/cleans" className="text-sm text-zinc-500 hover:text-zinc-900">
+        <Link href={backHref} className="text-sm text-zinc-500 hover:text-zinc-900">
           ← Cleans
         </Link>
         <div className="mt-2 flex items-start justify-between gap-4">
@@ -89,7 +112,15 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
         </div>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Cleaner</span>
-          <span>{clean.assignedTo?.name ?? "Unassigned"}</span>
+          <span>
+            {clean.assignedTo ? (
+              <Link href={`/admin/cleaners/${clean.assignedTo.id}`} className="hover:underline">
+                {clean.assignedTo.name}
+              </Link>
+            ) : (
+              "Unassigned"
+            )}
+          </span>
         </div>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Guests</span>
@@ -122,6 +153,23 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-zinc-500">What happened</h2>
           <CleanLogView log={clean.log} alt={propertyDisplayName(clean.property)} />
+        </section>
+      )}
+
+      {activity.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-zinc-500">Activity</h2>
+          <ul className="flex flex-col gap-1.5">
+            {activity.map((entry) => (
+              <li key={entry.id} className="text-sm text-zinc-600">
+                {entry.summary}
+                <span className="text-zinc-400">
+                  {" "}
+                  — {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>

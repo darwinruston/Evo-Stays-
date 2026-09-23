@@ -8,7 +8,7 @@ import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
 import { StepProgress } from "@/components/StepProgress";
-import { CleanPrepSummary } from "@/components/CleanPrepSummary";
+import { CleanPrepSummary, SofaBedNotice } from "@/components/CleanPrepSummary";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { StockLevelStep } from "@/components/StockLevelStep";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
@@ -73,9 +73,25 @@ function PhotoUploadStep({
   );
 }
 
-export default async function CleanerCleanPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CleanerCleanPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  // Set when reached from the Calendar's day agenda (see
+  // src/app/cleaner/calendar/page.tsx) so "back" returns to that same
+  // month/day instead of always dropping to My cleans / the current month.
+  searchParams: Promise<{ from?: string; month?: string; day?: string }>;
+}) {
   const session = await requireCleaner();
   const { id } = await params;
+  const { from, month, day } = await searchParams;
+
+  const backHref =
+    from === "calendar"
+      ? `/cleaner/calendar?${new URLSearchParams({ ...(month ? { month } : {}), ...(day ? { day } : {}) }).toString()}`
+      : "/cleaner";
+  const backLabel = from === "calendar" ? "← Calendar" : "← My cleans";
 
   // Scoped in the query: a clean assigned to someone else simply doesn't
   // resolve, so there's no branch where another cleaner's job could render.
@@ -134,11 +150,11 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
         const prediction = estimate
           ? {
               band: stockLevelBand({ onHandQty: estimate.estimatedRemaining, parQty: nextUp.parQty }),
-              reason: `Estimated from ${estimate.guestCount} ${estimate.guestCount === 1 ? "guest" : "guests"} × ${estimate.nights} ${estimate.nights === 1 ? "night" : "nights"} -- check the shelf.`,
+              reason: `Estimated from ${estimate.guestCount} ${estimate.guestCount === 1 ? "guest" : "guests"} × ${estimate.nights} ${estimate.nights === 1 ? "night" : "nights"} — check the shelf.`,
             }
           : {
               band: stockLevelBand(nextUp),
-              reason: "Based on what was last recorded -- check the shelf.",
+              reason: "Based on what was last recorded — check the shelf.",
             };
         return { level: nextUp, ...prediction };
       })()
@@ -155,13 +171,19 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
             ? 3
             : 4;
 
+  const prep = cleanPrep(clean.property, clean.guestCount);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/cleaner" className="text-sm text-zinc-500 hover:text-zinc-900">
-          ← My cleans
+        <Link href={backHref} className="text-sm text-zinc-500 hover:text-zinc-900">
+          {backLabel}
         </Link>
-        <h1 className="mt-2 text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="mt-2 text-lg font-semibold tracking-tight">
+          <Link href={`/cleaner/properties/${clean.property.id}`} className="hover:underline">
+            {title}
+          </Link>
+        </h1>
         <p className="mt-1 flex items-center gap-2 text-sm text-zinc-500">
           {clean.scheduledFor ? formatScheduledFor(clean.scheduledFor) : "Not scheduled"}
           <span className={badge(clean.status === "COMPLETED" ? "solid" : "neutral")}>
@@ -169,14 +191,16 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
           </span>
         </p>
         {(clean.status === "PENDING" || clean.status === "IN_PROGRESS") && (
-          <CleanPrepSummary
-            prep={cleanPrep(clean.property, clean.guestCount)}
-            className="mt-1.5 text-sm"
-          />
+          <CleanPrepSummary prep={prep} className="mt-1.5 text-sm" />
         )}
       </div>
 
       {clean.status === "IN_PROGRESS" && <StepProgress steps={STEPS} current={step} />}
+
+      {/* Stays on screen for the whole visit, not just a glance at check-in
+          -- the small icon above is easy to walk past, and the actual
+          prep still has to happen at some point before check-out. */}
+      {clean.status === "IN_PROGRESS" && prep.sofaBedNeeded && <SofaBedNotice />}
 
       {clean.instructions && clean.status !== "COMPLETED" && (
         <div className={card("p-4")}>

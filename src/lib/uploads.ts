@@ -10,11 +10,11 @@ import path from "path";
 // SQLite -> Postgres swap.
 export const STORAGE_ROOT = path.join(process.cwd(), "storage", "property-photos");
 
-// Laundry ticket photos live under their own root, not property-photos --
-// a load isn't scoped to one property (see LaundryLoad in schema.prisma),
-// so the access-control route for these needs a different check than "is
-// this cleaner assigned at this property". See
-// src/app/api/laundry-photos/[...path]/route.ts.
+// Laundry tickets stopped being photographed once the laundry company
+// started collecting/dropping off at the property directly (see the
+// comment on LaundryLoad.receiptPath in schema.prisma) -- nothing writes
+// here any more. Kept only so /api/laundry-photos/[...path]/route.ts can
+// still serve tickets photographed before that change.
 export const LAUNDRY_STORAGE_ROOT = path.join(process.cwd(), "storage", "laundry-photos");
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
@@ -46,23 +46,26 @@ export async function savePropertyPhotos(propertyId: string, files: File[]): Pro
   return paths;
 }
 
-// Saves one laundry ticket photo under a caller-supplied load id (generated
-// up front by the caller with randomUUID(), before the LaundryLoad row
-// exists -- see createLaundryLoad in the admin/cleaner actions -- so the
-// whole row, including this path, can be written in a single prisma.create
-// rather than a create-then-update). Single photo, not an array: one
-// ticket per load is what was asked for.
-export async function saveLaundryPhoto(laundryLoadId: string, file: File): Promise<string> {
-  if (!ALLOWED_TYPES.has(file.type)) {
-    throw new Error(`Unsupported file type: ${file.type || "unknown"}. Photos only.`);
+// Downloads a property's cover photo straight from Hostify at import time
+// (see fetchHostifyCoverPhotoUrl / importHostifyListings), rather than
+// staff having to save it from Hostify and re-upload it by hand. A basic
+// content-type check guards against silently saving an error page as a
+// ".jpg" if the CDN URL ever 404s or redirects somewhere unexpected --
+// otherwise the same disk layout as savePropertyPhotos, just fed from a
+// fetch() response instead of a browser File.
+export async function saveHostifyCoverPhoto(propertyId: string, photoUrl: string): Promise<string> {
+  const res = await fetch(photoUrl);
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!res.ok || !contentType.startsWith("image/")) {
+    throw new Error(`Couldn't download cover photo (${res.status} ${contentType})`);
   }
 
-  const dir = path.join(LAUNDRY_STORAGE_ROOT, laundryLoadId);
+  const dir = path.join(STORAGE_ROOT, propertyId);
   await mkdir(dir, { recursive: true });
 
-  const ext = path.extname(file.name) || ".jpg";
+  const ext = path.extname(new URL(photoUrl).pathname) || ".jpg";
   const filename = `${randomUUID()}${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const buffer = Buffer.from(await res.arrayBuffer());
   await writeFile(path.join(dir, filename), buffer);
-  return `${laundryLoadId}/${filename}`;
+  return `${propertyId}/${filename}`;
 }

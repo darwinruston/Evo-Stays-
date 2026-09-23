@@ -1,11 +1,9 @@
 "use server";
 
-import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
-import { saveLaundryPhoto } from "@/lib/uploads";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 
 function str(formData: FormData, key: string): string | null {
@@ -13,12 +11,6 @@ function str(formData: FormData, key: string): string | null {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();
   return trimmed === "" ? null : trimmed;
-}
-
-function cost(formData: FormData): number | null {
-  const raw = str(formData, "cost");
-  const n = raw === null ? NaN : Number.parseFloat(raw);
-  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 async function resolveFacilityId(formData: FormData): Promise<string | null> {
@@ -30,11 +22,6 @@ async function resolveFacilityId(formData: FormData): Promise<string | null> {
 
 function selectedCleanLogIds(formData: FormData): string[] {
   return formData.getAll("cleanLogIds").filter((v): v is string => typeof v === "string");
-}
-
-function photoFile(formData: FormData): File | null {
-  const file = formData.get("photo");
-  return file instanceof File && file.size > 0 ? file : null;
 }
 
 // Any completed visit not already claimed by another load -- same
@@ -49,9 +36,9 @@ const ELIGIBLE_LOG_WHERE = {
 // Returns an error to display inline (via useActionState in
 // LaundryLoadWizard) instead of throwing. A throw here would surface as an
 // uncaught exception in the browser -- the wizard's whole client-side state
-// (visits picked, facility, cost) would be wiped out and the user would be
-// stuck with no way to just fix the one bad field and retry, which is
-// exactly the "error and it doesn't let me finish it" this fixes.
+// (visits picked, facility) would be wiped out and the user would be stuck
+// with no way to just fix the one bad field and retry, which is exactly
+// the "error and it doesn't let me finish it" this fixes.
 export async function createLaundryLoad(
   _prevState: LaundryLoadFormState,
   formData: FormData,
@@ -61,14 +48,8 @@ export async function createLaundryLoad(
   const requestedIds = selectedCleanLogIds(formData);
   if (requestedIds.length === 0) return { error: "Pick at least one clean." };
 
-  const loadCost = cost(formData);
-  if (loadCost === null) return { error: "Enter a valid cost." };
-
   const facilityId = await resolveFacilityId(formData);
-  if (!facilityId) return { error: "Pick which launderette this went to." };
-
-  const photo = photoFile(formData);
-  if (!photo) return { error: "Upload a photo of the ticket." };
+  if (!facilityId) return { error: "Pick who's collecting it." };
 
   // Re-validated server-side: only logs that are actually still eligible get
   // connected, regardless of what the submitted checkboxes claimed -- the
@@ -79,17 +60,12 @@ export async function createLaundryLoad(
   });
   if (eligible.length === 0) return { error: "None of the selected visits are eligible." };
 
-  // Generated up front so the photo can be saved under {id}/{filename} and
-  // the whole row written in one create() -- see saveLaundryPhoto.
-  const laundryLoadId = randomUUID();
-  const receiptPath = await saveLaundryPhoto(laundryLoadId, photo);
-
+  // No cost or receipt photo any more -- see the comment on
+  // LaundryLoad.cost in schema.prisma. Both columns stay nullable rather
+  // than removed, so loads recorded before this change keep showing theirs.
   await prisma.laundryLoad.create({
     data: {
-      id: laundryLoadId,
-      cost: loadCost,
       facilityId,
-      receiptPath,
       recordedById: session.user.id,
       logs: { connect: eligible.map((l) => ({ id: l.id })) },
     },
@@ -101,8 +77,9 @@ export async function createLaundryLoad(
 }
 
 // Row only -- frees the linked logs back to unlinked (onDelete: SetNull on
-// CleanLog.laundryLoadId) so they become eligible again; the ticket photo
-// file is left on disk, same tradeoff already accepted for property photos.
+// CleanLog.laundryLoadId) so they become eligible again. A ticket photo
+// from before receiptPath went optional (if this load has one) is left on
+// disk, same tradeoff already accepted for property photos.
 export async function deleteLaundryLoad(id: string) {
   await requireStaff();
   await prisma.laundryLoad.delete({ where: { id } });

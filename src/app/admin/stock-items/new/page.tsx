@@ -29,8 +29,11 @@ export default async function NewStockItemPage() {
           <label htmlFor="unit" className="text-sm font-medium">
             Unit
           </label>
-          <input id="unit" name="unit" placeholder="roll" className={inputCompact} />
-          <p className="text-xs text-zinc-500">Optional — shown next to the count, e.g. &quot;6 rolls&quot;.</p>
+          <input id="unit" name="unit" placeholder="e.g. roll, bottle, pack" className={inputCompact} />
+          <p className="text-xs text-zinc-500">
+            Optional — shown next to the count, e.g. &quot;6 rolls&quot;. Describes what&apos;s
+            being counted, not a number itself.
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">

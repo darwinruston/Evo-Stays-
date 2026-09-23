@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { CleanForm } from "../CleanForm";
 import { createClean } from "../actions";
+import { getCleanerOptions } from "@/lib/cleans";
 
 export const metadata = { title: "Schedule a clean" };
 
@@ -19,11 +20,7 @@ export default async function NewCleanPage({
       orderBy: [{ client: { name: "asc" } }, { createdAt: "asc" }],
       select: { id: true, name: true, address: true, client: { select: { name: true } } },
     }),
-    prisma.user.findMany({
-      where: { role: "CLEANER" },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
+    getCleanerOptions(),
   ]);
 
   return (

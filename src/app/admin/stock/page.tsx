@@ -25,8 +25,26 @@ export default async function StockOverviewPage() {
 
   const low = levels.filter(isRunningLow);
 
+  // Grouped by property for the "All stock" browse section below -- sorted
+  // alphabetically so it reads the same way on every visit, unlike "Running
+  // low" above (deliberately ordered by most-recently-updated, which suits
+  // an alert feed but not something meant to be scanned as a whole).
+  type Level = (typeof levels)[number];
+  const byProperty = new Map<string, { property: Level["property"]; levels: Level[] }>();
+  for (const level of levels) {
+    const group = byProperty.get(level.property.id) ?? { property: level.property, levels: [] };
+    group.levels.push(level);
+    byProperty.set(level.property.id, group);
+  }
+  const propertyGroups = [...byProperty.values()]
+    .map((group) => ({
+      ...group,
+      levels: group.levels.sort((a, b) => a.stockItem.name.localeCompare(b.stockItem.name)),
+    }))
+    .sort((a, b) => propertyDisplayName(a.property).localeCompare(propertyDisplayName(b.property)));
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Stock</h1>
         <Link href="/admin/stock-items" className="text-sm text-zinc-500 hover:text-zinc-900">
@@ -62,6 +80,45 @@ export default async function StockOverviewPage() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-medium text-zinc-500">
+          All stock ({levels.length} {levels.length === 1 ? "item" : "items"} across{" "}
+          {propertyGroups.length} {propertyGroups.length === 1 ? "property" : "properties"})
+        </h2>
+        {propertyGroups.length === 0 ? (
+          <p className="text-sm text-zinc-600">
+            No property has stock levels set up yet — add some from a property&apos;s own page.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-6">
+            {propertyGroups.map(({ property, levels: propertyLevels }) => (
+              <div key={property.id} className="flex flex-col gap-2">
+                <Link
+                  href={`/admin/properties/${property.id}`}
+                  className="text-sm font-medium text-zinc-900 hover:underline"
+                >
+                  {propertyDisplayName(property)}{" "}
+                  <span className="font-normal text-zinc-500">· {property.client.name}</span>
+                </Link>
+                <ul className="flex flex-col gap-2">
+                  {propertyLevels.map((level) => (
+                    <li key={level.id} className={card("flex items-center justify-between gap-4 p-4")}>
+                      <p className="font-medium">{level.stockItem.name}</p>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="text-sm text-zinc-500">
+                          {level.onHandQty} / {level.parQty}
+                        </span>
+                        <StockLevelIndicator level={level} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         )}
       </section>
     </div>
