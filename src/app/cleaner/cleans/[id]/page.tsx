@@ -8,7 +8,7 @@ import { formatScheduledFor } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
 import { StepProgress } from "@/components/StepProgress";
-import { CleanPrepSummary } from "@/components/CleanPrepSummary";
+import { CleanPrepSummary, SofaBedNotice } from "@/components/CleanPrepSummary";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { StockLevelStep } from "@/components/StockLevelStep";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
@@ -155,6 +155,8 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
             ? 3
             : 4;
 
+  const prep = cleanPrep(clean.property, clean.guestCount);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -169,14 +171,16 @@ export default async function CleanerCleanPage({ params }: { params: Promise<{ i
           </span>
         </p>
         {(clean.status === "PENDING" || clean.status === "IN_PROGRESS") && (
-          <CleanPrepSummary
-            prep={cleanPrep(clean.property, clean.guestCount)}
-            className="mt-1.5 text-sm"
-          />
+          <CleanPrepSummary prep={prep} className="mt-1.5 text-sm" />
         )}
       </div>
 
       {clean.status === "IN_PROGRESS" && <StepProgress steps={STEPS} current={step} />}
+
+      {/* Stays on screen for the whole visit, not just a glance at check-in
+          -- the small icon above is easy to walk past, and the actual
+          prep still has to happen at some point before check-out. */}
+      {clean.status === "IN_PROGRESS" && prep.sofaBedNeeded && <SofaBedNotice />}
 
       {clean.instructions && clean.status !== "COMPLETED" && (
         <div className={card("p-4")}>
