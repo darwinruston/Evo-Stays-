@@ -27,6 +27,16 @@ export default async function CleansPage({
 
   const hasFilters = !!(status || propertyId || cleanerId);
 
+  // Carried onto each clean's own link so its detail page can send "← Cleans"
+  // back to this exact filtered view instead of always resetting to the
+  // unfiltered list -- see the matching reconstruction in
+  // src/app/admin/cleans/[id]/page.tsx.
+  const filterParams = new URLSearchParams();
+  if (status) filterParams.set("status", status);
+  if (propertyId) filterParams.set("propertyId", propertyId);
+  if (cleanerId) filterParams.set("cleanerId", cleanerId);
+  const filterQuery = filterParams.toString();
+
   const [cleans, properties, cleaners] = await Promise.all([
     prisma.clean.findMany({
       where,
@@ -59,7 +69,7 @@ export default async function CleansPage({
 
   const rows: CleanRow[] = cleans.map((c) => ({
     id: c.id,
-    href: `/admin/cleans/${c.id}`,
+    href: `/admin/cleans/${c.id}${filterQuery ? `?${filterQuery}` : ""}`,
     title: propertyDisplayName(c.property),
     subtitle: `${c.property.client.name} · ${c.assignedTo?.name ?? "Unassigned"}`,
     status: c.status,

@@ -18,9 +18,26 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: clean ? `Clean · ${propertyDisplayName(clean.property)}` : "Clean" };
 }
 
-export default async function CleanDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CleanDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  // Forwarded from the Cleans list's own filter query string (see
+  // src/app/admin/cleans/page.tsx) so "← Cleans" can return to the same
+  // filtered view instead of always resetting to the unfiltered list.
+  searchParams: Promise<{ status?: string; propertyId?: string; cleanerId?: string }>;
+}) {
   await requireStaff();
   const { id } = await params;
+  const { status, propertyId, cleanerId } = await searchParams;
+
+  const backParams = new URLSearchParams();
+  if (status) backParams.set("status", status);
+  if (propertyId) backParams.set("propertyId", propertyId);
+  if (cleanerId) backParams.set("cleanerId", cleanerId);
+  const backQuery = backParams.toString();
+  const backHref = `/admin/cleans${backQuery ? `?${backQuery}` : ""}`;
 
   const clean = await prisma.clean.findUnique({
     where: { id },
@@ -60,7 +77,7 @@ export default async function CleanDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Link href="/admin/cleans" className="text-sm text-zinc-500 hover:text-zinc-900">
+        <Link href={backHref} className="text-sm text-zinc-500 hover:text-zinc-900">
           ← Cleans
         </Link>
         <div className="mt-2 flex items-start justify-between gap-4">
