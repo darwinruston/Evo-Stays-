@@ -56,9 +56,15 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         include: { cleaner: { select: { id: true, name: true } } },
       },
       calendarFeeds: { orderBy: { createdAt: "asc" } },
+      designatedCleaners: {
+        orderBy: { createdAt: "asc" },
+        include: { cleaner: { select: { id: true, name: true } } },
+      },
     },
   });
   if (!property) notFound();
+
+  const cleanCount = await prisma.clean.count({ where: { propertyId: property.id } });
 
   const configuredItemIds = new Set(property.stockLevels.map((l) => l.stockItemId));
   const availableItems = await prisma.stockItem.findMany({
@@ -136,13 +142,48 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               </Link>
             </p>
           </div>
-          <Link href={`/admin/properties/${property.id}/edit`} className={button("secondary", "sm")}>
-            Edit
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href={`/admin/cleans?propertyId=${property.id}`} className={button("secondary", "sm")}>
+              Cleans ({cleanCount})
+            </Link>
+            <Link href={`/admin/properties/${property.id}/edit`} className={button("secondary", "sm")}>
+              Edit
+            </Link>
+          </div>
         </div>
       </div>
 
       <PropertyDetails property={property} />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+          Cleaners{" "}
+          <span className="text-sm font-normal text-zinc-500">({property.designatedCleaners.length})</span>
+          <InfoTooltip text="Cleaners designated as the regular/preferred worker for this property — a new clean here is offered to this pool first, before falling back to auto-assign's wider scoring." />
+        </h2>
+        {property.designatedCleaners.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {property.designatedCleaners.map((dc) => (
+              <li key={dc.id}>
+                <Link
+                  href={`/admin/cleaners/${dc.cleaner.id}`}
+                  className={card("block p-4 transition-colors hover:bg-black/[0.02]")}
+                >
+                  {dc.cleaner.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-zinc-500">
+            No cleaner designated yet — set one from the{" "}
+            <Link href="/admin/cleaners" className="underline underline-offset-2">
+              Cleaners
+            </Link>{" "}
+            page.
+          </p>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
