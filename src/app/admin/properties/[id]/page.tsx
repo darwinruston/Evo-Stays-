@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
+import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
@@ -27,6 +28,7 @@ import {
   updatePropertyHostifyListingId,
   removePropertyHostifyListing,
   syncPropertyHostifyListing,
+  fetchPropertyCoverPhoto,
 } from "../actions";
 import { setLaundryLoadCollected } from "../../laundry/actions";
 
@@ -602,9 +604,14 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-zinc-900">
-          Photos <span className="text-sm font-normal text-zinc-500">({property.images.length})</span>
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Photos <span className="text-sm font-normal text-zinc-500">({property.images.length})</span>
+          </h2>
+          {hasHostifyListing && (
+            <FetchCoverPhotoButton action={fetchPropertyCoverPhoto.bind(null, property.id)} />
+          )}
+        </div>
 
         {property.images.length > 0 && (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">

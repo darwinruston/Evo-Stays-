@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import { Prisma, PropertyType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
-import { savePropertyPhotos } from "@/lib/uploads";
+import { savePropertyPhotos, saveHostifyCoverPhoto } from "@/lib/uploads";
 import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
 import { syncCalendarFeed } from "@/lib/icalSync";
 import { syncHostifyListing } from "@/lib/hostifySync";
+import { fetchHostifyCoverPhotoUrl } from "@/lib/hostifyListings";
 import { propertyDisplayName } from "@/lib/address";
 import { logAudit } from "@/lib/audit";
 
@@ -173,6 +174,44 @@ export async function addPropertyPhotos(id: string, formData: FormData) {
   await ensurePrimary(id);
 
   revalidatePath(`/admin/properties/${id}`);
+}
+
+// Pulls this property's cover photo from Hostify on demand -- for a
+// property whose import silently failed to grab one (fetchHostifyCoverPhotoUrl
+// swallows any failure with no trace of why), or one never run through the
+// import flow at all (linked to a listing by hand, e.g. from before the
+// import feature existed). Adds the photo without forcing it to be the
+// cover if one's already set -- ensurePrimary only promotes it when the
+// property has none, so this can't silently replace a photo staff already
+// chose.
+export async function fetchPropertyCoverPhoto(id: string) {
+  await requireStaff();
+
+  const property = await prisma.property.findUniqueOrThrow({
+    where: { id },
+    select: { hostifyListingId: true, client: { select: { hostifyApiKey: true } } },
+  });
+  if (!property.hostifyListingId) {
+    throw new Error("This property isn't linked to a Hostify listing.");
+  }
+  if (!property.client.hostifyApiKey) {
+    throw new Error("No Hostify API key configured on this client.");
+  }
+
+  const photoUrl = await fetchHostifyCoverPhotoUrl(
+    property.client.hostifyApiKey,
+    Number(property.hostifyListingId),
+  );
+  if (!photoUrl) {
+    throw new Error("Hostify doesn't have a cover photo for this listing.");
+  }
+
+  const photoPath = await saveHostifyCoverPhoto(id, photoUrl);
+  await prisma.propertyImage.create({ data: { propertyId: id, path: photoPath, isPrimary: false } });
+  await ensurePrimary(id);
+
+  revalidatePath(`/admin/properties/${id}`);
+  revalidatePath("/admin/properties");
 }
 
 export async function setPrimaryPhoto(propertyId: string, imageId: string) {
