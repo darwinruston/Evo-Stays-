@@ -190,6 +190,69 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
   revalidatePath("/cleaner");
 }
 
+// Moves a property's existing upcoming cleans to a cleaner just designated
+// on it -- designating someone (assignCleanerProperty above) only ever
+// affects new cleans going forward; it never touches work already on the
+// books, which otherwise stays wherever it was before the designation
+// existed. Same PENDING-only, optional-date-range shape as
+// reassignUpcomingCleans, just keyed by property instead of by source
+// cleaner, and it can pick up Unassigned cleans too (assignedToId: cleanerId
+// excludes only cleans already this cleaner's).
+export async function reassignPropertyCleansToCleaner(
+  propertyId: string,
+  cleanerId: string,
+  formData: FormData,
+) {
+  const session = await requireStaff();
+
+  const [property, cleaner] = await Promise.all([
+    prisma.property.findUniqueOrThrow({ where: { id: propertyId }, select: { name: true, address: true } }),
+    prisma.user.findUniqueOrThrow({ where: { id: cleanerId, role: "CLEANER" }, select: { name: true } }),
+  ]);
+
+  const fromRaw = str(formData, "fromDate");
+  const toRaw = str(formData, "toDate");
+  const fromDate = fromRaw ? parseIsoDate(fromRaw) : null;
+  const toDate = toRaw ? parseIsoDate(toRaw) : null;
+
+  const affected = await prisma.clean.findMany({
+    where: {
+      propertyId,
+      status: "PENDING",
+      assignedToId: { not: cleanerId },
+      ...(fromDate || toDate
+        ? {
+            scheduledFor: {
+              ...(fromDate ? { gte: fromDate } : {}),
+              ...(toDate ? { lt: dayBounds(toDate).end } : {}),
+            },
+          }
+        : {}),
+    },
+    include: { assignedTo: { select: { name: true } } },
+  });
+  if (affected.length === 0) {
+    throw new Error("No upcoming cleans to move in that range");
+  }
+
+  const ids = affected.map((c) => c.id);
+  await prisma.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: cleanerId } });
+
+  for (const clean of affected) {
+    await logAudit({
+      actorId: session.user.id,
+      entityType: "Clean",
+      entityId: clean.id,
+      summary: `Reassigned from ${clean.assignedTo?.name ?? "Unassigned"} to ${cleaner.name} (${property.name || property.address} designation)`,
+    });
+  }
+
+  revalidatePath(`/admin/cleaners/${cleanerId}`);
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/cleans");
+  revalidatePath("/cleaner");
+}
+
 export async function deleteCleaner(id: string) {
   const session = await requireStaff();
 

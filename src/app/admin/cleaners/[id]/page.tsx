@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { AddPropertyForm } from "@/components/AddPropertyForm";
 import { Avatar } from "@/components/Avatar";
+import { DesignatedPropertyRow } from "@/components/DesignatedPropertyRow";
 import { EditableNumberField } from "@/components/EditableNumberField";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { ReassignForm } from "@/components/ReassignForm";
@@ -21,6 +22,7 @@ import {
   assignCleanerProperty,
   removeCleanerProperty,
   reassignUpcomingCleans,
+  reassignPropertyCleansToCleaner,
 } from "../actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -88,6 +90,26 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   });
   const pendingCount = cleaner.assignedCleans.filter((c) => c.status === "PENDING").length;
 
+  // How many of each designated property's upcoming cleans aren't this
+  // cleaner's yet -- what "Move cleans here" would actually pick up. Only
+  // designating someone (assignCleanerProperty) never touches existing
+  // work, so this can be non-zero right after a fresh designation.
+  const movablePendingCounts =
+    cleaner.designatedProperties.length > 0
+      ? await prisma.clean.groupBy({
+          by: ["propertyId"],
+          where: {
+            propertyId: { in: cleaner.designatedProperties.map((d) => d.propertyId) },
+            status: "PENDING",
+            assignedToId: { not: cleaner.id },
+          },
+          _count: { _all: true },
+        })
+      : [];
+  const movablePendingCountByProperty = new Map(
+    movablePendingCounts.map((c) => [c.propertyId, c._count._all]),
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -153,17 +175,15 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         {cleaner.designatedProperties.length > 0 && (
           <ul className="flex flex-col gap-2">
             {cleaner.designatedProperties.map((d) => (
-              <li key={d.id} className={card("flex items-center justify-between gap-3 p-4")}>
-                <div className="min-w-0">
-                  <p className="font-medium">{propertyDisplayName(d.property)}</p>
-                  <p className="truncate text-sm text-zinc-500">{d.property.client.name}</p>
-                </div>
-                <form action={removeCleanerProperty.bind(null, cleaner.id, d.propertyId)}>
-                  <button type="submit" className="shrink-0 text-xs text-red-600 hover:underline">
-                    Remove
-                  </button>
-                </form>
-              </li>
+              <DesignatedPropertyRow
+                key={d.id}
+                propertyName={propertyDisplayName(d.property)}
+                clientName={d.property.client.name}
+                cleanerName={cleaner.name}
+                removeAction={removeCleanerProperty.bind(null, cleaner.id, d.propertyId)}
+                moveAction={reassignPropertyCleansToCleaner.bind(null, d.propertyId, cleaner.id)}
+                pendingCount={movablePendingCountByProperty.get(d.propertyId) ?? 0}
+              />
             ))}
           </ul>
         )}
