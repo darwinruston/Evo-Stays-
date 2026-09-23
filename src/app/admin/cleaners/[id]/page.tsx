@@ -94,6 +94,8 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   // cleaner's yet -- what "Move cleans here" would actually pick up. Only
   // designating someone (assignCleanerProperty) never touches existing
   // work, so this can be non-zero right after a fresh designation.
+  // `OR [null, not: id]` for the same reason as reassignPropertyCleansToCleaner:
+  // a plain `not` excludes Unassigned cleans under SQL's NULL semantics.
   const movablePendingCounts =
     cleaner.designatedProperties.length > 0
       ? await prisma.clean.groupBy({
@@ -101,7 +103,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
           where: {
             propertyId: { in: cleaner.designatedProperties.map((d) => d.propertyId) },
             status: "PENDING",
-            assignedToId: { not: cleaner.id },
+            OR: [{ assignedToId: null }, { assignedToId: { not: cleaner.id } }],
           },
           _count: { _all: true },
         })

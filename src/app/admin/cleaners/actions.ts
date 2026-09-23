@@ -196,8 +196,10 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
 // books, which otherwise stays wherever it was before the designation
 // existed. Same PENDING-only, optional-date-range shape as
 // reassignUpcomingCleans, just keyed by property instead of by source
-// cleaner, and it can pick up Unassigned cleans too (assignedToId: cleanerId
-// excludes only cleans already this cleaner's).
+// cleaner. Deliberately `OR [null, not: cleanerId]` rather than just
+// `not: cleanerId` -- SQL's `<>` is NULL-unsafe (NULL <> x is neither true
+// nor false), so a plain `not` silently excludes every Unassigned clean
+// instead of picking them up, which is the main case this exists for.
 export async function reassignPropertyCleansToCleaner(
   propertyId: string,
   cleanerId: string,
@@ -219,7 +221,7 @@ export async function reassignPropertyCleansToCleaner(
     where: {
       propertyId,
       status: "PENDING",
-      assignedToId: { not: cleanerId },
+      OR: [{ assignedToId: null }, { assignedToId: { not: cleanerId } }],
       ...(fromDate || toDate
         ? {
             scheduledFor: {
