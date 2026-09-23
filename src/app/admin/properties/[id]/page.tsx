@@ -400,7 +400,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         ) : (
           <p className="text-sm text-zinc-500">
             No invoices generated yet — see{" "}
-            <Link href="/admin/invoices" className="underline underline-offset-2">
+            <Link href={`/admin/invoices?propertyId=${property.id}`} className="underline underline-offset-2">
               Invoices
             </Link>
             .

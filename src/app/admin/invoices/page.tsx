@@ -18,10 +18,16 @@ const CADENCE_LABELS: Record<string, string> = {
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; skipped?: string; cleanerId?: string; propertyId?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    skipped?: string;
+    cleanerId?: string;
+    propertyId?: string;
+    clientId?: string;
+  }>;
 }) {
   await requireStaff();
-  const { created, skipped, cleanerId, propertyId } = await searchParams;
+  const { created, skipped, cleanerId, propertyId, clientId } = await searchParams;
 
   const settings = await prisma.billingSettings.upsert({
     where: { id: "singleton" },
@@ -56,6 +62,7 @@ export default async function InvoicesPage({
     where: {
       cleanerId: cleanerId || undefined,
       propertyId: propertyId || undefined,
+      property: clientId ? { clientId } : undefined,
     },
     orderBy: { periodStart: "desc" },
     include: {
@@ -184,7 +191,7 @@ export default async function InvoicesPage({
           <button type="submit" className={button("secondary", "sm")}>
             Filter
           </button>
-          {(cleanerId || propertyId) && (
+          {(cleanerId || propertyId || clientId) && (
             <Link href="/admin/invoices" className={button("ghost", "sm")}>
               Clear
             </Link>
@@ -193,15 +200,17 @@ export default async function InvoicesPage({
 
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-zinc-500">
-            {cleanerId || propertyId ? `Filtered (${invoices.length})` : `Generated (${invoices.length})`}
+            {cleanerId || propertyId || clientId
+              ? `Filtered (${invoices.length})`
+              : `Generated (${invoices.length})`}
           </h2>
-          {(cleanerId || propertyId) && invoices.length > 0 && (
+          {(cleanerId || propertyId || clientId) && invoices.length > 0 && (
             <p className="text-sm font-medium">Total: {formatCurrency(filteredTotal)}</p>
           )}
         </div>
         {invoices.length === 0 ? (
           <p className="text-sm text-zinc-600">
-            {cleanerId || propertyId ? "No invoices match this filter." : "No invoices generated yet."}
+            {cleanerId || propertyId || clientId ? "No invoices match this filter." : "No invoices generated yet."}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
