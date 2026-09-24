@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/authz";
+import { requireStaff, isStaffSession } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
@@ -15,6 +15,7 @@ const SUSPICIOUSLY_SHORT_MINUTES = 10;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await isStaffSession())) return { title: "Invoice" };
   const invoice = await prisma.invoice.findUnique({
     where: { id },
     select: { cleaner: { select: { name: true } }, property: { select: { name: true, address: true } } },

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/authz";
+import { requireStaff, isStaffSession } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
 import { propertyDisplayName } from "@/lib/address";
 import { button, card } from "@/lib/ui";
@@ -9,6 +9,7 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await isStaffSession())) return { title: "Client" };
   const client = await prisma.client.findUnique({ where: { id }, select: { name: true } });
   return { title: client?.name ?? "Client" };
 }

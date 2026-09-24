@@ -14,6 +14,17 @@ export async function requireStaff() {
   return session;
 }
 
+// For generateMetadata on staff-only detail pages. Metadata is resolved
+// alongside the page, so its <title> can end up in the response body even
+// when the layout's requireStaff redirects a cleaner away -- which would
+// hand them a client's name, or an issue at a property they're not on,
+// just by guessing a URL. Those callers check this first and fall back to a
+// generic title.
+export async function isStaffSession(): Promise<boolean> {
+  const session = await auth();
+  return !!session?.user && STAFF_ROLES.includes(session.user.role);
+}
+
 // Cleaners work their own schedule on site. Admins can also reach this area
 // (support/testing); office staff cannot.
 export async function requireCleaner() {
