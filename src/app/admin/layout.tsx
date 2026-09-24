@@ -42,7 +42,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     item.href === "/admin/issues" ? { ...item, count: openIssues, countLabel: "open" } : item,
   );
   const rightItems = [
-    { href: "/admin/notifications", label: "Notifications", count: unread, countLabel: "unread" },
+    { href: "/admin/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" },
     ...PROFILE_NAV,
   ];
 
@@ -53,7 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin" aria-label="Evo Stays home" className="shrink-0">
             <EvoTick className="h-6 w-auto" />
           </Link>
-          <NavMenu items={items} rightItems={rightItems} logoutAction={logoutAction} breakpoint="xl" />
+          <NavMenu items={items} rightItems={rightItems} logoutAction={logoutAction} breakpoint="lg" />
         </nav>
       </header>
       <main className="px-4 py-10 sm:px-6 lg:px-10">{children}</main>

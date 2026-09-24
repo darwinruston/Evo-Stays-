@@ -16,7 +16,7 @@ const NAV = [
 export default async function CleanerLayout({ children }: { children: React.ReactNode }) {
   const session = await requireCleaner();
   const unread = await unreadNotificationCount(session.user.id);
-  const items = [...NAV, { href: "/cleaner/notifications", label: "Notifications", count: unread, countLabel: "unread" }];
+  const items = [...NAV, { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }];
 
   return (
     <div className="min-h-screen">

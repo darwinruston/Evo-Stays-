@@ -4,30 +4,55 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { button } from "@/lib/ui";
+import { BellIcon } from "@/components/Icons";
 
 // `count` is an optional badge after the label (unread notifications, open
 // issues). Zero (or omitted) shows no badge at all rather than a "0", which
 // would just be noise on every page. `countLabel` is what a screen reader
 // hears after the number -- "unread" for one badge, "open" for another.
-type NavItem = { href: string; label: string; count?: number; countLabel?: string };
+// `icon` swaps the label for a glyph in the flat row (the label stays as the
+// accessible name, and shows as text again in the hamburger dropdown, where
+// there's room and an unlabelled icon would be less clear).
+type NavItem = { href: string; label: string; count?: number; countLabel?: string; icon?: "bell" };
 
 const linkClass =
   "rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-black/5 hover:text-zinc-950";
 
 const signOutClass = button("secondary", "sm");
 
-function NavLink({ item }: { item: NavItem }) {
+function CountBadge({ item, className }: { item: NavItem; className: string }) {
   const count = item.count ?? 0;
+  if (count <= 0) return null;
+  return (
+    <span
+      className={`inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-xs font-medium text-white ${className}`}
+    >
+      <span className="sr-only">(</span>
+      {count > 99 ? "99+" : count}
+      <span className="sr-only"> {item.countLabel ?? "new"})</span>
+    </span>
+  );
+}
+
+function NavLink({ item, iconOnly = false }: { item: NavItem; iconOnly?: boolean }) {
+  if (item.icon && iconOnly) {
+    return (
+      <Link
+        href={item.href}
+        aria-label={item.label}
+        title={item.label}
+        className={`${linkClass} relative inline-flex items-center`}
+      >
+        <BellIcon className="h-5 w-5" />
+        <CountBadge item={item} className="absolute -right-0.5 -top-0.5 min-w-4 px-1 text-[10px] leading-4" />
+      </Link>
+    );
+  }
   return (
     <Link href={item.href} className={`${linkClass} inline-flex items-center gap-1.5`}>
+      {item.icon && <BellIcon className="h-4 w-4" />}
       {item.label}
-      {count > 0 && (
-        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-xs font-medium text-white">
-          <span className="sr-only">(</span>
-          {count > 99 ? "99+" : count}
-          <span className="sr-only"> {item.countLabel ?? "new"})</span>
-        </span>
-      )}
+      <CountBadge item={item} className="" />
     </Link>
   );
 }
@@ -35,12 +60,11 @@ function NavLink({ item }: { item: NavItem }) {
 // Where the bar switches from hamburger to a flat row. Spelled out as whole
 // class strings (not built from the breakpoint name) so Tailwind's scanner
 // sees every one of them. Admin has too many items to fit a tablet-width
-// row -- with the Issues and Notifications badges showing it needs a little
-// over 1024px -- so it holds the hamburger up to xl; the cleaner bar fits
-// from sm.
+// row of ten labelled items, so it holds the hamburger up to lg (with
+// Notifications as an icon it fits from 1024px); the cleaner bar fits from sm.
 const BREAKPOINT_CLASSES = {
   sm: { row: "sm:flex", right: "sm:flex", mobileOnly: "sm:hidden" },
-  xl: { row: "xl:flex", right: "xl:flex", mobileOnly: "xl:hidden" },
+  lg: { row: "lg:flex", right: "lg:flex", mobileOnly: "lg:hidden" },
 } as const;
 
 // Shared by both the admin and cleaner headers, so mobile navigation looks
@@ -48,7 +72,7 @@ const BREAKPOINT_CLASSES = {
 // inventing its own answer (admin had no wrap/scroll at all and ran off the
 // edge of a phone screen with eight items; cleaner instead scrolled
 // sideways, a different pattern from admin's for what's the same kind of
-// bar). Below the breakpoint (sm by default, xl for admin -- see
+// bar). Below the breakpoint (sm by default, lg for admin -- see
 // BREAKPOINT_CLASSES): a hamburger opens a stacked dropdown; at and above it
 // render a flat row.
 //
@@ -87,7 +111,7 @@ export function NavMenu({
     <>
       <div className={`hidden items-center gap-1 ${bp.row}`}>
         {items.map((item) => (
-          <NavLink key={item.href} item={item} />
+          <NavLink key={item.href} item={item} iconOnly />
         ))}
       </div>
 
@@ -95,7 +119,7 @@ export function NavMenu({
         {rightItems.length > 0 && (
           <div className="flex items-center gap-1">
             {rightItems.map((item) => (
-              <NavLink key={item.href} item={item} />
+              <NavLink key={item.href} item={item} iconOnly />
             ))}
           </div>
         )}
