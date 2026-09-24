@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { EXTENSION_BY_TYPE, isAllowedImageType } from "@/lib/imageTypes";
 
 // Local disk storage, outside `public` so files are only reachable through
 // the authenticated route handler at /api/photos/[...path] -- which is also
@@ -17,15 +18,15 @@ export const STORAGE_ROOT = path.join(process.cwd(), "storage", "property-photos
 // still serve tickets photographed before that change.
 export const LAUNDRY_STORAGE_ROOT = path.join(process.cwd(), "storage", "laundry-photos");
 
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
-
 // Saves uploaded property images to disk and returns their storage-relative
 // paths (as stored on PropertyImage.path). The leading path segment is the
 // property id, which is what the serving route checks ownership against.
+// See src/lib/imageTypes.ts for the allowed formats, and why the stored
+// extension comes from the checked type rather than the filename.
 export async function savePropertyPhotos(propertyId: string, files: File[]): Promise<string[]> {
   const images = files.filter((f) => f.size > 0);
   for (const file of images) {
-    if (!ALLOWED_TYPES.has(file.type)) {
+    if (!isAllowedImageType(file.type)) {
       throw new Error(`Unsupported file type: ${file.type || "unknown"}. Photos only.`);
     }
   }
@@ -37,7 +38,7 @@ export async function savePropertyPhotos(propertyId: string, files: File[]): Pro
 
   const paths: string[] = [];
   for (const file of images) {
-    const ext = path.extname(file.name) || ".jpg";
+    const ext = EXTENSION_BY_TYPE[file.type];
     const filename = `${randomUUID()}${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(dir, filename), buffer);
