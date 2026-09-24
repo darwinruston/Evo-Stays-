@@ -12,6 +12,7 @@ import { syncHostifyListing } from "@/lib/hostifySync";
 import { fetchHostifyCoverPhotoUrl } from "@/lib/hostifyListings";
 import { propertyDisplayName } from "@/lib/address";
 import { logAudit } from "@/lib/audit";
+import { CHECKLIST_ROOM_MAX, CHECKLIST_TEXT_MAX, normaliseRoom } from "@/lib/cleaningChecklist";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -34,6 +35,14 @@ function hours(formData: FormData, key: string): number | null {
   if (raw === null) return null;
   const n = Number.parseFloat(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// "HH:MM" from an <input type="time">, re-checked rather than trusted --
+// src/lib/turnover.ts parses this straight into a deadline, so a malformed
+// value must be stored as NULL (unknown) instead.
+function timeOfDay(formData: FormData, key: string): string | null {
+  const raw = str(formData, key);
+  return raw !== null && /^([01]\d|2[0-3]):[0-5]\d$/.test(raw) ? raw : null;
 }
 
 function accessOptions(formData: FormData): string[] {
@@ -86,6 +95,7 @@ export async function createProperty(formData: FormData) {
       bathrooms: int(formData, "bathrooms"),
       maxOccupancy: int(formData, "maxOccupancy"),
       sofaBedSleeps: int(formData, "sofaBedSleeps"),
+      checkInTime: timeOfDay(formData, "checkInTime"),
       accessOptions: accessOptions(formData),
       accessNotes: str(formData, "accessNotes"),
       notes: str(formData, "notes"),
@@ -122,6 +132,7 @@ export async function updateProperty(id: string, formData: FormData) {
       bathrooms: int(formData, "bathrooms"),
       maxOccupancy: int(formData, "maxOccupancy"),
       sofaBedSleeps: int(formData, "sofaBedSleeps"),
+      checkInTime: timeOfDay(formData, "checkInTime"),
       accessOptions: accessOptions(formData),
       accessNotes: str(formData, "accessNotes"),
       notes: str(formData, "notes"),
@@ -503,4 +514,45 @@ export async function syncPropertyHostifyListing(propertyId: string) {
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/cleans");
   revalidatePath("/cleaner");
+}
+
+// A property-specific checklist line, added on top of the standard list
+// (see PropertyChecklistItem in schema.prisma). The room is normalised so
+// "kitchen" joins the standard Kitchen card instead of starting another.
+export async function addPropertyChecklistItem(propertyId: string, formData: FormData) {
+  await requireStaff();
+
+  const rawRoom = str(formData, "room");
+  const text = str(formData, "text");
+  if (!rawRoom) throw new Error("Say which room it's in");
+  if (!text) throw new Error("Say what needs doing");
+  // normaliseRoom already snaps to a standard room's spelling; this does the
+  // same for a custom room the property already uses, so "hot tub" after
+  // "Hot Tub" joins that card rather than listing the room twice.
+  const normalised = normaliseRoom(rawRoom);
+  const existingRooms = await prisma.propertyChecklistItem.findMany({
+    where: { propertyId },
+    select: { room: true },
+    distinct: ["room"],
+  });
+  const room =
+    existingRooms.find((r) => r.room.toLowerCase() === normalised.toLowerCase())?.room ?? normalised;
+  if (room.length > CHECKLIST_ROOM_MAX) throw new Error(`Keep the room name under ${CHECKLIST_ROOM_MAX} characters`);
+  if (text.length > CHECKLIST_TEXT_MAX) throw new Error(`Keep the item under ${CHECKLIST_TEXT_MAX} characters`);
+
+  await prisma.propertyChecklistItem.create({ data: { propertyId, room, text } });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/cleaner", "layout");
+}
+
+export async function removePropertyChecklistItem(propertyId: string, itemId: string) {
+  await requireStaff();
+
+  // Scoped to the property so a crafted POST can't remove another
+  // property's item through this one's page.
+  await prisma.propertyChecklistItem.deleteMany({ where: { id: itemId, propertyId } });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/cleaner", "layout");
 }
