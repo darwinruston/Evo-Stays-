@@ -34,6 +34,13 @@ model User {
   // Property.syncHorizonDays never cutting anything off. Never bounds the
   // past -- overdue and completed work always still shows.
   scheduleHorizonDays Int?
+  // Whether notifications (see Notification below) are also emailed, on top
+  // of always appearing in the app. Only has any effect once SMTP is
+  // configured -- see src/lib/email.ts.
+  emailNotifications Boolean   @default(true)
+  notifications  Notification[]
+  reportedIssues Issue[]       @relation("IssueReporter")
+  resolvedIssues Issue[]       @relation("IssueResolver")
   assignedCleans Clean[]       @relation("CleanAssignee")
   createdCleans  Clean[]       @relation("CleanCreator")
   cleanLogs      CleanLog[]
@@ -71,6 +78,53 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+enum NotificationKind {
+  // To a cleaner: a clean is now theirs (new, reassigned to them, or
+  // reinstated after being cancelled).
+  CLEAN_ASSIGNED
+  // To a cleaner: a clean they held has moved to someone else.
+  CLEAN_UNASSIGNED
+  CLEAN_RESCHEDULED
+  CLEAN_CANCELLED
+  // To staff: a sync created a clean that auto-assign couldn't place, so it
+  // sits Unassigned until someone picks a cleaner.
+  CLEAN_NEEDS_CLEANER
+  // To staff: someone reported a problem at a property (see Issue).
+  ISSUE_REPORTED
+  // To whoever reported it: staff have marked it resolved.
+  ISSUE_RESOLVED
+  // To staff and the assigned cleaner: a same-day turnover isn't finished
+  // and the next guests are due soon.
+  TURNOVER_AT_RISK
+}
+
+// One thing a specific person should know about, shown in their in-app
+// Notifications list (and emailed too, when SMTP is configured and they
+// haven't opted out -- see User.emailNotifications and src/lib/notify.ts).
+// Unlike AuditLog, this is addressed to someone and has a read state; it's
+// "what changed that affects you", not the permanent record of who did what.
+//
+// title/body are written to stand on their own, same reasoning as
+// AuditLog.summary -- the clean behind a notification can be deleted
+// afterwards, and the message should still make sense. href may then 404.
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  kind      NotificationKind
+  title     String
+  body      String?
+  // Where following the notification should land -- a path inside the
+  // recipient's own area (/cleaner/... or /admin/...). Null when there's
+  // nowhere useful to go (e.g. a clean that's no longer theirs).
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 // The property owner/management client an Evo Stays portfolio belongs to.
@@ -151,6 +205,12 @@ model Property {
   // property (one property can list on several platforms). See
   // syncCalendarFeed in src/lib/icalSync.ts.
   syncHorizonDays  Int?
+  // The listing's standard guest check-in time, "HH:MM" (e.g. "15:00").
+  // Only used when a synced booking arrives without a real time of its own
+  // -- an all-day iCal event, or Hostify's date-only checkIn -- so a
+  // same-day turnover can still show a "finish by" deadline instead of just
+  // "guests arrive today". Null means unknown. See src/lib/turnover.ts.
+  checkInTime      String?
   // Hostify listing id this property maps to -- a listing already aggregates
   // every channel (Airbnb, Vrbo, ...) into one reservation feed, unlike iCal
   // where each channel publishes its own separate URL, so this is a single
@@ -172,6 +232,8 @@ model Property {
   calendarFeeds    PropertyCalendarFeed[]
   hostifyReservations SyncedHostifyReservation[]
   designatedCleaners PropertyCleaner[]
+  issues           Issue[]
+  checklistItems   PropertyChecklistItem[]
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -234,6 +296,13 @@ model Clean {
   // Same as syncedBookingEvent above, but for a Hostify-sourced reservation --
   // see SyncedHostifyReservation.
   syncedHostifyReservation SyncedHostifyReservation?
+  issues       Issue[]
+  // Set once people have been alerted that this clean is at risk of not
+  // being finished before the next guests arrive (see checkAtRiskTurnovers
+  // in src/lib/turnover.ts), so the scheduler doesn't re-alert on every
+  // pass. Cleared whenever the clean is rescheduled -- a new date is a new
+  // deadline, worth its own alert.
+  atRiskNotifiedAt DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -569,4 +638,118 @@ model SyncedHostifyReservation {
   updatedAt            DateTime  @updatedAt
 
   @@unique([propertyId, hostifyReservationId])
+}
+
+// WHAT is wrong, as the cleaner sees it -- deliberately factual and specific
+// ("no hot water", "lock or key safe") rather than broad buckets, because
+// the category is what the system works severity out from (see
+// assessIssueSeverity in src/lib/issues.ts). Cleaners report facts; they're
+// never asked how urgent something is.
+enum IssueCategory {
+  SAFETY_HAZARD
+  LEAK
+  NO_WATER
+  NO_POWER
+  NO_HEATING
+  TOILET
+  ACCESS
+  APPLIANCE
+  PESTS
+  BROKEN
+  DAMAGE
+  MISSING_ITEM
+  LOST_PROPERTY
+  OTHER
+}
+
+// How soon it needs dealing with, in the terms that actually drive the
+// decision in a short-let: whether it has to be sorted before the next
+// guests walk in. Deliberately three, not a 1-5 scale nobody applies
+// consistently. Set by the system, never by whoever reported it -- see
+// Issue.severityReason.
+enum IssueSeverity {
+  LOW
+  MEDIUM
+  URGENT
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+// A problem found at a property -- damage, something broken, something
+// missing, a guest's forgotten belongings. Usually reported by the cleaner
+// mid-turnover (cleanId set, with photos as evidence for a damage claim),
+// but staff can log one too (a guest complaint, say), with no clean behind
+// it. Tracked through to resolution rather than just being a line in a
+// clean's notes, so nothing reported gets quietly forgotten.
+//
+// reportedBy/resolvedBy are nullable with SetNull for the same reason as
+// AuditLog.actor -- removing a person shouldn't erase what they reported.
+// The clean link is SetNull too: deleting a clean doesn't make the broken
+// boiler it turned up any less broken.
+model Issue {
+  id             String        @id @default(cuid())
+  property       Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  clean          Clean?        @relation(fields: [cleanId], references: [id], onDelete: SetNull)
+  cleanId        String?
+  reportedBy     User?         @relation("IssueReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  reportedById   String?
+  category       IssueCategory
+  severity       IssueSeverity
+  // Why the system gave it that severity, in words staff can check at a
+  // glance ("No water — guests can't stay without it"). Kept even after a
+  // staff override, as the record of what the automatic assessment said.
+  severityReason String?
+  // True once staff have changed the severity by hand -- triage is theirs to
+  // correct; the audit log records who and when.
+  severityOverridden Boolean   @default(false)
+  description    String
+  status         IssueStatus   @default(OPEN)
+  // What was done about it -- set (optionally) when marking it resolved.
+  resolutionNote String?
+  resolvedAt     DateTime?
+  resolvedBy     User?         @relation("IssueResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedById   String?
+  photos         IssuePhoto[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([propertyId, status])
+  @@index([status])
+  @@index([cleanId])
+}
+
+// Evidence photos for an issue. Stored under the same
+// storage/property-photos/{propertyId}/ root as every other property photo,
+// so /api/photos's single per-property access check covers these too.
+model IssuePhoto {
+  id        String   @id @default(cuid())
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueId   String
+  path      String
+  createdAt DateTime @default(now())
+
+  @@index([issueId])
+}
+
+// A property-specific addition to the standard turnover checklist
+// (CLEANING_CHECKLIST in src/lib/cleaningChecklist.ts) -- "hot tub: check
+// chemicals", "garden furniture back under cover". Additions only: the
+// standard list is the business's baseline for what "done" means
+// everywhere, and a property adds what's particular to it on top rather
+// than replacing that. An item whose room matches a standard room joins
+// that room's card; any other room becomes a card of its own.
+model PropertyChecklistItem {
+  id         String   @id @default(cuid())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+  room       String
+  text       String
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
 }
