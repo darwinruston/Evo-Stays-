@@ -16,7 +16,12 @@ import { DetailsCard } from "@/components/DetailsCard";
 import { stockLevelBand } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
-import { checkInClean, uploadCleanPhotos, recordStockLevel, completeClean } from "../../actions";
+import { IssueForm } from "@/components/IssueForm";
+import { IssueList, toIssueRow } from "@/components/IssueList";
+import { sortIssuesByUrgency } from "@/lib/issues";
+import { turnoverFor } from "@/lib/turnover";
+import { TurnoverNotice } from "@/components/TurnoverNotice";
+import { checkInClean, uploadCleanPhotos, recordStockLevel, completeClean, reportIssue } from "../../actions";
 
 export const metadata = { title: "Clean" };
 
@@ -102,8 +107,17 @@ export default async function CleanerCleanPage({
         include: {
           stockLevels: { include: { stockItem: true }, orderBy: { createdAt: "asc" } },
           images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+          checklistItems: { orderBy: { createdAt: "asc" }, select: { room: true, text: true } },
+          // Anything already known to be wrong here and not yet fixed --
+          // so the cleaner isn't surprised by it, and doesn't spend time
+          // reporting the same broken shower a second time.
+          issues: {
+            where: { status: { not: "RESOLVED" } },
+            include: { _count: { select: { photos: true } } },
+          },
         },
       },
+      issues: { orderBy: { createdAt: "asc" }, include: { _count: { select: { photos: true } } } },
       log: {
         include: {
           recordedBy: { select: { name: true } },
@@ -173,6 +187,14 @@ export default async function CleanerCleanPage({
 
   const prep = cleanPrep(clean.property, clean.guestCount);
 
+  // Known issues exclude anything reported on this very visit -- those are
+  // listed separately under "Reported this visit", not as prior knowledge.
+  const knownIssues = sortIssuesByUrgency(clean.property.issues.filter((i) => i.cleanId !== clean.id));
+  const reportedHere = clean.issues;
+
+  const active = clean.status === "PENDING" || clean.status === "IN_PROGRESS";
+  const turnover = active ? await turnoverFor(clean) : null;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -197,6 +219,10 @@ export default async function CleanerCleanPage({
 
       {clean.status === "IN_PROGRESS" && <StepProgress steps={STEPS} current={step} />}
 
+      {/* Before the sofa bed banner and everything else -- a deadline is the
+          one fact that changes how the whole visit should be paced. */}
+      {turnover && <TurnoverNotice turnover={turnover} />}
+
       {/* Stays on screen for the whole visit, not just a glance at check-in
           -- the small icon above is easy to walk past, and the actual
           prep still has to happen at some point before check-out. */}
@@ -214,6 +240,12 @@ export default async function CleanerCleanPage({
       {clean.status === "PENDING" && (
         <>
           <PropertyDetails property={clean.property} />
+          {knownIssues.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-medium text-zinc-500">Known issues ({knownIssues.length})</h2>
+              <IssueList issues={knownIssues.map((i) => toIssueRow(i))} showSeverity={false} />
+            </section>
+          )}
           {referencePhotos.length > 0 && (
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-medium text-zinc-500">
@@ -224,7 +256,7 @@ export default async function CleanerCleanPage({
           )}
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-medium text-zinc-500">Cleaning checklist</h2>
-            <CleaningChecklist />
+            <CleaningChecklist extras={clean.property.checklistItems} />
           </section>
           <form action={checkInClean.bind(null, clean.id)}>
             <button type="submit" className={`w-full ${button("primary", "lg")}`}>
@@ -323,8 +355,37 @@ export default async function CleanerCleanPage({
               codes and quirks matter most on the doorstep, so once you're in
               and working, the checklist and reference photos are what you're
               actually reaching for first. */}
+          {/* Available at every step, not just one -- a problem can turn up
+              at any point in a turnover, and reporting it never blocks
+              carrying on. */}
+          <DetailsCard
+            summary={reportedHere.length > 0 ? `Report a problem (${reportedHere.length} reported)` : "Report a problem"}
+          >
+            <div className="flex flex-col gap-4">
+              {reportedHere.length > 0 && (
+                <section className="flex flex-col gap-2">
+                  <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Reported this visit</h3>
+                  <IssueList issues={reportedHere.map((i) => toIssueRow(i))} showSeverity={false} />
+                </section>
+              )}
+              <IssueForm
+                action={reportIssue.bind(null, clean.id)}
+                idPrefix="report"
+                submitLabel="Send report"
+                submitClassName={`w-full ${button("secondary", "lg")}`}
+                sentMessage="Sent — the office has been told. Add another if there's more."
+              />
+            </div>
+          </DetailsCard>
+
+          {knownIssues.length > 0 && (
+            <DetailsCard summary={`Known issues (${knownIssues.length})`}>
+              <IssueList issues={knownIssues.map((i) => toIssueRow(i))} showSeverity={false} />
+            </DetailsCard>
+          )}
+
           <DetailsCard summary="Cleaning checklist">
-            <CleaningChecklist />
+            <CleaningChecklist extras={clean.property.checklistItems} />
           </DetailsCard>
 
           {referencePhotos.length > 0 && (
@@ -343,6 +404,12 @@ export default async function CleanerCleanPage({
         <section className="flex flex-col gap-3 border-t border-black/5 pt-6">
           <h2 className="text-sm font-medium text-zinc-500">What you recorded</h2>
           <CleanLogView log={clean.log} alt={title} />
+          {reportedHere.length > 0 && (
+            <>
+              <h2 className="mt-2 text-sm font-medium text-zinc-500">Problems you reported</h2>
+              <IssueList issues={reportedHere.map((i) => toIssueRow(i))} showSeverity={false} />
+            </>
+          )}
         </section>
       )}
 

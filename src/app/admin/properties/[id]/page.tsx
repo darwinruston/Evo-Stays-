@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/authz";
+import { requireStaff, isStaffSession } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
@@ -29,11 +29,18 @@ import {
   removePropertyHostifyListing,
   syncPropertyHostifyListing,
   fetchPropertyCoverPhoto,
+  addPropertyChecklistItem,
+  removePropertyChecklistItem,
 } from "../actions";
+import { CleaningChecklist } from "@/components/CleaningChecklist";
+import { CHECKLIST_ROOM_MAX, CHECKLIST_TEXT_MAX, STANDARD_ROOMS } from "@/lib/cleaningChecklist";
 import { setLaundryLoadCollected } from "../../laundry/actions";
+import { IssueList, toIssueRow } from "@/components/IssueList";
+import { sortIssuesByUrgency } from "@/lib/issues";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await isStaffSession())) return { title: "Property" };
   const property = await prisma.property.findUnique({
     where: { id },
     select: { name: true, address: true },
@@ -60,11 +67,20 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         orderBy: { createdAt: "asc" },
         include: { cleaner: { select: { id: true, name: true } } },
       },
+      checklistItems: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!property) notFound();
 
   const cleanCount = await prisma.clean.count({ where: { propertyId: property.id } });
+
+  const [openIssues, issueCount] = await Promise.all([
+    prisma.issue.findMany({
+      where: { propertyId: property.id, status: { not: "RESOLVED" } },
+      include: { reportedBy: { select: { name: true } }, _count: { select: { photos: true } } },
+    }),
+    prisma.issue.count({ where: { propertyId: property.id } }),
+  ]);
 
   const configuredItemIds = new Set(property.stockLevels.map((l) => l.stockItemId));
   const availableItems = await prisma.stockItem.findMany({
@@ -155,6 +171,39 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
 
       <PropertyDetails property={property} />
 
+      {/* Up top, straight after the property itself -- an open problem here
+          (especially one marked "before next guests") is the thing most
+          worth seeing on arrival at this page. */}
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+            Open issues <span className="text-sm font-normal text-zinc-500">({openIssues.length})</span>
+            <InfoTooltip text="Problems reported here and not yet resolved — damage, repairs, missing items, lost property. Cleaners report them from the clean they're on; staff can log one too." />
+          </h2>
+          <div className="flex items-center gap-3">
+            {issueCount > openIssues.length && (
+              <Link
+                href={`/admin/issues?view=all&propertyId=${property.id}`}
+                className="text-sm text-zinc-500 hover:text-zinc-900"
+              >
+                All issues ({issueCount})
+              </Link>
+            )}
+            <Link href={`/admin/issues/new?propertyId=${property.id}`} className={button("secondary", "sm")}>
+              Log an issue
+            </Link>
+          </div>
+        </div>
+        {openIssues.length > 0 ? (
+          <IssueList
+            issues={sortIssuesByUrgency(openIssues).map((i) => toIssueRow(i, i.reportedBy?.name))}
+            hrefFor={(issueId) => `/admin/issues/${issueId}`}
+          />
+        ) : (
+          <p className="text-sm text-zinc-500">Nothing reported that still needs dealing with.</p>
+        )}
+      </section>
+
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Cleaners{" "}
@@ -183,6 +232,86 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             page.
           </p>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+          Cleaning checklist{" "}
+          <span className="text-sm font-normal text-zinc-500">
+            ({property.checklistItems.length} extra {property.checklistItems.length === 1 ? "item" : "items"})
+          </span>
+          <InfoTooltip text="Every property gets the standard turnover checklist. Add anything particular to this one — a hot tub, a garden, a quirk of the boiler — and cleaners see it marked on their checklist here. Use a standard room (Kitchen, Bathroom…) to add to that card, or any other name for a card of its own." />
+        </h2>
+
+        {property.checklistItems.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {property.checklistItems.map((item) => (
+              <li key={item.id} className={card("flex items-center justify-between gap-3 p-4")}>
+                <div className="min-w-0 [overflow-wrap:anywhere]">
+                  <p className="text-xs text-zinc-500">{item.room}</p>
+                  <p className="text-sm">{item.text}</p>
+                </div>
+                <form action={removePropertyChecklistItem.bind(null, property.id, item.id)}>
+                  <button type="submit" className="text-xs text-red-600 hover:underline">
+                    Remove
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form
+          action={addPropertyChecklistItem.bind(null, property.id)}
+          className={card("flex flex-wrap items-end gap-3 p-4")}
+        >
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="checklistRoom" className="text-sm font-medium">
+              Room
+            </label>
+            <input
+              id="checklistRoom"
+              name="room"
+              required
+              maxLength={CHECKLIST_ROOM_MAX}
+              list="checklistRooms"
+              placeholder="e.g. Kitchen, Hot tub"
+              className={`${inputCompact} w-44`}
+            />
+            {/* Suggests the standard rooms plus any this property already
+                uses, so additions land in an existing card by default. */}
+            <datalist id="checklistRooms">
+              {[...new Set([...STANDARD_ROOMS, ...property.checklistItems.map((i) => i.room)])].map((room) => (
+                <option key={room} value={room} />
+              ))}
+            </datalist>
+          </div>
+          <div className="flex min-w-48 flex-1 flex-col gap-1.5">
+            <label htmlFor="checklistText" className="text-sm font-medium">
+              What needs doing
+            </label>
+            <input
+              id="checklistText"
+              name="text"
+              required
+              maxLength={CHECKLIST_TEXT_MAX}
+              placeholder="e.g. Check hot tub chemicals, cover back on"
+              className={inputCompact}
+            />
+          </div>
+          <button type="submit" className={button("primary", "sm")}>
+            Add
+          </button>
+        </form>
+
+        <details className="w-fit">
+          <summary className="cursor-pointer text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700">
+            Preview what cleaners see
+          </summary>
+          <div className="mt-2 max-w-md">
+            <CleaningChecklist extras={property.checklistItems} />
+          </div>
+        </details>
       </section>
 
       <section className="flex flex-col gap-3">

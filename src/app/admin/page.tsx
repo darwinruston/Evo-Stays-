@@ -7,6 +7,8 @@ import { CleanList, type CleanRow } from "@/components/CleanList";
 import { card } from "@/lib/ui";
 import { isCleanFinished } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
+import { turnoversFor } from "@/lib/turnover";
+import { toIsoDate } from "@/lib/schedule";
 
 export const metadata = { title: "Overview" };
 
@@ -25,7 +27,7 @@ export default async function AdminHomePage() {
   const session = await requireStaff();
   const { start, end } = weekWindow();
 
-  const [clients, properties, upcoming, unscheduled, stockLevels, thisWeek] = await Promise.all([
+  const [clients, properties, upcoming, unscheduled, stockLevels, openIssues, thisWeek] = await Promise.all([
     prisma.client.count(),
     prisma.property.count(),
     prisma.clean.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
@@ -36,6 +38,7 @@ export default async function AdminHomePage() {
     // in a where clause without raw SQL -- filtered in JS instead, see
     // src/lib/stock.ts.
     prisma.propertyStockLevel.findMany({ select: { propertyId: true, onHandQty: true, parQty: true } }),
+    prisma.issue.count({ where: { status: { not: "RESOLVED" } } }),
     prisma.clean.findMany({
       where: { scheduledFor: { gte: start, lt: end }, status: { not: "CANCELLED" } },
       orderBy: { scheduledFor: "asc" },
@@ -58,12 +61,25 @@ export default async function AdminHomePage() {
 
   const lowProperties = new Set(stockLevels.filter(isRunningLow).map((l) => l.propertyId)).size;
 
+  // Only unfinished cleans have a turnover worth flagging -- one pass over
+  // the synced bookings for the whole list (see turnoversFor).
+  const turnovers = await turnoversFor(thisWeek.filter((c) => !isCleanFinished(c.status)));
+  const todayIso = toIsoDate(new Date());
+  const sameDayToday = thisWeek.filter(
+    (c) => c.scheduledFor && toIsoDate(c.scheduledFor) === todayIso && turnovers.get(c.id)?.sameDay,
+  ).length;
+
   const tiles = [
     { href: "/admin/clients", label: "Clients", value: clients },
     { href: "/admin/properties", label: "Properties", value: properties },
     { href: "/admin/cleans", label: "Cleans outstanding", value: upcoming },
     { href: "/admin/cleans", label: "Unscheduled cleans", value: unscheduled },
     { href: "/admin/stock", label: "Properties running low", value: lowProperties },
+    { href: "/admin/issues", label: "Open issues", value: openIssues },
+    // Unfinished cleans today whose next guests also arrive today -- the
+    // ones with a hard deadline. Reuses the week's turnovers map, since
+    // today is inside that window.
+    { href: "/admin/cleans", label: "Same-day turnovers today", value: sameDayToday },
   ];
 
   const thisWeekRows: CleanRow[] = thisWeek.map((c) => ({
@@ -74,6 +90,7 @@ export default async function AdminHomePage() {
     status: c.status,
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
+    turnover: turnovers.get(c.id) ?? null,
   }));
 
   return (
@@ -85,9 +102,9 @@ export default async function AdminHomePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {tiles.map((t) => (
-          <Link key={t.href} href={t.href} className={card("p-5 transition-colors hover:bg-black/[0.02]")}>
+          <Link key={t.label} href={t.href} className={card("p-5 transition-colors hover:bg-black/[0.02]")}>
             <p className="text-sm text-zinc-500">{t.label}</p>
             <p className="mt-1 text-3xl font-semibold tracking-tight">{t.value}</p>
           </Link>

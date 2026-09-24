@@ -22,7 +22,7 @@ export default async function AuditPage({
   await requireStaff();
   const { entityType } = await searchParams;
 
-  const isValidType = entityType !== undefined && entityType in AUDIT_ENTITY_LABELS;
+  const isValidType = entityType !== undefined && Object.hasOwn(AUDIT_ENTITY_LABELS, entityType);
 
   const entries = await prisma.auditLog.findMany({
     where: isValidType ? { entityType } : {},

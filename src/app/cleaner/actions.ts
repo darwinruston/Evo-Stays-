@@ -8,6 +8,13 @@ import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
+import {
+  createIssueRecord,
+  parseIssueForm,
+  IssueFormError,
+  issueFormErrorState,
+  type IssueFormState,
+} from "@/lib/issueRecords";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -202,6 +209,46 @@ export async function completeClean(cleanId: string, formData: FormData) {
   revalidatePath(`/cleaner/cleans/${cleanId}`);
   revalidatePath("/admin/cleans");
   revalidatePath(`/admin/cleans/${cleanId}`);
+}
+
+// Flagging a problem found on site -- damage, something broken or missing, a
+// guest's forgotten belongings. Only while checked in: that's when the
+// cleaner is actually standing in the property looking at it, and it ties
+// the report (and its photos) to this visit. Doesn't gate check-out --
+// reporting is optional, and a turnover with nothing wrong shouldn't have
+// an extra step.
+//
+// Returns its outcome for IssueForm's useActionState rather than throwing,
+// so a rejected report keeps what was typed and says why inline.
+export async function reportIssue(
+  cleanId: string,
+  prev: IssueFormState,
+  formData: FormData,
+): Promise<IssueFormState> {
+  const session = await requireCleaner();
+  const clean = await ownCleanOrThrow(cleanId, session.user.id);
+
+  if (clean.status !== "IN_PROGRESS") {
+    return { error: "Check in before reporting a problem.", attempt: (prev.attempt ?? 0) + 1 };
+  }
+
+  try {
+    await createIssueRecord({
+      propertyId: clean.propertyId,
+      cleanId,
+      reportedById: session.user.id,
+      form: parseIssueForm(formData),
+    });
+  } catch (err) {
+    if (err instanceof IssueFormError) return issueFormErrorState(err, formData, prev);
+    throw err;
+  }
+
+  revalidatePath(`/cleaner/cleans/${cleanId}`);
+  revalidatePath("/admin/issues");
+  revalidatePath(`/admin/properties/${clean.propertyId}`);
+  revalidatePath("/admin", "layout");
+  return { sent: true, attempt: (prev.attempt ?? 0) + 1 };
 }
 
 // Logging a laundrette drop-off -- one load can cover linen from several of

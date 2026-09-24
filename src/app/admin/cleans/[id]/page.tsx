@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/authz";
+import { requireStaff, isStaffSession } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
-import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
+import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
 import { formatScheduledFor } from "@/lib/schedule";
 import { CleanLogView } from "@/components/CleanLogView";
 import { badge, button, card } from "@/lib/ui";
 import { cleanPrep } from "@/lib/cleanPrep";
+import { IssueList, toIssueRow } from "@/components/IssueList";
+import { turnoverFor, formatArrival } from "@/lib/turnover";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await isStaffSession())) return { title: "Clean" };
   const clean = await prisma.clean.findUnique({
     where: { id },
     select: { property: { select: { name: true, address: true } } },
@@ -62,11 +65,16 @@ export default async function CleanDetailPage({
           stockUsage: { include: { stockItem: true } },
         },
       },
+      issues: {
+        orderBy: { createdAt: "asc" },
+        include: { reportedBy: { select: { name: true } }, _count: { select: { photos: true } } },
+      },
     },
   });
   if (!clean) notFound();
 
   const prep = cleanPrep(clean.property, clean.guestCount);
+  const turnover = isCleanFinished(clean.status) ? null : await turnoverFor(clean);
 
   const activity = await prisma.auditLog.findMany({
     where: { entityType: "Clean", entityId: clean.id },
@@ -110,6 +118,16 @@ export default async function CleanDetailPage({
           <span className="text-zinc-500">Scheduled</span>
           <span>{clean.scheduledFor ? formatScheduledFor(clean.scheduledFor) : "Not scheduled"}</span>
         </div>
+        {turnover && (
+          <div className="flex justify-between gap-6 py-2 text-sm">
+            <span className="text-zinc-500">Next guests</span>
+            <span className="flex items-center gap-2">
+              {turnover.sameDay && <span className={badge("solid")}>Same-day</span>}
+              {formatArrival(turnover)}
+              {!turnover.arrivalTimeKnown && <span className="text-zinc-400">(time not known)</span>}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Cleaner</span>
           <span>
@@ -153,6 +171,16 @@ export default async function CleanDetailPage({
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-zinc-500">What happened</h2>
           <CleanLogView log={clean.log} alt={propertyDisplayName(clean.property)} />
+        </section>
+      )}
+
+      {clean.issues.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-zinc-500">Problems reported ({clean.issues.length})</h2>
+          <IssueList
+            issues={clean.issues.map((i) => toIssueRow(i, i.reportedBy?.name))}
+            hrefFor={(issueId) => `/admin/issues/${issueId}`}
+          />
         </section>
       )}
 
