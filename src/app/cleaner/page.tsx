@@ -4,6 +4,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { isCleanFinished } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
+import { turnoversFor } from "@/lib/turnover";
 
 export const metadata = { title: "My cleans" };
 
@@ -37,6 +38,9 @@ export default async function CleanerHomePage() {
     },
   });
 
+  // Only unfinished cleans have a turnover worth flagging -- one pass over
+  // the synced bookings for the whole list (see turnoversFor).
+  const turnovers = await turnoversFor(cleans.filter((c) => !isCleanFinished(c.status)));
   const rows: CleanRow[] = cleans.map((c) => ({
     id: c.id,
     href: `/cleaner/cleans/${c.id}`,
@@ -44,6 +48,7 @@ export default async function CleanerHomePage() {
     status: c.status,
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
+    turnover: turnovers.get(c.id) ?? null,
   }));
 
   // Only worth a query when a horizon is actually set -- tells the cleaner

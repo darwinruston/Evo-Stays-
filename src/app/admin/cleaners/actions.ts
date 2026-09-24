@@ -9,6 +9,7 @@ import { requireStaff } from "@/lib/authz";
 import { formatCurrency } from "@/lib/invoices";
 import { logAudit } from "@/lib/audit";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
+import { notify, cleanAssignedNotice, cleanUnassignedNotice } from "@/lib/notify";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -220,7 +221,7 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
           }
         : {}),
     },
-    select: { id: true },
+    select: { id: true, scheduledFor: true, property: { select: { name: true, address: true } } },
   });
   if (affected.length === 0) {
     throw new Error("No upcoming cleans to reassign in that range");
@@ -228,6 +229,15 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
 
   const ids = affected.map((c) => c.id);
   await prisma.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: targetCleanerId } });
+
+  // One notify call for the whole batch, so each cleaner gets a single
+  // email listing every clean that moved rather than one per clean.
+  await notify(
+    affected.flatMap((clean) => [
+      ...cleanUnassignedNotice(cleanerId, clean),
+      ...cleanAssignedNotice(targetCleanerId, clean, "reassigned"),
+    ]),
+  );
 
   for (const cleanId of ids) {
     await logAudit({
@@ -285,7 +295,10 @@ export async function reassignPropertyCleansToCleaner(
           }
         : {}),
     },
-    include: { assignedTo: { select: { name: true } } },
+    include: {
+      assignedTo: { select: { name: true } },
+      property: { select: { name: true, address: true } },
+    },
   });
   if (affected.length === 0) {
     throw new Error("No upcoming cleans to move in that range");
@@ -293,6 +306,13 @@ export async function reassignPropertyCleansToCleaner(
 
   const ids = affected.map((c) => c.id);
   await prisma.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: cleanerId } });
+
+  await notify(
+    affected.flatMap((clean) => [
+      ...(clean.assignedToId ? cleanUnassignedNotice(clean.assignedToId, clean) : []),
+      ...cleanAssignedNotice(cleanerId, clean, "reassigned"),
+    ]),
+  );
 
   for (const clean of affected) {
     await logAudit({

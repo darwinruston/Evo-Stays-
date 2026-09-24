@@ -44,13 +44,33 @@ export function toDateTimeLocalValue(date: Date): string {
 // drops the time and shows just the date instead. A clean genuinely
 // scheduled at exactly midnight UTC is not a real scenario this app
 // creates, so there's no meaningful case this misreads.
-function isDateOnly(date: Date): boolean {
+//
+// Exported for src/lib/turnover.ts, which needs the same distinction to
+// tell a real check-in time from a date-only one.
+export function isDateOnly(date: Date): boolean {
   return (
     date.getUTCHours() === 0 &&
     date.getUTCMinutes() === 0 &&
     date.getUTCSeconds() === 0 &&
     date.getUTCMilliseconds() === 0
   );
+}
+
+// The calendar day a timestamp falls on, as YYYY-MM-DD. A date-only value
+// (midnight UTC -- see isDateOnly) is read by its UTC date, since that IS
+// the date the booking said; reading it in local time could shift it a day
+// in a timezone west of UTC. Everything else is read in local time, like
+// toIsoDate.
+export function calendarDayKey(date: Date): string {
+  return isDateOnly(date) ? date.toISOString().slice(0, 10) : toIsoDate(date);
+}
+
+// Whether two (possibly null) schedule slots fall on the same calendar day
+// -- what decides whether a reschedule is a new deadline for at-risk
+// alerting, rather than just a nudge of the time within the same day.
+export function sameCalendarDay(a: Date | null, b: Date | null): boolean {
+  if (!a || !b) return a === b;
+  return calendarDayKey(a) === calendarDayKey(b);
 }
 
 export function formatScheduledFor(date: Date): string {

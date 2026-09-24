@@ -5,20 +5,52 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { button } from "@/lib/ui";
 
-type NavItem = { href: string; label: string };
+// `count` is an optional badge after the label (unread notifications, open
+// issues). Zero (or omitted) shows no badge at all rather than a "0", which
+// would just be noise on every page. `countLabel` is what a screen reader
+// hears after the number -- "unread" for one badge, "open" for another.
+type NavItem = { href: string; label: string; count?: number; countLabel?: string };
 
 const linkClass =
   "rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-black/5 hover:text-zinc-950";
 
 const signOutClass = button("secondary", "sm");
 
+function NavLink({ item }: { item: NavItem }) {
+  const count = item.count ?? 0;
+  return (
+    <Link href={item.href} className={`${linkClass} inline-flex items-center gap-1.5`}>
+      {item.label}
+      {count > 0 && (
+        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-xs font-medium text-white">
+          <span className="sr-only">(</span>
+          {count > 99 ? "99+" : count}
+          <span className="sr-only"> {item.countLabel ?? "new"})</span>
+        </span>
+      )}
+    </Link>
+  );
+}
+
+// Where the bar switches from hamburger to a flat row. Spelled out as whole
+// class strings (not built from the breakpoint name) so Tailwind's scanner
+// sees every one of them. Admin has too many items to fit a tablet-width
+// row -- with the Issues and Notifications badges showing it needs a little
+// over 1024px -- so it holds the hamburger up to xl; the cleaner bar fits
+// from sm.
+const BREAKPOINT_CLASSES = {
+  sm: { row: "sm:flex", right: "sm:flex", mobileOnly: "sm:hidden" },
+  xl: { row: "xl:flex", right: "xl:flex", mobileOnly: "xl:hidden" },
+} as const;
+
 // Shared by both the admin and cleaner headers, so mobile navigation looks
 // and behaves the same way everywhere in the app rather than each area
 // inventing its own answer (admin had no wrap/scroll at all and ran off the
 // edge of a phone screen with eight items; cleaner instead scrolled
 // sideways, a different pattern from admin's for what's the same kind of
-// bar). Below sm: a hamburger opens a stacked dropdown; sm: and up render a
-// flat row.
+// bar). Below the breakpoint (sm by default, xl for admin -- see
+// BREAKPOINT_CLASSES): a hamburger opens a stacked dropdown; at and above it
+// render a flat row.
 //
 // `items` sits left, right after the logo -- the day-to-day work areas.
 // `rightItems` (optional) sits at the far right, before Sign out -- for a
@@ -29,11 +61,14 @@ export function NavMenu({
   items,
   rightItems = [],
   logoutAction,
+  breakpoint = "sm",
 }: {
   items: NavItem[];
   rightItems?: NavItem[];
   logoutAction: (formData: FormData) => void;
+  breakpoint?: keyof typeof BREAKPOINT_CLASSES;
 }) {
+  const bp = BREAKPOINT_CLASSES[breakpoint];
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -50,21 +85,17 @@ export function NavMenu({
 
   return (
     <>
-      <div className="hidden items-center gap-1 sm:flex">
+      <div className={`hidden items-center gap-1 ${bp.row}`}>
         {items.map((item) => (
-          <Link key={item.href} href={item.href} className={linkClass}>
-            {item.label}
-          </Link>
+          <NavLink key={item.href} item={item} />
         ))}
       </div>
 
-      <div className="ml-auto hidden items-center gap-3 sm:flex">
+      <div className={`ml-auto hidden items-center gap-3 ${bp.right}`}>
         {rightItems.length > 0 && (
           <div className="flex items-center gap-1">
             {rightItems.map((item) => (
-              <Link key={item.href} href={item.href} className={linkClass}>
-                {item.label}
-              </Link>
+              <NavLink key={item.href} item={item} />
             ))}
           </div>
         )}
@@ -80,7 +111,7 @@ export function NavMenu({
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-600 hover:bg-black/5 sm:hidden"
+        className={`ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-600 hover:bg-black/5 ${bp.mobileOnly}`}
       >
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5">
           {open ? (
@@ -92,19 +123,17 @@ export function NavMenu({
       </button>
 
       {open && (
-        <div className="absolute inset-x-0 top-full flex flex-col gap-1 border-b border-black/5 bg-background p-3 shadow-sm sm:hidden">
+        <div
+          className={`absolute inset-x-0 top-full flex flex-col gap-1 border-b border-black/5 bg-background p-3 shadow-sm ${bp.mobileOnly}`}
+        >
           {items.map((item) => (
-            <Link key={item.href} href={item.href} className={linkClass}>
-              {item.label}
-            </Link>
+            <NavLink key={item.href} item={item} />
           ))}
           {rightItems.length > 0 && (
             <>
               <div className="my-1 border-t border-black/5" />
               {rightItems.map((item) => (
-                <Link key={item.href} href={item.href} className={linkClass}>
-                  {item.label}
-                </Link>
+                <NavLink key={item.href} item={item} />
               ))}
             </>
           )}

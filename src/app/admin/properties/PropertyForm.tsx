@@ -12,6 +12,7 @@ type PropertyFields = {
   bathrooms: number | null;
   maxOccupancy: number | null;
   sofaBedSleeps: number | null;
+  checkInTime: string | null;
   accessOptions: unknown;
   accessNotes: string | null;
   notes: string | null;
@@ -170,6 +171,24 @@ export function PropertyForm({
           Extra guests the sofa bed itself sleeps — already included in the Sleeps total above. Leave
           blank if there&apos;s no sofa bed. A cleaning task flags the sofa bed for prep whenever a
           booking&apos;s guest count is higher than what the bedrooms alone would sleep.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="checkInTime" className="text-sm font-medium">
+          Guest check-in time
+        </label>
+        <input
+          id="checkInTime"
+          name="checkInTime"
+          type="time"
+          defaultValue={property?.checkInTime ?? ""}
+          className={`${inputCompact} max-w-32`}
+        />
+        <p className="text-xs text-zinc-500">
+          The listing&apos;s usual check-in time. Used as the &ldquo;finish by&rdquo; deadline on a
+          same-day turnover whenever the booking itself doesn&apos;t say what time guests arrive.
+          Leave blank if it varies.
         </p>
       </div>
 

@@ -1,6 +1,11 @@
 import { runAllSyncs } from "@/lib/runAllSyncs";
+import { checkAtRiskTurnovers } from "@/lib/turnover";
 
 const DEFAULT_INTERVAL_MINUTES = 30;
+// Far shorter than the sync interval: this one is a cheap local query, and
+// an "at risk" alert that lands half an hour late has lost most of its
+// point. See checkAtRiskTurnovers in src/lib/turnover.ts.
+const TURNOVER_CHECK_INTERVAL_MS = 10 * 60_000;
 // First pass shortly after boot rather than waiting a full interval for
 // cleans to start appearing on a freshly (re)started server.
 const INITIAL_DELAY_MS = 60_000;
@@ -24,4 +29,12 @@ export function startSyncScheduler(): void {
 
   setTimeout(run, INITIAL_DELAY_MS);
   setInterval(run, intervalMs());
+
+  const checkTurnovers = () => {
+    checkAtRiskTurnovers().catch((err) => {
+      console.error("[turnover check] run failed:", err);
+    });
+  };
+  setTimeout(checkTurnovers, INITIAL_DELAY_MS);
+  setInterval(checkTurnovers, TURNOVER_CHECK_INTERVAL_MS);
 }

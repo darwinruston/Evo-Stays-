@@ -1,8 +1,16 @@
 import * as ical from "node-ical";
 import { prisma } from "@/lib/prisma";
 import { createCleanRecord } from "@/lib/cleans";
-import { formatScheduledFor } from "@/lib/schedule";
+import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
 import { logAudit } from "@/lib/audit";
+import {
+  notify,
+  staffUserIds,
+  newCleanNotices,
+  cleanRescheduledNotice,
+  cleanCancelledNotice,
+  type NotificationInput,
+} from "@/lib/notify";
 
 // One pass over a single PropertyCalendarFeed: fetch its iCal URL, upsert a
 // SyncedBookingEvent per VEVENT (keyed on [feedId, externalUid] so re-running
@@ -13,8 +21,9 @@ import { logAudit } from "@/lib/audit";
 export async function syncCalendarFeed(feedId: string, triggeredById: string): Promise<void> {
   const feed = await prisma.propertyCalendarFeed.findUniqueOrThrow({
     where: { id: feedId },
-    include: { property: { select: { syncHorizonDays: true } } },
+    include: { property: { select: { syncHorizonDays: true, name: true, address: true } } },
   });
+  const property = { name: feed.property.name, address: feed.property.address };
 
   // A booking checking out further out than this is skipped rather than
   // turned into a clean -- re-evaluated on every later sync, so it's picked
@@ -22,6 +31,13 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
   // property listed on several platforms wants one consistent lookahead.
   const horizon = feed.property.syncHorizonDays;
   const cutoff = horizon !== null ? new Date(Date.now() + horizon * 24 * 60 * 60 * 1000) : null;
+
+  // Everything this pass has to tell anyone, sent as one batch at the end
+  // (see notify in src/lib/notify.ts) -- including after a mid-run failure,
+  // since whatever cleans were already created or changed before it are
+  // real and their cleaners still need to know.
+  const notices: NotificationInput[] = [];
+  const staffIds = await staffUserIds();
 
   try {
     const parsed = await ical.async.fromURL(feed.url);
@@ -48,6 +64,7 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
           createdById: triggeredById,
           scheduledFor: checkOut,
         });
+        notices.push(...newCleanNotices(clean, { staffIds }));
         await prisma.syncedBookingEvent.create({
           data: { feedId, externalUid: event.uid, checkIn, checkOut, cleanId: clean.id },
         });
@@ -65,11 +82,22 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
         data: { checkIn, checkOut, cancelled: false },
       });
       // Only a still-PENDING clean is ours to move -- one already in progress
-      // or completed reflects real work done against the old date.
-      if (existing.clean && existing.clean.status === "PENDING") {
+      // or completed reflects real work done against the old date. And only
+      // if the checkout itself moved: a change to just the check-in leaves
+      // the clean exactly where it was.
+      if (
+        existing.clean &&
+        existing.clean.status === "PENDING" &&
+        existing.clean.scheduledFor?.getTime() !== checkOut.getTime()
+      ) {
         await prisma.clean.update({
           where: { id: existing.clean.id },
-          data: { scheduledFor: checkOut },
+          // A new day is a new deadline -- clear any at-risk alert already
+          // sent for the old one (see checkAtRiskTurnovers).
+          data: {
+            scheduledFor: checkOut,
+            ...(sameCalendarDay(existing.clean.scheduledFor, checkOut) ? {} : { atRiskNotifiedAt: null }),
+          },
         });
         await logAudit({
           actorId: triggeredById,
@@ -77,6 +105,15 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
           entityId: existing.clean.id,
           summary: `Rescheduled to ${formatScheduledFor(checkOut)} (${feed.label} calendar sync)`,
         });
+        if (existing.clean.assignedToId) {
+          notices.push(
+            ...cleanRescheduledNotice(
+              existing.clean.assignedToId,
+              { id: existing.clean.id, scheduledFor: checkOut, property },
+              existing.clean.scheduledFor,
+            ),
+          );
+        }
       }
     }
 
@@ -103,6 +140,15 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
           entityId: event.clean.id,
           summary: `Cancelled — booking no longer on the ${feed.label} calendar`,
         });
+        if (event.clean.assignedToId) {
+          notices.push(
+            ...cleanCancelledNotice(
+              event.clean.assignedToId,
+              { id: event.clean.id, scheduledFor: event.clean.scheduledFor, property },
+              { reason: "The booking was cancelled." },
+            ),
+          );
+        }
       }
     }
 
@@ -116,5 +162,7 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
       where: { id: feedId },
       data: { lastSyncError: message },
     });
+  } finally {
+    await notify(notices);
   }
 }

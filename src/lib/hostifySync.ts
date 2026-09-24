@@ -1,8 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/encryption";
 import { createCleanRecord } from "@/lib/cleans";
-import { formatScheduledFor } from "@/lib/schedule";
+import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
 import { logAudit } from "@/lib/audit";
+import {
+  notify,
+  staffUserIds,
+  newCleanNotices,
+  cleanRescheduledNotice,
+  cleanCancelledNotice,
+  type NotificationInput,
+} from "@/lib/notify";
 
 const HOSTIFY_BASE_URL = "https://api-rms.hostify.com";
 const PAGE_SIZE = 100;
@@ -146,9 +154,12 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
     select: {
       hostifyListingId: true,
       syncHorizonDays: true,
+      name: true,
+      address: true,
       client: { select: { hostifyApiKey: true } },
     },
   });
+  const propertyRef = { name: property.name, address: property.address };
 
   // Defence in depth -- the action calling this already checks both, but a
   // property can be reached here from the unattended scheduler too, which
@@ -171,6 +182,11 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
   const horizon = property.syncHorizonDays;
   const cutoff = horizon !== null ? new Date(Date.now() + horizon * 24 * 60 * 60 * 1000) : null;
   const lookback = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+
+  // Collected and sent as one batch at the end -- same reasoning as the
+  // matching comment in syncCalendarFeed (src/lib/icalSync.ts).
+  const notices: NotificationInput[] = [];
+  const staffIds = await staffUserIds();
 
   try {
     let apiKey: string;
@@ -207,6 +223,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
             scheduledFor: checkOut,
             guestCount: reservation.guests,
           });
+          notices.push(...newCleanNotices(clean, { staffIds }));
           await prisma.syncedHostifyReservation.create({
             data: {
               propertyId,
@@ -249,6 +266,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
           scheduledFor: checkOut,
           guestCount: reservation.guests,
         });
+        notices.push(...newCleanNotices(clean, { staffIds }));
         await prisma.syncedHostifyReservation.update({
           where: { id: existing.id },
           data: {
@@ -284,14 +302,42 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
             entityId: existing.clean.id,
             summary: `Cancelled — Hostify reservation status changed to "${reservation.status}"`,
           });
-        } else {
-          await prisma.clean.update({ where: { id: existing.clean.id }, data: { scheduledFor: checkOut } });
+          if (existing.clean.assignedToId) {
+            notices.push(
+              ...cleanCancelledNotice(
+                existing.clean.assignedToId,
+                { id: existing.clean.id, scheduledFor: existing.clean.scheduledFor, property: propertyRef },
+                { reason: "The booking was cancelled." },
+              ),
+            );
+          }
+        } else if (existing.clean.scheduledFor?.getTime() !== checkOut.getTime()) {
+          // Only when the checkout itself moved -- the "changed" test above
+          // also fires on a check-in or status change that leaves the clean
+          // where it is. atRiskNotifiedAt cleared on a day change for the
+          // same reason as in syncCalendarFeed.
+          await prisma.clean.update({
+            where: { id: existing.clean.id },
+            data: {
+              scheduledFor: checkOut,
+              ...(sameCalendarDay(existing.clean.scheduledFor, checkOut) ? {} : { atRiskNotifiedAt: null }),
+            },
+          });
           await logAudit({
             actorId: triggeredById,
             entityType: "Clean",
             entityId: existing.clean.id,
             summary: `Rescheduled to ${formatScheduledFor(checkOut)} (Hostify sync)`,
           });
+          if (existing.clean.assignedToId) {
+            notices.push(
+              ...cleanRescheduledNotice(
+                existing.clean.assignedToId,
+                { id: existing.clean.id, scheduledFor: checkOut, property: propertyRef },
+                existing.clean.scheduledFor,
+              ),
+            );
+          }
         }
       }
     }
@@ -305,5 +351,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       where: { id: propertyId },
       data: { hostifyLastSyncError: describeSyncError(err) },
     });
+  } finally {
+    await notify(notices);
   }
 }

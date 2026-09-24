@@ -8,7 +8,9 @@ import { prisma } from "@/lib/prisma";
 // Fixed id, same "pinned singleton" pattern as BillingSettings.id in
 // schema.prisma. ADMIN role keeps it out of autoAssignCleaner's CLEANER-only
 // pool. Never used to log in -- the password hash is random and discarded.
-const SYSTEM_USER_ID = "system-sync";
+// Exported so staffUserIds (src/lib/notify.ts) can leave it out -- it's an
+// ADMIN for permission purposes, but not a person who reads notifications.
+export const SYSTEM_USER_ID = "system-sync";
 
 // Lazily upserted rather than seeded: prisma/seed.ts only runs against a
 // brand-new database (see docker-entrypoint.sh), so an existing deployment

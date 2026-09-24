@@ -1,7 +1,7 @@
 // Small outline icons for the public landing page (src/app/page.tsx). Hand-
 // drawn rather than pulled from an icon library -- this app has stayed
 // dependency-light everywhere else (see EvoTick.tsx for the same reasoning
-// applied to the logo), and six simple glyphs don't earn a whole package.
+// applied to the logo), and a handful of simple glyphs don't earn a whole package.
 // Shared stroke style keeps them reading as one family; each just supplies
 // its own <path>/<rect>/<circle> children.
 
@@ -86,6 +86,26 @@ export function ShieldIcon({ className }: IconProps) {
     <Icon className={className}>
       <path d="M12 3 4.5 6v6c0 5 3.2 8.4 7.5 9 4.3-.6 7.5-4 7.5-9V6L12 3Z" />
       <path d="M9 12.5 11 14.5 15.5 10" />
+    </Icon>
+  );
+}
+
+// A bell -- notifications when a clean is assigned, moved or cancelled.
+export function BellIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z" />
+      <path d="M10 20.5a2 2 0 0 0 4 0" />
+    </Icon>
+  );
+}
+
+// A warning triangle -- problems reported on site and tracked to resolution.
+export function AlertIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M12 3.5 2.5 20h19L12 3.5Z" />
+      <path d="M12 10v4.5M12 17.25v.25" />
     </Icon>
   );
 }

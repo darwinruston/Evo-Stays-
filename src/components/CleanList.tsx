@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { CleanStatus } from "@prisma/client";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
-import { formatScheduledFor, groupCleansByTime } from "@/lib/schedule";
-import { card } from "@/lib/ui";
+import { calendarDayKey, formatScheduledFor, groupCleansByTime } from "@/lib/schedule";
+import { badge, card } from "@/lib/ui";
 import { CleanPrepSummary } from "@/components/CleanPrepSummary";
 import type { CleanPrep } from "@/lib/cleanPrep";
+import { turnoverLabel, turnoverPriority, type Turnover } from "@/lib/turnover";
 
 // Pre-shaped so the admin, cleaner and client lists can share the grouping
 // and row treatment without this component knowing about any of their
@@ -19,29 +20,42 @@ export type CleanRow = {
   // Omitted entirely for a cancelled/completed clean by most callers --
   // there's nothing left to prep for those.
   prep?: CleanPrep | null;
+  // What's known about the next guests (see turnoversFor in
+  // src/lib/turnover.ts) -- omitted for finished cleans, same as prep. Drives
+  // the same-day label and the ordering within each day.
+  turnover?: Turnover | null;
 };
 
 function CleanRows({ rows }: { rows: CleanRow[] }) {
   return (
     <ul className="flex flex-col gap-2">
-      {rows.map((c) => (
-        <li key={c.id}>
-          <Link
-            href={c.href}
-            className={card("flex items-center justify-between gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
-          >
-            <div className="min-w-0">
-              <p className="font-medium">{c.title}</p>
-              <p className="truncate text-sm text-zinc-500">
-                {c.scheduledFor ? formatScheduledFor(c.scheduledFor) : "Not scheduled"}
-                {c.subtitle ? ` · ${c.subtitle}` : ""}
-              </p>
-              {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
-            </div>
-            <span className="shrink-0 text-sm text-zinc-500">{CLEAN_STATUS_LABELS[c.status]}</span>
-          </Link>
-        </li>
-      ))}
+      {rows.map((c) => {
+        const label = c.turnover && c.scheduledFor ? turnoverLabel(c.turnover, c.scheduledFor) : null;
+        return (
+          <li key={c.id}>
+            <Link
+              href={c.href}
+              className={card("flex items-center justify-between gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
+            >
+              <div className="min-w-0">
+                <p className="font-medium">{c.title}</p>
+                <p className="truncate text-sm text-zinc-500">
+                  {c.scheduledFor ? formatScheduledFor(c.scheduledFor) : "Not scheduled"}
+                  {c.subtitle ? ` · ${c.subtitle}` : ""}
+                </p>
+                {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
+                {label &&
+                  (label.urgent ? (
+                    <span className={`mt-1.5 ${badge("solid")}`}>{label.text}</span>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-zinc-500">{label.text}</p>
+                  ))}
+              </div>
+              <span className="shrink-0 text-sm text-zinc-500">{CLEAN_STATUS_LABELS[c.status]}</span>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -93,6 +107,20 @@ export function CleanList({
           );
         }
 
+        // Within a single day, a same-day turnover (next guests arriving that
+        // same day) jumps the queue, soonest deadline first -- a 10am clean
+        // with nobody due until next week can wait behind a noon one with
+        // guests at 3pm. Days themselves stay in date order: multi-day
+        // groups ("This week", "Later") mustn't pull a Sunday turnover above
+        // Thursday's cleans. Array.sort is stable, so everything else keeps
+        // its chronological order.
+        const ordered = [...rows].sort((a, b) => {
+          const dayA = a.scheduledFor ? calendarDayKey(a.scheduledFor) : "";
+          const dayB = b.scheduledFor ? calendarDayKey(b.scheduledFor) : "";
+          if (dayA !== dayB) return dayA < dayB ? -1 : 1;
+          return turnoverPriority(a.turnover) - turnoverPriority(b.turnover);
+        });
+
         return (
           <div key={group} className="flex flex-col gap-2">
             {/* Bolder + darker than the "None" placeholder below it, and
@@ -103,7 +131,7 @@ export function CleanList({
             {rows.length === 0 ? (
               <p className="text-sm text-zinc-400 italic">None</p>
             ) : (
-              <CleanRows rows={rows} />
+              <CleanRows rows={ordered} />
             )}
           </div>
         );

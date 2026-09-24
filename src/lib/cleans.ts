@@ -9,6 +9,12 @@ import { toIsoDate } from "@/lib/schedule";
 // sync loop processing several bookings at once can't call directly. Omit
 // assignedToId (rather than passing null) to auto-assign via the same
 // familiarity/workload heuristic either caller would otherwise duplicate.
+//
+// Returns the property's name/address alongside the clean so a caller can
+// build its notification (see newCleanNotices in src/lib/notify.ts) without
+// a second lookup. Doesn't notify on its own: the admin form notifies
+// straight away, but a sync collects every clean it creates and sends one
+// batch at the end, which only the caller knows how to do.
 export async function createCleanRecord(input: {
   propertyId: string;
   createdById: string;
@@ -29,6 +35,7 @@ export async function createCleanRecord(input: {
       guestCount: input.guestCount ?? null,
       instructions: input.instructions ?? null,
     },
+    include: { property: { select: { name: true, address: true } } },
   });
 }
 

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
+import { unreadNotificationCount } from "@/lib/notificationViews";
+import { prisma } from "@/lib/prisma";
 import { logoutAction } from "../logout/actions";
 
 // Day-to-day work areas -- left, right after the logo. Overview isn't
@@ -10,6 +12,7 @@ import { logoutAction } from "../logout/actions";
 const NAV = [
   { href: "/admin/properties", label: "Properties" },
   { href: "/admin/cleans", label: "Cleans" },
+  { href: "/admin/issues", label: "Issues" },
   { href: "/admin/stock", label: "Stock" },
   { href: "/admin/invoices", label: "Invoices" },
   { href: "/admin/laundry", label: "Laundry" },
@@ -24,7 +27,24 @@ const PROFILE_NAV = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await requireStaff();
+  const session = await requireStaff();
+  // Notifications leads the right-hand group -- it's personal to whoever's
+  // signed in, like the directories beside it, rather than a shared work
+  // area. Built per request since the count is.
+  // Issues' badge counts everything not yet resolved -- the same number as
+  // the dashboard's "Open issues" tile and the Issues page's Open tab, so
+  // the three never disagree about how much is outstanding.
+  const [unread, openIssues] = await Promise.all([
+    unreadNotificationCount(session.user.id),
+    prisma.issue.count({ where: { status: { not: "RESOLVED" } } }),
+  ]);
+  const items = NAV.map((item) =>
+    item.href === "/admin/issues" ? { ...item, count: openIssues, countLabel: "open" } : item,
+  );
+  const rightItems = [
+    { href: "/admin/notifications", label: "Notifications", count: unread, countLabel: "unread" },
+    ...PROFILE_NAV,
+  ];
 
   return (
     <div className="min-h-screen">
@@ -33,7 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin" aria-label="Evo Stays home" className="shrink-0">
             <EvoTick className="h-6 w-auto" />
           </Link>
-          <NavMenu items={NAV} rightItems={PROFILE_NAV} logoutAction={logoutAction} />
+          <NavMenu items={items} rightItems={rightItems} logoutAction={logoutAction} breakpoint="xl" />
         </nav>
       </header>
       <main className="px-4 py-10 sm:px-6 lg:px-10">{children}</main>

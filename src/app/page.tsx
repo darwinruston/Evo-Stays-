@@ -10,6 +10,8 @@ import {
   WashingMachineIcon,
   GridIcon,
   ShieldIcon,
+  BellIcon,
+  AlertIcon,
 } from "@/components/Icons";
 
 // Signed-in visitors never see this -- "/" is purely a router for them (see
@@ -21,7 +23,17 @@ const FEATURES = [
   {
     icon: ChecklistIcon,
     title: "Turnover cleaning, start to finish",
-    body: "Auto-assigned to whoever already knows the property and has room that day, then worked as a guided flow on the cleaner's phone: check in, before photos, after photos, notes. Each stage is gated server-side, not just hidden in the UI, so nothing gets skipped.",
+    body: "Auto-assigned to whoever already knows the property and has room that day, then worked as a guided flow on the cleaner's phone: check in, before photos, after photos, notes. Same-day turnovers jump the queue with a finish-by time, and each property can add its own checklist items on top of the standard list.",
+  },
+  {
+    icon: AlertIcon,
+    title: "Problems caught before guests find them",
+    body: "Cleaners report what they find mid-clean — no hot water, a leak, guest damage — with photos as evidence. The system works out how urgent it is from what's wrong and when the next guests arrive, and staff track each one through to resolved.",
+  },
+  {
+    icon: BellIcon,
+    title: "Everyone told the moment plans change",
+    body: "A new booking, a cancellation, a reassignment — the cleaner affected is notified in the app and by email, and staff get a heads-up when a same-day turnover is running out of time.",
   },
   {
     icon: BoxIcon,
@@ -116,7 +128,7 @@ export default async function Home() {
         </section>
 
         <section className="px-4 pb-20 sm:px-6 lg:px-10">
-          <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mx-auto grid max-w-7xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f) => (
               <div key={f.title} className={card("flex flex-col gap-4 p-6")}>
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900">

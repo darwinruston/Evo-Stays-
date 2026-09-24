@@ -8,6 +8,7 @@ import { CleanFilters } from "@/components/CleanFilters";
 import { button } from "@/lib/ui";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
+import { turnoversFor } from "@/lib/turnover";
 
 export const metadata = { title: "Cleans" };
 
@@ -20,7 +21,7 @@ export default async function CleansPage({
   const { status, propertyId, cleanerId } = await searchParams;
 
   const where: Prisma.CleanWhereInput = {};
-  if (status && status in CLEAN_STATUS_LABELS) where.status = status as CleanStatus;
+  if (status && Object.hasOwn(CLEAN_STATUS_LABELS, status)) where.status = status as CleanStatus;
   if (propertyId) where.propertyId = propertyId;
   if (cleanerId === "unassigned") where.assignedToId = null;
   else if (cleanerId) where.assignedToId = cleanerId;
@@ -67,6 +68,9 @@ export default async function CleansPage({
     }),
   ]);
 
+  // Only unfinished cleans have a turnover worth flagging -- one pass over
+  // the synced bookings for the whole list (see turnoversFor).
+  const turnovers = await turnoversFor(cleans.filter((c) => !isCleanFinished(c.status)));
   const rows: CleanRow[] = cleans.map((c) => ({
     id: c.id,
     href: `/admin/cleans/${c.id}${filterQuery ? `?${filterQuery}` : ""}`,
@@ -75,6 +79,7 @@ export default async function CleansPage({
     status: c.status,
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
+    turnover: turnovers.get(c.id) ?? null,
   }));
 
   return (

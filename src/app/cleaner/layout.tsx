@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCleaner } from "@/lib/authz";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
+import { unreadNotificationCount } from "@/lib/notificationViews";
 import { logoutAction } from "../logout/actions";
 
 // Phone-first: this area is used on site, mid-turnaround.
@@ -13,7 +14,9 @@ const NAV = [
 ];
 
 export default async function CleanerLayout({ children }: { children: React.ReactNode }) {
-  await requireCleaner();
+  const session = await requireCleaner();
+  const unread = await unreadNotificationCount(session.user.id);
+  const items = [...NAV, { href: "/cleaner/notifications", label: "Notifications", count: unread, countLabel: "unread" }];
 
   return (
     <div className="min-h-screen">
@@ -22,7 +25,7 @@ export default async function CleanerLayout({ children }: { children: React.Reac
           <Link href="/cleaner" aria-label="Evo Stays home" className="shrink-0">
             <EvoTick className="h-6 w-auto" />
           </Link>
-          <NavMenu items={NAV} logoutAction={logoutAction} />
+          <NavMenu items={items} logoutAction={logoutAction} />
         </nav>
       </header>
       <main className="mx-auto max-w-md px-4 py-6">{children}</main>

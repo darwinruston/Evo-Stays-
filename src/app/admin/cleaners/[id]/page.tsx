@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/authz";
+import { requireStaff, isStaffSession } from "@/lib/authz";
 import { AddPropertyForm } from "@/components/AddPropertyForm";
 import { Avatar } from "@/components/Avatar";
 import { DesignatedPropertyRow } from "@/components/DesignatedPropertyRow";
@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/schedule";
 import { badge, button, card } from "@/lib/ui";
 import { isCleanFinished } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
+import { turnoversFor } from "@/lib/turnover";
 import {
   deleteCleaner,
   updateCleaner,
@@ -29,6 +30,7 @@ import {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await isStaffSession())) return { title: "Cleaner" };
   const cleaner = await prisma.user.findUnique({ where: { id }, select: { name: true } });
   return { title: cleaner?.name ?? "Cleaner" };
 }
@@ -68,6 +70,9 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   });
   if (!cleaner) notFound();
 
+  // Only unfinished cleans have a turnover worth flagging -- one pass over
+  // the synced bookings for the whole list (see turnoversFor).
+  const turnovers = await turnoversFor(cleaner.assignedCleans.filter((c) => !isCleanFinished(c.status)));
   const rows: CleanRow[] = cleaner.assignedCleans.map((c) => ({
     id: c.id,
     href: `/admin/cleans/${c.id}`,
@@ -76,6 +81,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
     status: c.status,
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
+    turnover: turnovers.get(c.id) ?? null,
   }));
 
   const designatedPropertyIds = new Set(cleaner.designatedProperties.map((d) => d.propertyId));

@@ -6,8 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { createCleanRecord, CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { propertyDisplayName } from "@/lib/address";
-import { formatScheduledFor } from "@/lib/schedule";
+import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
 import { logAudit } from "@/lib/audit";
+import { notify, newCleanNotices, cleanEditNotices, cleanCancelledNotice } from "@/lib/notify";
+import { turnoverFor, isAtRisk, atRiskNotices } from "@/lib/turnover";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -53,6 +55,10 @@ export async function createClean(formData: FormData) {
     ...(assignedToId ? { assignedToId } : {}),
   });
 
+  // No staffIds: a clean staff just made by hand and left Unassigned isn't
+  // news to staff -- only the assignee (if any) is told.
+  await notify(newCleanNotices(clean));
+
   revalidatePath("/admin/cleans");
   revalidatePath("/cleaner");
   redirect(`/admin/cleans/${clean.id}`);
@@ -66,7 +72,10 @@ export async function updateClean(id: string, formData: FormData) {
 
   const before = await prisma.clean.findUniqueOrThrow({
     where: { id },
-    include: { assignedTo: { select: { name: true } } },
+    include: {
+      assignedTo: { select: { name: true } },
+      property: { select: { name: true, address: true } },
+    },
   });
 
   // Staff can cancel a clean from PENDING or IN_PROGRESS (e.g. a cleaner got
@@ -75,6 +84,11 @@ export async function updateClean(id: string, formData: FormData) {
   // clean back to PENDING themselves -- IN_PROGRESS already has a CleanLog
   // from check-in, and resetting to PENDING would orphan it (the cleaner's
   // next check-in would collide with it, since a clean has at most one log).
+  // Moving the time within the same day keeps the same next-guests
+  // deadline, so an at-risk alert already sent still stands; a new day is a
+  // new deadline worth alerting afresh.
+  const newDay = !sameCalendarDay(before.scheduledFor, scheduledFor);
+
   const allowedStatusChange =
     (status === "CANCELLED" && before.status !== "COMPLETED") ||
     (status === "PENDING" && (before.status === "PENDING" || before.status === "CANCELLED"));
@@ -87,9 +101,31 @@ export async function updateClean(id: string, formData: FormData) {
       guestCount: int(formData, "guestCount"),
       instructions: str(formData, "instructions"),
       ...(allowedStatusChange ? { status } : {}),
+      ...(newDay ? { atRiskNotifiedAt: null } : {}),
     },
-    include: { assignedTo: { select: { name: true } } },
+    include: {
+      assignedTo: { select: { name: true } },
+      property: { select: { name: true, address: true } },
+    },
   });
+
+  await notify(cleanEditNotices(before, after));
+
+  // Staff were already alerted this clean is at risk (and it's still the
+  // same day, so that alert stands) -- but a cleaner just handed it wasn't
+  // the one told. Give them the deadline alongside their "assigned" notice.
+  if (
+    before.atRiskNotifiedAt &&
+    after.atRiskNotifiedAt &&
+    after.assignedToId &&
+    after.assignedToId !== before.assignedToId
+  ) {
+    const now = new Date();
+    const turnover = await turnoverFor(after);
+    if (turnover && isAtRisk(after.status, turnover, now)) {
+      await notify(atRiskNotices(after, turnover, now, { staffIds: [], cleaner: true }));
+    }
+  }
 
   // Three separate rows rather than one combined summary -- an edit can
   // change more than one of these at once, and each is independently
@@ -139,6 +175,12 @@ export async function deleteClean(id: string) {
   });
 
   await prisma.clean.delete({ where: { id } });
+
+  // Only worth telling the cleaner if they still had it to do -- deleting a
+  // completed or already-cancelled clean changes nothing for them.
+  if (clean.assignedToId && (clean.status === "PENDING" || clean.status === "IN_PROGRESS")) {
+    await notify(cleanCancelledNotice(clean.assignedToId, clean, { deleted: true }));
+  }
 
   await logAudit({
     actorId: session.user.id,
