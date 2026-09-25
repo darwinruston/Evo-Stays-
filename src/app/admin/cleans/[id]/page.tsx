@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff, isStaffSession } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
-import { formatScheduledFor } from "@/lib/schedule";
+import { calendarDayKey, formatScheduledFor } from "@/lib/schedule";
+import { RescheduleClean } from "@/components/RescheduleClean";
+import { rescheduleClean } from "../actions";
 import { CleanLogView } from "@/components/CleanLogView";
 import { badge, button, card } from "@/lib/ui";
 import { cleanPrep } from "@/lib/cleanPrep";
@@ -74,6 +76,29 @@ export default async function CleanDetailPage({
   if (!clean) notFound();
 
   const prep = cleanPrep(clean.property, clean.guestCount);
+
+  // The other still-to-do cleans this cleaner has on the same day -- what
+  // makes moving one to another day a live question. Fetched a day either
+  // side and matched by calendar day, since date-only and timed cleans
+  // resolve their day differently (see calendarDayKey).
+  const cleanDay = clean.scheduledFor ? calendarDayKey(clean.scheduledFor) : null;
+  const sameDayOthers =
+    clean.assignedToId && clean.scheduledFor
+      ? (
+          await prisma.clean.findMany({
+            where: {
+              assignedToId: clean.assignedToId,
+              id: { not: clean.id },
+              status: { in: ["PENDING", "IN_PROGRESS"] },
+              scheduledFor: {
+                gte: new Date(clean.scheduledFor.getTime() - 36 * 3600000),
+                lt: new Date(clean.scheduledFor.getTime() + 36 * 3600000),
+              },
+            },
+            select: { scheduledFor: true, property: { select: { name: true, address: true } } },
+          })
+        ).filter((c) => c.scheduledFor && calendarDayKey(c.scheduledFor) === cleanDay)
+      : [];
   const turnover = isCleanFinished(clean.status) ? null : await turnoverFor(clean);
 
   const activity = await prisma.auditLog.findMany({
@@ -159,6 +184,18 @@ export default async function CleanDetailPage({
           </div>
         )}
       </div>
+
+      {clean.status === "PENDING" && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-zinc-500">Change day</h2>
+          <RescheduleClean
+            action={rescheduleClean.bind(null, clean.id)}
+            currentDate={cleanDay}
+            alsoThatDay={sameDayOthers.map((c) => propertyDisplayName(c.property))}
+            cleanerName={clean.assignedTo?.name ?? null}
+          />
+        </section>
+      )}
 
       {clean.instructions && (
         <section className="flex flex-col gap-2">

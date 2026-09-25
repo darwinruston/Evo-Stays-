@@ -24,6 +24,10 @@ export type CleanRow = {
   // src/lib/turnover.ts) -- omitted for finished cleans, same as prep. Drives
   // the same-day label and the ordering within each day.
   turnover?: Turnover | null;
+  // Set when the assigned cleaner has more than one clean on this same day
+  // (see sameDayCounts in src/lib/cleans.ts) -- staff-facing, so a double
+  // booking is seen before anyone's told to do two places at once.
+  clash?: string | null;
 };
 
 function CleanRows({ rows }: { rows: CleanRow[] }) {
@@ -44,6 +48,7 @@ function CleanRows({ rows }: { rows: CleanRow[] }) {
                   {c.subtitle ? ` · ${c.subtitle}` : ""}
                 </p>
                 {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
+                {c.clash && <span className={`mt-1.5 mr-1.5 ${badge("outline")}`}>{c.clash}</span>}
                 {label &&
                   (label.urgent ? (
                     <span className={`mt-1.5 ${badge("solid")}`}>{label.text}</span>

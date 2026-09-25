@@ -39,6 +39,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   });
   if (!invoice) notFound();
 
+  // One invoice is one cleaner at one property, so its visits are all billed
+  // the same way: every one at the agreed flat fee, or all by the hour.
+  const allFlat = invoice.lines.length > 0 && invoice.lines.every((l) => l.flatFee !== null);
+
   const activity = await prisma.auditLog.findMany({
     where: { entityType: "Invoice", entityId: invoice.id },
     orderBy: { createdAt: "desc" },
@@ -81,7 +85,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </div>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Rate</span>
-          <span>{formatCurrency(invoice.hourlyRate)}/hr</span>
+          <span>
+            {allFlat
+              ? `Flat fee ${formatCurrency(invoice.lines[0].flatFee!)} per visit`
+              : `${formatCurrency(invoice.hourlyRate)}/hr`}
+          </span>
         </div>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Total hours</span>
@@ -102,7 +110,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             // minimum" note no longer applies -- the billed hours are
             // whatever staff set, not derived from the visit any more.
             const toppedUp = !line.adjusted && line.hours > actualHours + 1 / 3600; // +1s slack for float rounding
-            const suspiciouslyShort = actualHours * 60 < SUSPICIOUSLY_SHORT_MINUTES;
+            // A flat-fee visit pays the same however long it took, so a short
+            // one isn't a billing question.
+            const isFlat = line.flatFee !== null;
+            const suspiciouslyShort = !isFlat && actualHours * 60 < SUSPICIOUSLY_SHORT_MINUTES;
             return (
               <li key={line.id} className={card("flex flex-col gap-3 p-4")}>
                 <div className="flex items-center justify-between gap-4">
@@ -110,7 +121,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     {formatScheduledFor(line.arrivedAt)} – {formatScheduledFor(line.departedAt)}
                   </span>
                   <span className="shrink-0 text-sm text-zinc-500">
-                    {formatHours(line.hours)}
+                    {isFlat ? `Flat fee (${formatHours(actualHours)} on site)` : formatHours(line.hours)}
                     {line.adjusted && ` (adjusted — actual visit ${formatHours(actualHours)})`}
                     {toppedUp && ` (${formatHours(actualHours)} actual, topped up to minimum)`}
                     {" · "}
@@ -122,7 +133,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     Only {formatHours(actualHours)} on site — worth checking before this gets paid.
                   </p>
                 )}
-                {!invoice.paidAt && (
+                {!invoice.paidAt && !isFlat && (
                   <form
                     action={adjustInvoiceLineHours.bind(null, line.id)}
                     className="flex items-center gap-2"

@@ -94,11 +94,27 @@ export async function generateInvoices(
     cleanerId: string;
     cleanerName: string;
     hourlyRate: number | null;
+    // An agreed flat fee for this cleaner at this property, if any -- see
+    // PropertyCleaner.flatFee. Takes over from hours x rate for every visit in
+    // the group.
+    flatFee: number | null;
     propertyId: string;
     minBillableHours: number | null;
     logs: { id: string; arrivedAt: Date; departedAt: Date }[];
   };
   const groups = new Map<string, Group>();
+
+  // `not: null` is the null-aware form Prisma handles itself -- only pairs
+  // with a fee agreed come back.
+  const feeRows = await prisma.propertyCleaner.findMany({
+    where: {
+      flatFee: { not: null },
+      cleanerId: { in: [...new Set(eligibleLogs.map((l) => l.clean.assignedTo!.id))] },
+      propertyId: { in: [...new Set(eligibleLogs.map((l) => l.clean.property.id))] },
+    },
+    select: { cleanerId: true, propertyId: true, flatFee: true },
+  });
+  const flatFees = new Map(feeRows.map((f) => [`${f.cleanerId}:${f.propertyId}`, f.flatFee as number]));
 
   for (const log of eligibleLogs) {
     // Both are guaranteed by the where clause above (assignedToId not null,
@@ -111,6 +127,7 @@ export async function generateInvoices(
       cleanerId: cleaner.id,
       cleanerName: cleaner.name,
       hourlyRate: cleaner.hourlyRate,
+      flatFee: flatFees.get(key) ?? null,
       propertyId,
       minBillableHours: log.clean.property.minBillableHours,
       logs: [],
@@ -123,9 +140,9 @@ export async function generateInvoices(
   const skippedCleanerNames = new Set<string>();
 
   for (const group of groups.values()) {
-    if (group.hourlyRate === null) {
-      // No rate set -- reported back by name rather than invoiced at £0,
-      // which would silently under-bill and look like real data.
+    if (group.hourlyRate === null && group.flatFee === null) {
+      // No rate and no flat fee -- reported back by name rather than invoiced
+      // at £0, which would silently under-bill and look like real data.
       skippedCleanerNames.add(group.cleanerName);
       continue;
     }
@@ -143,7 +160,10 @@ export async function generateInvoices(
         arrivedAt: log.arrivedAt,
         departedAt: log.departedAt,
         hours,
-        amount: hours * group.hourlyRate!,
+        // A flat fee is what's paid however long the visit took; the hours
+        // are still recorded as the real visit.
+        amount: group.flatFee ?? hours * group.hourlyRate!,
+        flatFee: group.flatFee,
       };
     });
     const totalHours = lines.reduce((sum, l) => sum + l.hours, 0);
@@ -155,7 +175,9 @@ export async function generateInvoices(
         propertyId: group.propertyId,
         periodStart,
         periodEnd,
-        hourlyRate: group.hourlyRate,
+        // Invoice.hourlyRate is required; a cleaner paid only by flat fees may
+        // have no hourly rate at all, and every line here says it was flat.
+        hourlyRate: group.hourlyRate ?? 0,
         totalHours,
         totalAmount,
         lines: { create: lines },

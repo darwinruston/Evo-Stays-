@@ -5,7 +5,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { isRunningLow } from "@/lib/stock";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { card } from "@/lib/ui";
-import { isCleanFinished } from "@/lib/cleans";
+import { isCleanFinished, sameDayCounts, sameDayLabel } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { turnoversFor } from "@/lib/turnover";
 import { toIsoDate } from "@/lib/schedule";
@@ -82,6 +82,7 @@ export default async function AdminHomePage() {
     { href: "/admin/cleans", label: "Same-day turnovers today", value: sameDayToday },
   ];
 
+  const clashes = sameDayCounts(thisWeek);
   const thisWeekRows: CleanRow[] = thisWeek.map((c) => ({
     id: c.id,
     href: `/admin/cleans/${c.id}`,
@@ -91,6 +92,7 @@ export default async function AdminHomePage() {
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
     turnover: turnovers.get(c.id) ?? null,
+    clash: clashes.has(c.id) ? sameDayLabel(c.assignedTo?.name, clashes.get(c.id)!) : null,
   }));
 
   return (

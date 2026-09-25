@@ -14,7 +14,7 @@ import { CleanList, type CleanRow } from "@/components/CleanList";
 import { formatCurrency } from "@/lib/invoices";
 import { formatDate } from "@/lib/schedule";
 import { badge, button, card } from "@/lib/ui";
-import { isCleanFinished } from "@/lib/cleans";
+import { isCleanFinished, sameDayCounts, sameDayLabel } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { turnoversFor } from "@/lib/turnover";
 import {
@@ -26,6 +26,7 @@ import {
   removeCleanerProperty,
   reassignUpcomingCleans,
   reassignPropertyCleansToCleaner,
+  updateCleanerPropertyFee,
 } from "../actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -73,6 +74,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   // Only unfinished cleans have a turnover worth flagging -- one pass over
   // the synced bookings for the whole list (see turnoversFor).
   const turnovers = await turnoversFor(cleaner.assignedCleans.filter((c) => !isCleanFinished(c.status)));
+  const clashes = sameDayCounts(cleaner.assignedCleans);
   const rows: CleanRow[] = cleaner.assignedCleans.map((c) => ({
     id: c.id,
     href: `/admin/cleans/${c.id}`,
@@ -81,6 +83,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
     status: c.status,
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
+    clash: clashes.has(c.id) ? sameDayLabel(cleaner.name, clashes.get(c.id)!) : null,
     turnover: turnovers.get(c.id) ?? null,
   }));
 
@@ -199,6 +202,9 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
                 removeAction={removeCleanerProperty.bind(null, cleaner.id, d.propertyId)}
                 moveAction={reassignPropertyCleansToCleaner.bind(null, d.propertyId, cleaner.id)}
                 pendingCount={movablePendingCountByProperty.get(d.propertyId) ?? 0}
+                flatFee={d.flatFee}
+                hourlyRate={cleaner.hourlyRate}
+                feeAction={updateCleanerPropertyFee.bind(null, cleaner.id, d.propertyId)}
               />
             ))}
           </ul>

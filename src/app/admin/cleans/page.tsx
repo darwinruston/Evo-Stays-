@@ -6,7 +6,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { CleanFilters } from "@/components/CleanFilters";
 import { button } from "@/lib/ui";
-import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
+import { CLEAN_STATUS_LABELS, isCleanFinished, sameDayCounts, sameDayLabel } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { turnoversFor } from "@/lib/turnover";
 
@@ -71,6 +71,7 @@ export default async function CleansPage({
   // Only unfinished cleans have a turnover worth flagging -- one pass over
   // the synced bookings for the whole list (see turnoversFor).
   const turnovers = await turnoversFor(cleans.filter((c) => !isCleanFinished(c.status)));
+  const clashes = sameDayCounts(cleans);
   const rows: CleanRow[] = cleans.map((c) => ({
     id: c.id,
     href: `/admin/cleans/${c.id}${filterQuery ? `?${filterQuery}` : ""}`,
@@ -79,6 +80,7 @@ export default async function CleansPage({
     status: c.status,
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
+    clash: clashes.has(c.id) ? sameDayLabel(c.assignedTo?.name, clashes.get(c.id)!) : null,
     turnover: turnovers.get(c.id) ?? null,
   }));
 

@@ -18,6 +18,9 @@ export function DesignatedPropertyRow({
   removeAction,
   moveAction,
   pendingCount,
+  flatFee,
+  hourlyRate,
+  feeAction,
 }: {
   propertyName: string;
   propertyHref: string;
@@ -26,8 +29,13 @@ export function DesignatedPropertyRow({
   removeAction: (formData: FormData) => void;
   moveAction: (formData: FormData) => Promise<void>;
   pendingCount: number;
+  // The agreed flat fee per clean here, or null when paid by the hour.
+  flatFee: number | null;
+  hourlyRate: number | null;
+  feeAction: (formData: FormData) => Promise<void>;
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(moveAction);
+  const fee = useRevealForm(feeAction);
   const [confirmingAll, setConfirmingAll] = useState(false);
   const [allError, setAllError] = useState<string | null>(null);
   const [movingAll, startMoveAll] = useTransition();
@@ -56,6 +64,22 @@ export function DesignatedPropertyRow({
             </Link>
           </p>
           <p className="truncate text-sm text-zinc-500">{clientName}</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            {flatFee !== null
+              ? `Paid £${flatFee.toFixed(2)} per clean, however long it takes`
+              : hourlyRate !== null
+                ? `Paid by the hour (£${hourlyRate.toFixed(2)}/hr)`
+                : "Paid by the hour — no hourly rate set"}{" "}
+            {!fee.open && (
+              <button
+                type="button"
+                onClick={() => fee.setOpen(true)}
+                className="underline decoration-dotted underline-offset-2 hover:text-zinc-900"
+              >
+                {flatFee !== null ? "Change" : "Set a flat fee"}
+              </button>
+            )}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {pendingCount > 0 && !open && !confirmingAll && (
@@ -83,6 +107,38 @@ export function DesignatedPropertyRow({
           </form>
         </div>
       </div>
+
+      {fee.open && (
+        <form action={fee.submit} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`flatFee-${propertyHref}`} className="text-sm font-medium">
+              Flat fee per clean (£)
+            </label>
+            <input
+              id={`flatFee-${propertyHref}`}
+              name="flatFee"
+              type="number"
+              min={0}
+              step="0.01"
+              autoFocus
+              defaultValue={flatFee ?? ""}
+              placeholder="e.g. 80"
+              className={`${inputCompact} w-32`}
+            />
+          </div>
+          <button type="submit" disabled={fee.pending} className={button("primary", "sm")}>
+            {fee.pending ? "Saving…" : "Save"}
+          </button>
+          <button type="button" onClick={() => fee.setOpen(false)} className={button("ghost", "sm")}>
+            Cancel
+          </button>
+          {fee.error && <p className="w-full text-xs text-red-600">{fee.error}</p>}
+          <p className="w-full text-xs text-zinc-500">
+            Paid for every completed clean here, whatever time the cleaner spends. Leave blank to pay by
+            the hour instead. Only applies to invoices generated from now on.
+          </p>
+        </form>
+      )}
 
       {confirmingAll && (
         <div className="flex flex-wrap items-center gap-3 border-t border-black/5 pt-3">

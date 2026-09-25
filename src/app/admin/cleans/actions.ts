@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { createCleanRecord, CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { propertyDisplayName } from "@/lib/address";
-import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
+import { formatScheduledFor, isDateOnly, sameCalendarDay } from "@/lib/schedule";
 import { logAudit } from "@/lib/audit";
 import { notify, newCleanNotices, cleanEditNotices, cleanCancelledNotice } from "@/lib/notify";
 import { turnoverFor, isAtRisk, atRiskNotices } from "@/lib/turnover";
@@ -159,6 +159,58 @@ export async function updateClean(id: string, formData: FormData) {
   revalidatePath(`/admin/cleans/${id}`);
   revalidatePath("/cleaner");
   redirect(`/admin/cleans/${id}`);
+}
+
+// Move a clean that hasn't started to another day, changing nothing else --
+// the quick fix for two cleans landing on the same day for one cleaner.
+// The time of day is kept where the clean has one; a date-only clean (as
+// booking syncs create) stays date-only. The booking syncs only re-apply a
+// booking's date when that booking itself changes, so this sticks until then.
+export async function rescheduleClean(id: string, formData: FormData) {
+  const session = await requireStaff();
+
+  const day = str(formData, "date");
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("Choose a date");
+
+  const before = await prisma.clean.findUniqueOrThrow({
+    where: { id },
+    include: {
+      assignedTo: { select: { name: true } },
+      property: { select: { name: true, address: true } },
+    },
+  });
+  if (before.status !== "PENDING") throw new Error("Only a clean that hasn't started can be moved");
+
+  const [y, m, d] = day.split("-").map(Number);
+  const scheduledFor =
+    before.scheduledFor && !isDateOnly(before.scheduledFor)
+      ? new Date(y, m - 1, d, before.scheduledFor.getHours(), before.scheduledFor.getMinutes())
+      : new Date(Date.UTC(y, m - 1, d));
+  if (sameCalendarDay(before.scheduledFor, scheduledFor)) return;
+
+  // A new day is a new deadline, so any at-risk alert already sent for the
+  // old one is cleared (see checkAtRiskTurnovers).
+  const after = await prisma.clean.update({
+    where: { id },
+    data: { scheduledFor, atRiskNotifiedAt: null },
+    include: {
+      assignedTo: { select: { name: true } },
+      property: { select: { name: true, address: true } },
+    },
+  });
+
+  await notify(cleanEditNotices(before, after));
+  await logAudit({
+    actorId: session.user.id,
+    entityType: "Clean",
+    entityId: id,
+    summary: `Rescheduled from ${before.scheduledFor ? formatScheduledFor(before.scheduledFor) : "unscheduled"} to ${formatScheduledFor(scheduledFor)}`,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/cleans");
+  revalidatePath(`/admin/cleans/${id}`);
+  revalidatePath("/cleaner");
 }
 
 export async function deleteClean(id: string) {

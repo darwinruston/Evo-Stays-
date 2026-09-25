@@ -182,6 +182,40 @@ export async function assignCleanerProperty(cleanerId: string, formData: FormDat
   revalidatePath(`/admin/cleaners/${cleanerId}`);
 }
 
+// The flat fee agreed for this cleaner at this property -- blank clears it
+// and they go back to being paid by the hour there. Only affects invoices
+// generated afterwards; each invoice line keeps the fee it was billed at.
+export async function updateCleanerPropertyFee(cleanerId: string, propertyId: string, formData: FormData) {
+  const session = await requireStaff();
+
+  const flatFee = rate(formData, "flatFee");
+  const raw = str(formData, "flatFee");
+  if (raw !== null && flatFee === null) throw new Error("Enter an amount of 0 or more, like 80 or 80.00");
+
+  const designation = await prisma.propertyCleaner.findUnique({
+    where: { propertyId_cleanerId: { propertyId, cleanerId } },
+    select: { property: { select: { name: true, address: true } } },
+  });
+  if (!designation) throw new Error("That property isn't designated to this cleaner any more");
+
+  await prisma.propertyCleaner.update({
+    where: { propertyId_cleanerId: { propertyId, cleanerId } },
+    data: { flatFee },
+  });
+
+  await logAudit({
+    actorId: session.user.id,
+    entityType: "Cleaner",
+    entityId: cleanerId,
+    summary:
+      flatFee !== null
+        ? `Flat fee for ${designation.property.name || designation.property.address} set to ${formatCurrency(flatFee)} per clean`
+        : `Flat fee for ${designation.property.name || designation.property.address} cleared — paid by the hour`,
+  });
+
+  revalidatePath(`/admin/cleaners/${cleanerId}`);
+}
+
 export async function removeCleanerProperty(cleanerId: string, propertyId: string) {
   await requireStaff();
 

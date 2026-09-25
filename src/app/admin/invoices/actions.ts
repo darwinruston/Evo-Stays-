@@ -98,6 +98,9 @@ export async function adjustInvoiceLineHours(lineId: string, formData: FormData)
   if (line.invoice.paidAt) {
     throw new Error("Mark the invoice unpaid before adjusting a visit.");
   }
+  if (line.flatFee !== null) {
+    throw new Error("This visit is billed at a flat fee, so its hours don't change what's paid.");
+  }
 
   const amount = hours * line.invoice.hourlyRate;
   const previousHours = line.hours;

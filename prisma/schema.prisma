@@ -409,6 +409,13 @@ model PropertyCleaner {
   propertyId String
   cleaner    User     @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
   cleanerId  String
+  // A flat fee agreed for this cleaner doing this property -- "always £80
+  // for Saltdean", however long the visit takes. When set, invoices bill
+  // this per completed visit instead of hours x hourly rate (see
+  // generateInvoices in src/lib/invoices.ts). Null means paid by the hour.
+  // Only affects invoices generated after it's set: each line snapshots the
+  // fee it was billed at (InvoiceLine.flatFee).
+  flatFee    Float?
   createdAt  DateTime @default(now())
 
   @@unique([propertyId, cleanerId])
@@ -521,6 +528,11 @@ model InvoiceLine {
   // e.g. a visit with an obviously bad checkout timestamp. arrivedAt/
   // departedAt are left untouched (the real record of what happened); only
   // what's actually billed changes. See adjustInvoiceLineHours.
+  // Set when this visit was billed at a flat fee rather than hours x rate
+  // (see PropertyCleaner.flatFee): the agreed amount, snapshotted here so a
+  // later change to the fee never rewrites an invoice already generated.
+  // hours/arrivedAt/departedAt are still recorded as the real visit.
+  flatFee    Float?
   adjusted   Boolean  @default(false)
 
   @@index([invoiceId])

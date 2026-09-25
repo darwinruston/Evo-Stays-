@@ -1,7 +1,7 @@
 import type { CleanStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { autoAssignCleaner } from "@/lib/autoAssign";
-import { toIsoDate } from "@/lib/schedule";
+import { calendarDayKey, toIsoDate } from "@/lib/schedule";
 
 // The actual "make a Clean row" step, shared by the admin create-clean form
 // (src/app/admin/cleans/actions.ts) and iCal sync (src/lib/icalSync.ts) --
@@ -67,4 +67,30 @@ export const CLEAN_STATUS_LABELS: Record<CleanStatus, string> = {
 // groupCleansByTime.
 export function isCleanFinished(status: CleanStatus): boolean {
   return status === "COMPLETED" || status === "CANCELLED";
+}
+
+// Cleans that share a cleaner and a calendar day with at least one other
+// still-to-do clean -- map of clean id to how many that cleaner has that day.
+// Cancelled and completed cleans don't count: only work still ahead can clash.
+// Unassigned or unscheduled cleans can't.
+export function sameDayCounts(
+  cleans: { id: string; assignedToId: string | null; scheduledFor: Date | null; status: CleanStatus }[],
+): Map<string, number> {
+  const byKey = new Map<string, string[]>();
+  for (const c of cleans) {
+    if (!c.assignedToId || !c.scheduledFor || isCleanFinished(c.status)) continue;
+    const key = `${c.assignedToId}:${calendarDayKey(c.scheduledFor)}`;
+    const ids = byKey.get(key);
+    if (ids) ids.push(c.id);
+    else byKey.set(key, [c.id]);
+  }
+  const counts = new Map<string, number>();
+  for (const ids of byKey.values()) {
+    if (ids.length > 1) for (const id of ids) counts.set(id, ids.length);
+  }
+  return counts;
+}
+
+export function sameDayLabel(cleanerName: string | null | undefined, count: number): string {
+  return `${cleanerName ?? "Cleaner"} has ${count} cleans this day`;
 }
