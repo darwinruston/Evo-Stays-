@@ -207,6 +207,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         {availableProperties.length > 0 ? (
           <AddPropertyForm
             action={assignCleanerProperty.bind(null, cleaner.id)}
+            cleanerName={cleaner.name}
             options={availableProperties.map((p) => ({
               id: p.id,
               label: `${propertyDisplayName(p)} — ${p.client.name}`,

@@ -157,7 +157,7 @@ export async function updateCleanerScheduleHorizon(id: string, formData: FormDat
 // regardless. A property with no designation at all is left Unassigned for
 // an admin to direct, rather than auto-assign guessing at random.
 export async function assignCleanerProperty(cleanerId: string, formData: FormData) {
-  await requireStaff();
+  const session = await requireStaff();
 
   const propertyId = str(formData, "propertyId");
   if (!propertyId) throw new Error("Choose a property");
@@ -170,6 +170,13 @@ export async function assignCleanerProperty(cleanerId: string, formData: FormDat
     // conflict to explain here (unlike one listing linking to two
     // properties), just a redundant click.
     if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== "P2002") throw err;
+  }
+
+  // Designating only ever affects cleans created from now on, so the ticked
+  // box hands over what's already on the books too. Nothing to move is
+  // fine here -- the designation itself is what was asked for.
+  if (formData.get("moveCleans") === "on") {
+    await moveCleansToCleaner(session.user.id, propertyId, cleanerId);
   }
 
   revalidatePath(`/admin/cleaners/${cleanerId}`);
@@ -254,32 +261,25 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
   revalidatePath("/cleaner");
 }
 
-// Moves a property's existing upcoming cleans to a cleaner just designated
-// on it -- designating someone (assignCleanerProperty above) only ever
-// affects new cleans going forward; it never touches work already on the
-// books, which otherwise stays wherever it was before the designation
-// existed. Same PENDING-only, optional-date-range shape as
-// reassignUpcomingCleans, just keyed by property instead of by source
-// cleaner. Deliberately `OR [null, not: cleanerId]` rather than just
-// `not: cleanerId` -- SQL's `<>` is NULL-unsafe (NULL <> x is neither true
-// nor false), so a plain `not` silently excludes every Unassigned clean
-// instead of picking them up, which is the main case this exists for.
-export async function reassignPropertyCleansToCleaner(
+// Moves a property's existing upcoming cleans to a cleaner designated on it
+// -- designating someone only ever affects new cleans going forward, so
+// whatever is already on the books stays wherever it was unless this runs.
+// Shared by "Move cleans here" (a date range, or all of them) and by
+// designating with the "also move its upcoming cleans" box ticked. Only
+// PENDING cleans move, and only ones not already theirs -- `OR [null, not:
+// id]` because a plain `not` would silently skip Unassigned cleans under
+// SQL's NULL semantics (SQL's `<>` is NULL-unsafe). Returns how many moved.
+async function moveCleansToCleaner(
+  actorId: string,
   propertyId: string,
   cleanerId: string,
-  formData: FormData,
-) {
-  const session = await requireStaff();
-
+  range: { fromDate: Date | null; toDate: Date | null } = { fromDate: null, toDate: null },
+): Promise<number> {
   const [property, cleaner] = await Promise.all([
     prisma.property.findUniqueOrThrow({ where: { id: propertyId }, select: { name: true, address: true } }),
     prisma.user.findUniqueOrThrow({ where: { id: cleanerId, role: "CLEANER" }, select: { name: true } }),
   ]);
-
-  const fromRaw = str(formData, "fromDate");
-  const toRaw = str(formData, "toDate");
-  const fromDate = fromRaw ? parseIsoDate(fromRaw) : null;
-  const toDate = toRaw ? parseIsoDate(toRaw) : null;
+  const { fromDate, toDate } = range;
 
   const affected = await prisma.clean.findMany({
     where: {
@@ -300,9 +300,7 @@ export async function reassignPropertyCleansToCleaner(
       property: { select: { name: true, address: true } },
     },
   });
-  if (affected.length === 0) {
-    throw new Error("No upcoming cleans to move in that range");
-  }
+  if (affected.length === 0) return 0;
 
   const ids = affected.map((c) => c.id);
   await prisma.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: cleanerId } });
@@ -316,7 +314,7 @@ export async function reassignPropertyCleansToCleaner(
 
   for (const clean of affected) {
     await logAudit({
-      actorId: session.user.id,
+      actorId,
       entityType: "Clean",
       entityId: clean.id,
       summary: `Reassigned from ${clean.assignedTo?.name ?? "Unassigned"} to ${cleaner.name} (${property.name || property.address} designation)`,
@@ -327,6 +325,23 @@ export async function reassignPropertyCleansToCleaner(
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/cleans");
   revalidatePath("/cleaner");
+  return affected.length;
+}
+
+export async function reassignPropertyCleansToCleaner(
+  propertyId: string,
+  cleanerId: string,
+  formData: FormData,
+) {
+  const session = await requireStaff();
+
+  const fromRaw = str(formData, "fromDate");
+  const toRaw = str(formData, "toDate");
+  const moved = await moveCleansToCleaner(session.user.id, propertyId, cleanerId, {
+    fromDate: fromRaw ? parseIsoDate(fromRaw) : null,
+    toDate: toRaw ? parseIsoDate(toRaw) : null,
+  });
+  if (moved === 0) throw new Error("No upcoming cleans to move in that range");
 }
 
 export async function deleteCleaner(id: string) {

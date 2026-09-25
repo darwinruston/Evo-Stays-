@@ -10,9 +10,11 @@ import { button, card, inputCompact } from "@/lib/ui";
 export function AddPropertyForm({
   action,
   options,
+  cleanerName,
 }: {
   action: (formData: FormData) => Promise<void>;
   options: { id: string; label: string }[];
+  cleanerName: string;
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(action);
 
@@ -46,6 +48,16 @@ export function AddPropertyForm({
           Cancel
         </button>
       </div>
+      <label className="flex items-start gap-2 text-sm text-zinc-700">
+        <input type="checkbox" name="moveCleans" defaultChecked className="mt-0.5" />
+        <span>
+          Also move this property&apos;s upcoming cleans to {cleanerName}
+          <span className="block text-xs text-zinc-500">
+            Only cleans that haven&apos;t started. Untick to leave existing cleans with whoever has them and
+            only use {cleanerName} for new ones.
+          </span>
+        </span>
+      </label>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </form>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRevealForm } from "@/lib/useRevealForm";
 import { button, card, inputCompact } from "@/lib/ui";
@@ -27,6 +28,23 @@ export function DesignatedPropertyRow({
   pendingCount: number;
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(moveAction);
+  const [confirmingAll, setConfirmingAll] = useState(false);
+  const [allError, setAllError] = useState<string | null>(null);
+  const [movingAll, startMoveAll] = useTransition();
+
+  // No dates at all means every not-yet-started clean here -- the same
+  // action as the date form, just with nothing to narrow it.
+  function moveAll() {
+    setAllError(null);
+    startMoveAll(async () => {
+      try {
+        await moveAction(new FormData());
+        setConfirmingAll(false);
+      } catch (err) {
+        setAllError(err instanceof Error ? err.message : "Something went wrong.");
+      }
+    });
+  }
 
   return (
     <li className={card("flex flex-col gap-3 p-4")}>
@@ -40,14 +58,23 @@ export function DesignatedPropertyRow({
           <p className="truncate text-sm text-zinc-500">{clientName}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          {pendingCount > 0 && !open && (
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="text-xs text-zinc-500 underline decoration-dotted underline-offset-2 hover:text-zinc-900"
-            >
-              Move cleans here
-            </button>
+          {pendingCount > 0 && !open && !confirmingAll && (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmingAll(true)}
+                className="text-xs font-medium text-zinc-700 underline decoration-dotted underline-offset-2 hover:text-zinc-900"
+              >
+                Move all {pendingCount} here
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="text-xs text-zinc-500 underline decoration-dotted underline-offset-2 hover:text-zinc-900"
+              >
+                By date…
+              </button>
+            </>
           )}
           <form action={removeAction}>
             <button type="submit" className="text-xs text-red-600 hover:underline">
@@ -56,6 +83,29 @@ export function DesignatedPropertyRow({
           </form>
         </div>
       </div>
+
+      {confirmingAll && (
+        <div className="flex flex-wrap items-center gap-3 border-t border-black/5 pt-3">
+          <p className="text-sm text-zinc-700">
+            Move all {pendingCount} upcoming {pendingCount === 1 ? "clean" : "cleans"} at this property to{" "}
+            {cleanerName}? Anything already started or finished stays as it is.
+          </p>
+          <button type="button" onClick={moveAll} disabled={movingAll} className={button("primary", "sm")}>
+            {movingAll ? "Moving…" : `Yes, move all ${pendingCount}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmingAll(false);
+              setAllError(null);
+            }}
+            className={button("ghost", "sm")}
+          >
+            Cancel
+          </button>
+          {allError && <p className="w-full text-xs text-red-600">{allError}</p>}
+        </div>
+      )}
 
       {open && (
         <form action={submit} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3">
@@ -80,7 +130,7 @@ export function DesignatedPropertyRow({
           {error && <p className="w-full text-xs text-red-600">{error}</p>}
           <p className="w-full text-xs text-zinc-500">
             {pendingCount} upcoming {pendingCount === 1 ? "clean" : "cleans"} here not yet assigned to{" "}
-            {cleanerName}. Leave both dates blank to move all of them.
+            {cleanerName}. Pick a start date, an end date, or both to move just that stretch.
           </p>
         </form>
       )}
