@@ -47,3 +47,6 @@ next-env.d.ts
 # uploaded photos (served from disk via /api routes, never from public/)
 /storage
 
+
+# Auto-created encryption key (see src/lib/encryption.ts) -- never commit
+.encryption-key
