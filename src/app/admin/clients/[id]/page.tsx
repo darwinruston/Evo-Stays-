@@ -46,16 +46,18 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <Link href="/admin/clients" className="text-sm text-zinc-500 hover:text-zinc-900">
           ← Clients
         </Link>
-        <div className="mt-2 flex items-center gap-4">
-          <Avatar name={client.name} photoPath={client.photoPath} size={56} />
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
-            <p className="mt-0.5 text-sm text-zinc-500">
-              {client.email ?? "No email"}
-              {client.phone ? ` · ${client.phone}` : ""}
-            </p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            <Avatar name={client.name} photoPath={client.photoPath} size={56} />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
+              <p className="mt-0.5 truncate text-sm text-zinc-500">
+                {client.email ?? "No email"}
+                {client.phone ? ` · ${client.phone}` : ""}
+              </p>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link href={`/admin/invoices?clientId=${client.id}`} className={button("secondary", "sm")}>
               Invoices ({invoiceCount})
             </Link>
@@ -91,11 +93,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       </section>
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-zinc-500">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="whitespace-nowrap text-sm font-medium text-zinc-500">
             Portfolio ({client.properties.length})
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {client.hostifyApiKey && (
               <Link href={`/admin/clients/${client.id}/import`} className={button("secondary", "sm")}>
                 Import from Hostify
@@ -117,10 +119,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               <li key={p.id}>
                 <Link
                   href={`/admin/properties/${p.id}`}
-                  className={card("flex items-center justify-between p-4 transition-colors hover:bg-black/[0.02]")}
+                  className={card("flex items-center justify-between gap-3 p-4 transition-colors hover:bg-black/[0.02]")}
                 >
-                  <span className="font-medium">{propertyDisplayName(p)}</span>
-                  <span className="text-sm text-zinc-500">
+                  <span className="min-w-0 font-medium">{propertyDisplayName(p)}</span>
+                  <span className="shrink-0 whitespace-nowrap text-sm text-zinc-500">
                     {p.bedrooms ?? "?"} bed · sleeps {p.maxOccupancy ?? "?"}
                   </span>
                 </Link>
