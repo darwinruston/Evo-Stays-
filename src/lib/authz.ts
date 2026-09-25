@@ -14,6 +14,16 @@ export async function requireStaff() {
   return session;
 }
 
+// Managing who can log in as staff is admin-only -- office users run the
+// day-to-day schedule but can't create or change other staff logins.
+export async function requireAdmin() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  if (session.user.role === "OFFICE") redirect("/admin");
+  if (session.user.role !== "ADMIN") redirect("/");
+  return session;
+}
+
 // For generateMetadata on staff-only detail pages. Metadata is resolved
 // alongside the page, so its <title> can end up in the response body even
 // when the layout's requireStaff redirects a cleaner away -- which would

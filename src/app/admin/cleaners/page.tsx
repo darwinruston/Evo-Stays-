@@ -15,7 +15,7 @@ function weekWindow() {
 }
 
 export default async function CleanersPage() {
-  await requireStaff();
+  const session = await requireStaff();
   const { start, end } = weekWindow();
 
   const [cleaners, thisWeekByCleaner] = await Promise.all([
@@ -50,6 +50,15 @@ export default async function CleanersPage() {
           New cleaner
         </Link>
       </div>
+
+      {session.user.role === "ADMIN" && (
+        <p className="text-sm text-zinc-500">
+          Need a login for office staff or another admin?{" "}
+          <Link href="/admin/staff" className="underline underline-offset-2 hover:text-zinc-900">
+            Staff logins
+          </Link>
+        </p>
+      )}
 
       <p className="text-sm text-zinc-600">
         A cleaner sees only the properties they&apos;re assigned a clean at — access notes carry
