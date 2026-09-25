@@ -34,13 +34,26 @@ function CountBadge({ item, className }: { item: NavItem; className: string }) {
   );
 }
 
-function NavLink({ item, iconOnly = false }: { item: NavItem; iconOnly?: boolean }) {
+// `onNavigate` lets the hamburger dropdown close the moment a link is tapped.
+// Closing only when the pathname changes (below) isn't enough: tapping the
+// page you're already on changes nothing, so the menu just sat there and the
+// tap looked ignored.
+function NavLink({
+  item,
+  iconOnly = false,
+  onNavigate,
+}: {
+  item: NavItem;
+  iconOnly?: boolean;
+  onNavigate?: () => void;
+}) {
   if (item.icon && iconOnly) {
     return (
       <Link
         href={item.href}
         aria-label={item.label}
         title={item.label}
+        onClick={onNavigate}
         className={`${linkClass} relative inline-flex items-center`}
       >
         <BellIcon className="h-5 w-5" />
@@ -49,7 +62,7 @@ function NavLink({ item, iconOnly = false }: { item: NavItem; iconOnly?: boolean
     );
   }
   return (
-    <Link href={item.href} className={`${linkClass} inline-flex items-center gap-1.5`}>
+    <Link href={item.href} onClick={onNavigate} className={`${linkClass} inline-flex items-center gap-1.5`}>
       {item.icon && <BellIcon className="h-4 w-4" />}
       {item.label}
       <CountBadge item={item} className="" />
@@ -151,13 +164,13 @@ export function NavMenu({
           className={`absolute inset-x-0 top-full flex flex-col gap-1 border-b border-black/5 bg-background p-3 shadow-sm ${bp.mobileOnly}`}
         >
           {items.map((item) => (
-            <NavLink key={item.href} item={item} />
+            <NavLink key={item.href} item={item} onNavigate={() => setOpen(false)} />
           ))}
           {rightItems.length > 0 && (
             <>
               <div className="my-1 border-t border-black/5" />
               {rightItems.map((item) => (
-                <NavLink key={item.href} item={item} />
+                <NavLink key={item.href} item={item} onNavigate={() => setOpen(false)} />
               ))}
             </>
           )}
