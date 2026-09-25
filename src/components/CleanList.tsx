@@ -96,6 +96,35 @@ export function CleanList({
   return (
     <div className="flex flex-col gap-6">
       {groups.map(({ group, cleans: rows }) => {
+        // Overdue stays at the top -- it's the one bucket that means
+        // something is late -- but as a slim collapsed bar with its count, so
+        // Today and Tomorrow are what the eye lands on first, and the late
+        // ones are one tap away rather than gone.
+        if (group === "Overdue") {
+          return (
+            <details key={group} className="group rounded-lg border border-black/10 bg-surface">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-sm font-semibold text-zinc-900 [&::-webkit-details-marker]:hidden">
+                <span>
+                  Overdue <span className="font-normal text-zinc-500">({rows.length})</span>
+                </span>
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8l5 5 5-5" />
+                </svg>
+              </summary>
+              <div className="border-t border-black/5 p-2">
+                <CleanRows rows={rows} />
+              </div>
+            </details>
+          );
+        }
+
         // Past cleans just accumulate forever -- collapsed by default so
         // the list reads as what's coming up, not a growing history, but
         // still one click away when someone actually needs it.
