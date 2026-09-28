@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { fetchHostifyListings, buildHostifyAddress, type HostifyListing } from "@/lib/hostifyListings";
 import { importHostifyListings } from "../../actions";
-import { button, card } from "@/lib/ui";
+import { SubmitButton } from "@/components/SubmitButton";
+import { card } from "@/lib/ui";
 
 export const metadata = { title: "Import from Hostify" };
 
@@ -83,10 +84,12 @@ export default async function ImportHostifyListingsPage({ params }: { params: Pr
             ))}
           </ul>
           <div>
-            <button type="submit" className={button("primary", "sm")}>
-              Import selected
-            </button>
+            <SubmitButton pendingLabel="Importing…">Import selected</SubmitButton>
           </div>
+          <p className="text-xs text-zinc-500">
+            Each property pulls its details, cover photo, and reservations from Hostify in turn — this
+            can take a while for more than a couple of properties.
+          </p>
         </form>
       )}
 
