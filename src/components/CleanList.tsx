@@ -14,7 +14,13 @@ export type CleanRow = {
   id: string;
   href: string;
   title: string;
+  // The company/client instructing this clean -- own line under the date, so
+  // a long cleaner name never fights it for space and gets cut off.
   subtitle?: string | null;
+  // Shown alongside the date, above subtitle -- omitted on a cleaner's own
+  // schedule (whose page this is is already obvious) or wherever there's no
+  // cleaner context worth repeating on every row.
+  cleanerName?: string | null;
   status: CleanStatus;
   scheduledFor: Date | null;
   // Omitted entirely for a cancelled/completed clean by most callers --
@@ -42,11 +48,12 @@ function CleanRows({ rows }: { rows: CleanRow[] }) {
               className={card("flex items-center justify-between gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
             >
               <div className="min-w-0">
-                <p className="font-medium">{c.title}</p>
+                <p className="truncate font-medium">{c.title}</p>
                 <p className="truncate text-sm text-zinc-500">
                   {c.scheduledFor ? formatScheduledForWithDay(c.scheduledFor) : "Not scheduled"}
-                  {c.subtitle ? ` · ${c.subtitle}` : ""}
+                  {c.cleanerName ? ` · ${c.cleanerName}` : ""}
                 </p>
+                {c.subtitle && <p className="truncate text-xs text-zinc-400">{c.subtitle}</p>}
                 {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
                 {c.clash && <span className={`mt-1.5 mr-1.5 ${badge("outline")}`}>{c.clash}</span>}
                 {label &&

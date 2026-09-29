@@ -148,8 +148,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <Link href="/admin/properties" className="text-sm text-zinc-500 hover:text-zinc-900">
           ← Properties
         </Link>
-        <div className="mt-2 flex items-start justify-between gap-4">
-          <div>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">{propertyDisplayName(property)}</h1>
             <p className="mt-0.5 text-sm text-zinc-500">
               <Link href={`/admin/clients/${property.client.id}`} className="hover:text-zinc-900">
@@ -157,7 +157,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               </Link>
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link href={`/admin/cleans?propertyId=${property.id}`} className={button("secondary", "sm")}>
               Cleans ({cleanCount})
             </Link>
