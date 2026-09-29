@@ -40,9 +40,14 @@ export const input =
   "w-full rounded-lg border border-black/10 bg-surface px-4 py-2.5 text-base outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-black/5";
 
 // A denser input for internal admin/cleaner forms -- same treatment, tighter
-// padding and text-sm to match table/list density.
+// padding and text-sm to match table/list density. text-base (not text-sm)
+// below the sm breakpoint: iOS Safari and Android Chrome auto-zoom the page
+// on focusing any input under 16px, which is exactly what text-sm (14px)
+// is -- that's the "page zooms in and I have to drag it back" behaviour,
+// not a viewport setting. Only matters on a phone-width screen; sm: and up
+// (desktop/tablet admin use) keeps the denser text-sm.
 export const inputCompact =
-  "w-full rounded-md border border-black/10 bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-black/5";
+  "w-full rounded-md border border-black/10 bg-surface px-3 py-2 text-base sm:text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-black/5";
 
 type BadgeTone = "neutral" | "solid" | "outline";
 

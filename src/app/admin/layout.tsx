@@ -56,7 +56,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <NavMenu items={items} rightItems={rightItems} logoutAction={logoutAction} breakpoint="lg" />
         </nav>
       </header>
-      <main className="px-4 py-10 sm:px-6 lg:px-10">{children}</main>
+      {/* Extra bottom padding, on top of the phone's own safe-area inset --
+          see the matching comment in cleaner/layout.tsx. This area is used
+          on desktop too, where the padding is a no-op either way, so the
+          same fix applies without a breakpoint split. */}
+      <main className="px-4 pt-10 pb-[calc(3rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-10">
+        {children}
+      </main>
     </div>
   );
 }

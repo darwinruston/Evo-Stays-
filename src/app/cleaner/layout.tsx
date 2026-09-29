@@ -28,7 +28,16 @@ export default async function CleanerLayout({ children }: { children: React.Reac
           <NavMenu items={items} logoutAction={logoutAction} />
         </nav>
       </header>
-      <main className="mx-auto max-w-md px-4 py-6">{children}</main>
+      {/* Extra bottom padding, on top of the phone's own safe-area inset
+          (real on a notched/gesture-bar phone now that layout.tsx declares
+          viewport-fit=cover; 0 everywhere else) -- without it the last
+          button on a page sat right at the screen edge, where a tap can
+          land on the browser's own address/tab bar revealing itself
+          instead of the button underneath it. This area is used one-handed
+          mid-clean, so that's the button that matters most. */}
+      <main className="mx-auto max-w-md px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+        {children}
+      </main>
     </div>
   );
 }
