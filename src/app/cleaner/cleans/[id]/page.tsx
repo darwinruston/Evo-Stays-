@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
-import { formatScheduledFor } from "@/lib/schedule";
+import { formatScheduledFor, formatScheduledForWithDay } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
 import { StepProgress } from "@/components/StepProgress";
@@ -198,7 +198,7 @@ export default async function CleanerCleanPage({
           </Link>
         </h1>
         <p className="mt-1 flex items-center gap-2 text-sm text-zinc-500">
-          {clean.scheduledFor ? formatScheduledFor(clean.scheduledFor) : "Not scheduled"}
+          {clean.scheduledFor ? formatScheduledForWithDay(clean.scheduledFor) : "Not scheduled"}
           <span className={badge(clean.status === "COMPLETED" ? "solid" : "neutral")}>
             {CLEAN_STATUS_LABELS[clean.status]}
           </span>

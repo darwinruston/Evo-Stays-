@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff, isStaffSession } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
-import { calendarDayKey, formatScheduledFor } from "@/lib/schedule";
+import { calendarDayKey, formatScheduledFor, formatScheduledForWithDay } from "@/lib/schedule";
 import { RescheduleClean } from "@/components/RescheduleClean";
 import { rescheduleClean } from "../actions";
 import { CleanLogView } from "@/components/CleanLogView";
@@ -141,7 +141,7 @@ export default async function CleanDetailPage({
         </div>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Scheduled</span>
-          <span>{clean.scheduledFor ? formatScheduledFor(clean.scheduledFor) : "Not scheduled"}</span>
+          <span>{clean.scheduledFor ? formatScheduledForWithDay(clean.scheduledFor) : "Not scheduled"}</span>
         </div>
         {turnover && (
           <div className="flex justify-between gap-6 py-2 text-sm">

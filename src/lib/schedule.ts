@@ -85,6 +85,26 @@ export function formatScheduledFor(date: Date): string {
   });
 }
 
+// Same as formatScheduledFor, with the abbreviated weekday leading ("Fri 25
+// Sept" / "Fri 25 Sept, 15:00") -- for a clean's own scheduled date
+// specifically, where knowing which day of the week it falls on at a glance
+// is the point (a list of dates alone doesn't say that without doing the
+// maths). Not used for every timestamp this app shows -- an audit log entry
+// or "checked in at" time is about *when it happened*, not *which day this
+// clean is for*, so those keep the plain form.
+export function formatScheduledForWithDay(date: Date): string {
+  if (isDateOnly(date)) {
+    return date.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  }
+  return date.toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 // The span of one local day, for "what's on this date" queries.
 export function dayBounds(date: Date): { start: Date; end: Date } {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());

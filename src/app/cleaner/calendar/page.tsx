@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
-import { buildMonthGrid, toIsoDate, formatScheduledFor } from "@/lib/schedule";
+import { buildMonthGrid, toIsoDate, formatScheduledForWithDay } from "@/lib/schedule";
 import { button, card } from "@/lib/ui";
 import { blockDay, unblockDay } from "../actions";
 
@@ -177,7 +177,7 @@ export default async function CleanerCalendarPage({
                     </span>
                   </div>
                   <span className="text-sm text-zinc-600">
-                    {formatScheduledFor(c.scheduledFor!)}
+                    {formatScheduledForWithDay(c.scheduledFor!)}
                   </span>
                 </Link>
               </li>

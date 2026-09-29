@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CleanStatus } from "@prisma/client";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
-import { calendarDayKey, formatScheduledFor, groupCleansByTime } from "@/lib/schedule";
+import { calendarDayKey, formatScheduledForWithDay, groupCleansByTime } from "@/lib/schedule";
 import { badge, card } from "@/lib/ui";
 import { CleanPrepSummary } from "@/components/CleanPrepSummary";
 import type { CleanPrep } from "@/lib/cleanPrep";
@@ -44,7 +44,7 @@ function CleanRows({ rows }: { rows: CleanRow[] }) {
               <div className="min-w-0">
                 <p className="font-medium">{c.title}</p>
                 <p className="truncate text-sm text-zinc-500">
-                  {c.scheduledFor ? formatScheduledFor(c.scheduledFor) : "Not scheduled"}
+                  {c.scheduledFor ? formatScheduledForWithDay(c.scheduledFor) : "Not scheduled"}
                   {c.subtitle ? ` · ${c.subtitle}` : ""}
                 </p>
                 {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
