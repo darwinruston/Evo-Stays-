@@ -110,7 +110,7 @@ export async function updateIssue(id: string, formData: FormData) {
       ...(reopened ? { resolvedAt: null, resolvedById: null } : {}),
     },
     include: {
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
       reportedBy: { select: { id: true, role: true } },
     },
   });
@@ -160,7 +160,7 @@ export async function deleteIssue(id: string) {
 
   const issue = await prisma.issue.findUniqueOrThrow({
     where: { id },
-    include: { property: { select: { name: true, address: true } } },
+    include: { property: { select: { nickname: true, name: true, address: true } } },
   });
   await prisma.issue.delete({ where: { id } });
 

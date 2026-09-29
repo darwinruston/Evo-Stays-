@@ -181,7 +181,7 @@ type AtRiskClean = {
   id: string;
   status: string;
   assignedToId: string | null;
-  property: { name: string | null; address: string };
+  property: { nickname: string | null; name: string | null; address: string };
   assignedTo: { name: string } | null;
 };
 
@@ -249,7 +249,7 @@ export async function checkAtRiskTurnovers(now = new Date()): Promise<number> {
       scheduledFor: { gte: start, lt: end },
     },
     include: {
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
       assignedTo: { select: { name: true } },
     },
   });

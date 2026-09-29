@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!(await isStaffSession())) return { title: "Invoice" };
   const invoice = await prisma.invoice.findUnique({
     where: { id },
-    select: { cleaner: { select: { name: true } }, property: { select: { name: true, address: true } } },
+    select: { cleaner: { select: { name: true } }, property: { select: { nickname: true, name: true, address: true } } },
   });
   return {
     title: invoice ? `Invoice · ${invoice.cleaner.name} · ${propertyDisplayName(invoice.property)}` : "Invoice",

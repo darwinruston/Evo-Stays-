@@ -21,9 +21,9 @@ import {
 export async function syncCalendarFeed(feedId: string, triggeredById: string): Promise<void> {
   const feed = await prisma.propertyCalendarFeed.findUniqueOrThrow({
     where: { id: feedId },
-    include: { property: { select: { syncHorizonDays: true, name: true, address: true } } },
+    include: { property: { select: { syncHorizonDays: true, nickname: true, name: true, address: true } } },
   });
-  const property = { name: feed.property.name, address: feed.property.address };
+  const property = { nickname: feed.property.nickname, name: feed.property.name, address: feed.property.address };
 
   // A booking checking out further out than this is skipped rather than
   // turned into a clean -- re-evaluated on every later sync, so it's picked

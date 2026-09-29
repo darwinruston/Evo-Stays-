@@ -6,6 +6,7 @@ type PropertyFields = {
   id: string;
   clientId: string;
   name: string | null;
+  nickname: string | null;
   address: string;
   type: string;
   bedrooms: number | null;
@@ -79,6 +80,24 @@ export function PropertyForm({
           className={inputCompact}
         />
         <p className="text-xs text-zinc-500">Optional — falls back to the address.</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="nickname" className="text-sm font-medium">
+          Nickname
+        </label>
+        <input
+          id="nickname"
+          name="nickname"
+          defaultValue={property?.nickname ?? ""}
+          placeholder="The Blue House"
+          className={inputCompact}
+        />
+        <p className="text-xs text-zinc-500">
+          Optional — a short internal name for staff and cleaners. Takes over from the listing name
+          everywhere it&apos;s shown, including on clean tasks, without changing the listing name
+          itself.
+        </p>
       </div>
 
       <div className="flex flex-col gap-1.5">

@@ -26,7 +26,7 @@ export default async function LaundryPage() {
     orderBy: { departedAt: "desc" },
     include: {
       clean: {
-        include: { property: { select: { name: true, address: true } }, assignedTo: { select: { name: true } } },
+        include: { property: { select: { nickname: true, name: true, address: true } }, assignedTo: { select: { name: true } } },
       },
     },
   });
@@ -42,7 +42,7 @@ export default async function LaundryPage() {
     include: {
       facility: { select: { name: true } },
       recordedBy: { select: { name: true } },
-      logs: { include: { clean: { include: { property: { select: { name: true, address: true } } } } } },
+      logs: { include: { clean: { include: { property: { select: { nickname: true, name: true, address: true } } } } } },
     },
   });
 

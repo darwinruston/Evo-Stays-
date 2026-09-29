@@ -117,7 +117,7 @@ export async function createIssueRecord(input: {
       description,
       photos: { create: paths.map((path) => ({ path })) },
     },
-    include: { property: { select: { name: true, address: true } } },
+    include: { property: { select: { nickname: true, name: true, address: true } } },
   });
 
   await logAudit({

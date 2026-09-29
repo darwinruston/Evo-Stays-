@@ -33,7 +33,7 @@ export default async function CleanerHomePage() {
     orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
     include: {
       property: {
-        select: { name: true, address: true, bedrooms: true, bathrooms: true, maxOccupancy: true, sofaBedSleeps: true },
+        select: { nickname: true, name: true, address: true, bedrooms: true, bathrooms: true, maxOccupancy: true, sofaBedSleeps: true },
       },
     },
   });

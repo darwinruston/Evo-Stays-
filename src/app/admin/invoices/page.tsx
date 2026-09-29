@@ -67,7 +67,7 @@ export default async function InvoicesPage({
     orderBy: { periodStart: "desc" },
     include: {
       cleaner: { select: { name: true } },
-      property: { select: { name: true, address: true, client: { select: { name: true } } } },
+      property: { select: { nickname: true, name: true, address: true, client: { select: { name: true } } } },
     },
   });
   const filteredTotal = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);

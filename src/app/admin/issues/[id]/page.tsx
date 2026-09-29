@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!(await isStaffSession())) return { title: "Issue" };
   const issue = await prisma.issue.findUnique({
     where: { id },
-    select: { category: true, property: { select: { name: true, address: true } } },
+    select: { category: true, property: { select: { nickname: true, name: true, address: true } } },
   });
   return {
     title: issue ? `${ISSUE_CATEGORY_LABELS[issue.category]} · ${propertyDisplayName(issue.property)}` : "Issue",

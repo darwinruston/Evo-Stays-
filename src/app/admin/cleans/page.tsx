@@ -45,7 +45,7 @@ export default async function CleansPage({
       include: {
         property: {
           select: {
-            name: true,
+            nickname: true, name: true,
             address: true,
             bedrooms: true,
             bathrooms: true,

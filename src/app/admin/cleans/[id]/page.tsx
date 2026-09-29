@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!(await isStaffSession())) return { title: "Clean" };
   const clean = await prisma.clean.findUnique({
     where: { id },
-    select: { property: { select: { name: true, address: true } } },
+    select: { property: { select: { nickname: true, name: true, address: true } } },
   });
   return { title: clean ? `Clean · ${propertyDisplayName(clean.property)}` : "Clean" };
 }
@@ -95,7 +95,7 @@ export default async function CleanDetailPage({
                 lt: new Date(clean.scheduledFor.getTime() + 36 * 3600000),
               },
             },
-            select: { scheduledFor: true, property: { select: { name: true, address: true } } },
+            select: { scheduledFor: true, property: { select: { nickname: true, name: true, address: true } } },
           })
         ).filter((c) => c.scheduledFor && calendarDayKey(c.scheduledFor) === cleanDay)
       : [];

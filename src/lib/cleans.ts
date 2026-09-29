@@ -35,7 +35,7 @@ export async function createCleanRecord(input: {
       guestCount: input.guestCount ?? null,
       instructions: input.instructions ?? null,
     },
-    include: { property: { select: { name: true, address: true } } },
+    include: { property: { select: { nickname: true, name: true, address: true } } },
   });
 }
 

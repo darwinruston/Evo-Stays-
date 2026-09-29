@@ -48,7 +48,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
         include: {
           property: {
             select: {
-              name: true,
+              nickname: true, name: true,
               address: true,
               bedrooms: true,
               bathrooms: true,

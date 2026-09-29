@@ -22,7 +22,7 @@ export default async function CleanerLaundryPage() {
       clean: { status: "COMPLETED", assignedToId: session.user.id },
     },
     orderBy: { departedAt: "desc" },
-    include: { clean: { include: { property: { select: { name: true, address: true } } } } },
+    include: { clean: { include: { property: { select: { nickname: true, name: true, address: true } } } } },
   });
 
   const facilities = await prisma.laundryFacility.findMany({
@@ -39,7 +39,7 @@ export default async function CleanerLaundryPage() {
     include: {
       facility: { select: { name: true } },
       recordedBy: { select: { name: true } },
-      logs: { include: { clean: { include: { property: { select: { name: true, address: true } } } } } },
+      logs: { include: { clean: { include: { property: { select: { nickname: true, name: true, address: true } } } } } },
     },
   });
 

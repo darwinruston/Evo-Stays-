@@ -154,12 +154,13 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
     select: {
       hostifyListingId: true,
       syncHorizonDays: true,
+      nickname: true,
       name: true,
       address: true,
       client: { select: { hostifyApiKey: true } },
     },
   });
-  const propertyRef = { name: property.name, address: property.address };
+  const propertyRef = { nickname: property.nickname, name: property.name, address: property.address };
 
   // Defence in depth -- the action calling this already checks both, but a
   // property can be reached here from the unattended scheduler too, which

@@ -74,7 +74,7 @@ export async function updateClean(id: string, formData: FormData) {
     where: { id },
     include: {
       assignedTo: { select: { name: true } },
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
     },
   });
 
@@ -105,7 +105,7 @@ export async function updateClean(id: string, formData: FormData) {
     },
     include: {
       assignedTo: { select: { name: true } },
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
     },
   });
 
@@ -176,7 +176,7 @@ export async function rescheduleClean(id: string, formData: FormData) {
     where: { id },
     include: {
       assignedTo: { select: { name: true } },
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
     },
   });
   if (before.status !== "PENDING") throw new Error("Only a clean that hasn't started can be moved");
@@ -195,7 +195,7 @@ export async function rescheduleClean(id: string, formData: FormData) {
     data: { scheduledFor, atRiskNotifiedAt: null },
     include: {
       assignedTo: { select: { name: true } },
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
     },
   });
 
@@ -221,7 +221,7 @@ export async function deleteClean(id: string) {
   const clean = await prisma.clean.findUniqueOrThrow({
     where: { id },
     include: {
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
       assignedTo: { select: { name: true } },
     },
   });

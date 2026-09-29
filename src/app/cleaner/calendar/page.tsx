@@ -55,7 +55,7 @@ export default async function CleanerCalendarPage({
         assignedToId: session.user.id,
         scheduledFor: { gte: gridStart, lt: gridEnd },
       },
-      include: { property: { select: { name: true, address: true } } },
+      include: { property: { select: { nickname: true, name: true, address: true } } },
       orderBy: { scheduledFor: "asc" },
     }),
     prisma.cleanerUnavailability.findMany({

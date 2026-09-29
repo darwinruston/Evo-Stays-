@@ -16,7 +16,7 @@ export default async function EditCleanPage({ params }: { params: Promise<{ id: 
 
   const clean = await prisma.clean.findUnique({
     where: { id },
-    include: { property: { select: { name: true, address: true, maxOccupancy: true } } },
+    include: { property: { select: { nickname: true, name: true, address: true, maxOccupancy: true } } },
   });
   if (!clean) notFound();
 

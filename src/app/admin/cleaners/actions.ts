@@ -194,7 +194,7 @@ export async function updateCleanerPropertyFee(cleanerId: string, propertyId: st
 
   const designation = await prisma.propertyCleaner.findUnique({
     where: { propertyId_cleanerId: { propertyId, cleanerId } },
-    select: { property: { select: { name: true, address: true } } },
+    select: { property: { select: { nickname: true, name: true, address: true } } },
   });
   if (!designation) throw new Error("That property isn't designated to this cleaner any more");
 
@@ -262,7 +262,7 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
           }
         : {}),
     },
-    select: { id: true, scheduledFor: true, property: { select: { name: true, address: true } } },
+    select: { id: true, scheduledFor: true, property: { select: { nickname: true, name: true, address: true } } },
   });
   if (affected.length === 0) {
     throw new Error("No upcoming cleans to reassign in that range");
@@ -331,7 +331,7 @@ async function moveCleansToCleaner(
     },
     include: {
       assignedTo: { select: { name: true } },
-      property: { select: { name: true, address: true } },
+      property: { select: { nickname: true, name: true, address: true } },
     },
   });
   if (affected.length === 0) return 0;

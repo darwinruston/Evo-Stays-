@@ -112,7 +112,7 @@ export async function staffUserIds(): Promise<string[]> {
 export type CleanNoticeRef = {
   id: string;
   scheduledFor: Date | null;
-  property: { name: string | null; address: string };
+  property: { nickname: string | null; name: string | null; address: string };
 };
 
 function when(date: Date | null): string {
@@ -234,7 +234,7 @@ export type CleanSnapshot = {
   assignedToId: string | null;
   scheduledFor: Date | null;
   status: string;
-  property: { name: string | null; address: string };
+  property: { nickname: string | null; name: string | null; address: string };
 };
 
 // Who needs telling about one edit, from the before/after of the row. An
@@ -286,7 +286,7 @@ export type IssueNoticeRef = {
   severityReason: string | null;
   description: string;
   cleanId: string | null;
-  property: { name: string | null; address: string };
+  property: { nickname: string | null; name: string | null; address: string };
 };
 
 function excerpt(text: string, max = 140): string {

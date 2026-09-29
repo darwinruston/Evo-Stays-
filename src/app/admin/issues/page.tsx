@@ -36,7 +36,7 @@ export default async function IssuesPage({
       where: { ...VIEWS[view].where, ...(propertyId ? { propertyId } : {}) },
       orderBy: { createdAt: "desc" },
       include: {
-        property: { select: { name: true, address: true } },
+        property: { select: { nickname: true, name: true, address: true } },
         reportedBy: { select: { name: true } },
         _count: { select: { photos: true } },
       },
