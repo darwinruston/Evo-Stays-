@@ -1,11 +1,12 @@
+import type { StockLevelBand as PrismaStockLevelBand } from "@prisma/client";
 import { formatDuration, formatScheduledFor } from "@/lib/schedule";
+import { bandFromDb, STOCK_BAND_LABELS } from "@/lib/stock";
 import { card } from "@/lib/ui";
 
 type LogPhoto = { id: string; path: string; stage: "BEFORE" | "AFTER" };
 type LogStockUsage = {
   id: string;
-  countedQty: number;
-  restockedQty: number;
+  band: PrismaStockLevelBand;
   stockItem: { name: string; unit: string | null };
 };
 
@@ -39,15 +40,15 @@ function StockUsageGroup({ usage }: { usage: LogStockUsage[] }) {
   if (usage.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Stock counted</h3>
+      <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Stock checked</h3>
       <ul className="flex flex-col gap-1">
         {usage.map((u) => (
           <li key={u.id} className="flex justify-between text-sm">
-            <span className="text-zinc-600">{u.stockItem.name}</span>
-            <span>
-              {u.countedQty} {u.stockItem.unit ?? ""} on hand
-              {u.restockedQty > 0 && ` · restocked ${u.restockedQty}`}
+            <span className="text-zinc-600">
+              {u.stockItem.name}
+              {u.stockItem.unit ? ` (${u.stockItem.unit})` : ""}
             </span>
+            <span>{STOCK_BAND_LABELS[bandFromDb(u.band)]}</span>
           </li>
         ))}
       </ul>

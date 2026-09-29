@@ -1,4 +1,4 @@
-import { STOCK_BAND_LABELS, stockLevelBand, type StockLevelBand } from "@/lib/stock";
+import { STOCK_BAND_LABELS, type StockLevelBand } from "@/lib/stock";
 
 const FILLED_SEGMENTS: Record<StockLevelBand, number> = { high: 3, medium: 2, low: 1, none: 0 };
 
@@ -10,8 +10,7 @@ const FILLED_SEGMENTS: Record<StockLevelBand, number> = { high: 3, medium: 2, lo
 // squinted at. "None" still renders three empty dots rather than
 // disappearing, so a glance at the row tells you it was checked and found
 // empty, not that it was never configured.
-export function StockLevelIndicator({ level }: { level: { onHandQty: number; parQty: number } }) {
-  const band = stockLevelBand(level);
+export function StockLevelIndicator({ band }: { band: StockLevelBand }) {
   const filled = FILLED_SEGMENTS[band];
 
   return (

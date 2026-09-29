@@ -8,7 +8,7 @@ import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
-import { stockLevelBand } from "@/lib/stock";
+import { bandFromDb, STOCK_BANDS, STOCK_BAND_LABELS } from "@/lib/stock";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
@@ -17,7 +17,6 @@ import {
   setPrimaryPhoto,
   deletePropertyPhoto,
   addPropertyStockLevel,
-  updatePropertyStockPar,
   setPropertyStockLevel,
   removePropertyStockLevel,
   updatePropertyMinBillableHours,
@@ -43,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!(await isStaffSession())) return { title: "Property" };
   const property = await prisma.property.findUnique({
     where: { id },
-    select: { name: true, address: true },
+    select: { nickname: true, name: true, address: true },
   });
   return { title: property ? propertyDisplayName(property) : "Property" };
 }
@@ -317,7 +316,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Stock <span className="text-sm font-normal text-zinc-500">({property.stockLevels.length})</span>
-          <InfoTooltip text="Nobody counts bin bags exactly, before or after topping them up — set the level the same way a cleaner records it. Par is the one real number here: what a full restock brings this property up to, e.g. a pack or order size (6 hand soaps, 50 bin bags), not the bare minimum needed." />
+          <InfoTooltip text="Nobody counts bin bags exactly — just the item, and what you'd call the amount there right now. Set the level the same way a cleaner records it." />
         </h2>
 
         {property.stockLevels.length > 0 && (
@@ -326,46 +325,22 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               <li key={level.id} className={card("flex flex-col gap-3 p-4")}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-medium">{level.stockItem.name}</p>
-                    {/* Par is a one-time setup fact (a pack or order size),
-                        not something that needs adjusting on every visit --
-                        tucked behind this same line instead of a separate
-                        section, so editing it stays contained and compact. */}
-                    <details className="group/par">
-                      <summary className="w-fit cursor-pointer list-none text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700 [&::-webkit-details-marker]:hidden">
-                        Par {level.parQty}
-                        {level.stockItem.unit ? ` ${level.stockItem.unit}` : ""}
-                      </summary>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <form
-                          action={updatePropertyStockPar.bind(null, property.id, level.id)}
-                          className="flex items-center gap-2"
-                        >
-                          <input
-                            name="parQty"
-                            type="number"
-                            min={1}
-                            defaultValue={level.parQty}
-                            className={`${inputCompact} w-16`}
-                          />
-                          <button type="submit" className={button("secondary", "sm")}>
-                            Save
-                          </button>
-                        </form>
-                        <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
-                          <button type="submit" className="text-xs text-red-600 hover:underline">
-                            Remove
-                          </button>
-                        </form>
-                      </div>
-                    </details>
+                    <p className="font-medium">
+                      {level.stockItem.name}
+                      {level.stockItem.unit ? ` (${level.stockItem.unit})` : ""}
+                    </p>
+                    <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
+                      <button type="submit" className="text-xs text-red-600 hover:underline">
+                        Remove
+                      </button>
+                    </form>
                   </div>
-                  <StockLevelIndicator level={level} />
+                  <StockLevelIndicator band={bandFromDb(level.band)} />
                 </div>
 
                 <StockLevelToggle
                   action={setPropertyStockLevel.bind(null, property.id, level.id)}
-                  current={stockLevelBand(level)}
+                  current={bandFromDb(level.band)}
                 />
               </li>
             ))}
@@ -390,18 +365,16 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="parQty" className="text-sm font-medium">
-                Par level
+              <label htmlFor="band" className="text-sm font-medium">
+                Level right now
               </label>
-              <input
-                id="parQty"
-                name="parQty"
-                type="number"
-                min={1}
-                required
-                placeholder="e.g. 6"
-                className={`${inputCompact} w-24`}
-              />
+              <select id="band" name="band" defaultValue="high" className={inputCompact}>
+                {STOCK_BANDS.map((b) => (
+                  <option key={b} value={b}>
+                    {STOCK_BAND_LABELS[b]}
+                  </option>
+                ))}
+              </select>
             </div>
             <button type="submit" className={button("primary", "sm")}>
               Add

@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { savePropertyPhotos } from "@/lib/uploads";
-import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
+import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 import {
@@ -125,14 +125,12 @@ async function configuredStockItemIds(propertyId: string): Promise<string[]> {
   return levels.map((l) => l.stockItemId);
 }
 
-const STOCK_BANDS: StockLevelBand[] = ["high", "medium", "low", "none"];
-
 // One item, one tap: the cleaner picks (or confirms a pre-highlighted
-// prediction of) a High/Medium/Low/None level rather than typing a count --
-// deliberately not asking for an exact number on site, since that's the
-// hassle this replaced. The band becomes a representative onHandQty via
-// bandToOnHandQty so the rest of the app (par-level editing, the low-stock
-// list, the dashboard) keeps working in numbers underneath.
+// prediction of, defaulting to the level as it was last left) a
+// High/Medium/Low/None level rather than typing a count -- deliberately not
+// asking for an exact number on site, since that's the hassle this
+// replaced. The band is the stored fact, both here and on
+// PropertyStockLevel -- no representative number invented underneath it.
 //
 // No separate "restocked" figure: whatever band is picked is treated as the
 // level right now, whether that's because nothing was used or because the
@@ -157,17 +155,16 @@ export async function recordStockLevel(cleanId: string, stockItemId: string, for
   }
 
   const band = formData.get("band");
-  if (typeof band !== "string" || !STOCK_BANDS.includes(band as StockLevelBand)) {
+  if (typeof band !== "string" || !isStockLevelBand(band)) {
     throw new Error("Pick a level.");
   }
-
-  const onHandQty = bandToOnHandQty(band as StockLevelBand, level.parQty);
+  const dbBand = bandToDb(band);
 
   await prisma.$transaction([
     prisma.stockUsageLog.create({
-      data: { logId: clean.log.id, stockItemId, countedQty: onHandQty },
+      data: { logId: clean.log.id, stockItemId, band: dbBand },
     }),
-    prisma.propertyStockLevel.update({ where: { id: level.id }, data: { onHandQty } }),
+    prisma.propertyStockLevel.update({ where: { id: level.id }, data: { band: dbBand } }),
   ]);
 
   revalidatePath(`/cleaner/cleans/${cleanId}`);
@@ -194,8 +191,8 @@ export async function completeClean(cleanId: string, formData: FormData) {
     throw new Error("Stock counts are needed before checking out.");
   }
 
+  // Optional -- only worth writing when there's actually something to flag.
   const note = str(formData, "note");
-  if (!note) throw new Error("Add a note about the turnover before checking out.");
 
   await prisma.$transaction([
     prisma.cleanLog.update({

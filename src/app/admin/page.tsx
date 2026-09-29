@@ -37,7 +37,7 @@ export default async function AdminHomePage() {
     // "Low" compares two columns on the same row, which SQLite can't express
     // in a where clause without raw SQL -- filtered in JS instead, see
     // src/lib/stock.ts.
-    prisma.propertyStockLevel.findMany({ select: { propertyId: true, onHandQty: true, parQty: true } }),
+    prisma.propertyStockLevel.findMany({ select: { propertyId: true, band: true } }),
     prisma.issue.count({ where: { status: { not: "RESOLVED" } } }),
     prisma.clean.findMany({
       where: { scheduledFor: { gte: start, lt: end }, status: { not: "CANCELLED" } },
@@ -45,7 +45,7 @@ export default async function AdminHomePage() {
       include: {
         property: {
           select: {
-            name: true,
+            nickname: true, name: true,
             address: true,
             bedrooms: true,
             bathrooms: true,

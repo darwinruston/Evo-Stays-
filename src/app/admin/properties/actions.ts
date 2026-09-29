@@ -6,7 +6,7 @@ import { Prisma, PropertyType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { savePropertyPhotos, saveHostifyCoverPhoto } from "@/lib/uploads";
-import { bandToOnHandQty, type StockLevelBand } from "@/lib/stock";
+import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { syncCalendarFeed } from "@/lib/icalSync";
 import { syncHostifyListing } from "@/lib/hostifySync";
 import { fetchHostifyCoverPhotoUrl } from "@/lib/hostifyListings";
@@ -90,6 +90,7 @@ export async function createProperty(formData: FormData) {
       clientId,
       address,
       name: str(formData, "name"),
+      nickname: str(formData, "nickname"),
       type: propertyType(formData),
       bedrooms: int(formData, "bedrooms"),
       bathrooms: int(formData, "bathrooms"),
@@ -127,6 +128,7 @@ export async function updateProperty(id: string, formData: FormData) {
     data: {
       address,
       name: str(formData, "name"),
+      nickname: str(formData, "nickname"),
       type: propertyType(formData),
       bedrooms: int(formData, "bedrooms"),
       bathrooms: int(formData, "bathrooms"),
@@ -261,17 +263,16 @@ export async function deletePropertyPhoto(propertyId: string, imageId: string) {
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
-// Configures a par level for one item on this property. onHandQty defaults
-// to parQty -- setting one up is a signal the property is being freshly
-// stocked to that level, not a signal that it's currently empty. The real
-// count then updates as cleans happen.
+// Adds an item to this property's stock list with a starting level -- no
+// par, no count, just what's on the shelf right now as best guessed (staff
+// can correct it immediately with the same toggle used everywhere else).
 export async function addPropertyStockLevel(propertyId: string, formData: FormData) {
   await requireStaff();
 
   const stockItemId = str(formData, "stockItemId");
-  const parQty = int(formData, "parQty");
+  const band = formData.get("band");
   if (!stockItemId) throw new Error("Pick an item");
-  if (parQty === null || parQty < 1) throw new Error("Par level must be at least 1");
+  if (typeof band !== "string" || !isStockLevelBand(band)) throw new Error("Pick a level");
 
   const existing = await prisma.propertyStockLevel.findUnique({
     where: { propertyId_stockItemId: { propertyId, stockItemId } },
@@ -279,43 +280,16 @@ export async function addPropertyStockLevel(propertyId: string, formData: FormDa
   if (existing) throw new Error("That item is already configured on this property");
 
   await prisma.propertyStockLevel.create({
-    data: { propertyId, stockItemId, parQty, onHandQty: parQty },
+    data: { propertyId, stockItemId, band: bandToDb(band) },
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/stock");
 }
 
-// Corrects par -- the full/restocked amount, a business fact staff actually
-// know (a pack or order size), unlike on-hand which nobody counts exactly.
-// Separate from the level toggle below on purpose: this changes rarely
-// (only when the order size itself changes) and stays a typed number,
-// where on-hand changes often and is always an eyeballed level.
-export async function updatePropertyStockPar(propertyId: string, levelId: string, formData: FormData) {
-  await requireStaff();
-
-  const parQty = int(formData, "parQty");
-  if (parQty === null || parQty < 1) throw new Error("Par level must be at least 1");
-
-  // Scoped to the property so a stray level id can't touch another
-  // property's stock.
-  const level = await prisma.propertyStockLevel.findFirst({
-    where: { id: levelId, propertyId },
-    select: { id: true },
-  });
-  if (!level) throw new Error("Stock level not found for this property");
-
-  await prisma.propertyStockLevel.update({ where: { id: level.id }, data: { parQty } });
-
-  revalidatePath(`/admin/properties/${propertyId}`);
-  revalidatePath("/admin/stock");
-}
-
-// Sets on-hand directly to a tapped level -- for a delivery that arrived
-// outside a clean, or noticing something's run low between visits, without
-// needing a turnover to happen first. No one actually counts bin bags
-// exactly, before or after topping them up, so this asks for the same
-// High/Medium/Low/None a cleaner picks rather than a number -- see
+// Sets the level directly -- for a delivery that arrived outside a clean, or
+// noticing something's run low between visits, without needing a turnover to
+// happen first. Same High/Medium/Low/None as a cleaner picks -- see
 // recordStockLevel in src/app/cleaner/actions.ts for the same pattern.
 // Unlike that one, this doesn't create a StockUsageLog row: it's a standing
 // correction, not something that happened during a specific visit.
@@ -328,13 +302,9 @@ export async function setPropertyStockLevel(propertyId: string, levelId: string,
   if (!level) throw new Error("Stock level not found for this property");
 
   const band = formData.get("band");
-  const validBands: StockLevelBand[] = ["high", "medium", "low", "none"];
-  if (typeof band !== "string" || !validBands.includes(band as StockLevelBand)) {
-    throw new Error("Pick a level.");
-  }
+  if (typeof band !== "string" || !isStockLevelBand(band)) throw new Error("Pick a level.");
 
-  const onHandQty = bandToOnHandQty(band as StockLevelBand, level.parQty);
-  await prisma.propertyStockLevel.update({ where: { id: level.id }, data: { onHandQty } });
+  await prisma.propertyStockLevel.update({ where: { id: level.id }, data: { band: bandToDb(band) } });
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/stock");

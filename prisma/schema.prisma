@@ -166,9 +166,16 @@ model Property {
   id               String               @id @default(cuid())
   client           Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientId         String
-  // The listing name ("Riverside Loft"). Falls back to a shortened address
-  // when not set -- see src/lib/address.ts.
+  // The listing name ("Riverside Loft") -- often synced straight from
+  // Hostify, so it's a guest-facing marketing title, not necessarily
+  // something staff and cleaners recognise the property by at a glance.
   name             String?
+  // A short internal name staff actually call the property by ("The Blue
+  // House") -- takes over from `name` everywhere a property is displayed to
+  // staff or cleaners (see propertyDisplayName in src/lib/address.ts),
+  // including on clean tasks. `name` and the address stay untouched
+  // underneath, so a Hostify re-sync never overwrites this.
+  nickname         String?
   address          String
   // Set when the address was picked from an autocomplete rather than typed
   // freehand. Null if never matched to a location.
@@ -366,10 +373,6 @@ model StockItem {
   // Free label for what's being counted -- "roll", "bottle", "sachet". Shown
   // next to the number, never used in arithmetic.
   unit               String?
-  // Expected consumption per guest per night, e.g. 0.5 loo rolls. Optional --
-  // an item with no rate set gets no auto-estimate, just today's "last known"
-  // default. See src/lib/stockEstimate.ts.
-  usagePerGuestNight Float?
   active             Boolean              @default(true)
   levels             PropertyStockLevel[]
   usage              StockUsageLog[]
@@ -377,24 +380,34 @@ model StockItem {
   updatedAt          DateTime             @updatedAt
 }
 
-// One item, one property: what should be on hand (parQty) and what actually
-// is (onHandQty) right now. Configuring this is opt-in per property -- most
-// won't have any rows yet, and the cleaner's stock step simply doesn't
-// appear for a property with none (see the step logic in
+// A judgement call, not a count -- nobody actually counts bin bags, so this
+// is just the item and what a cleaner or staff would call the amount there
+// right now. Replaced the old parQty/onHandQty pair (a "what a full restock
+// brings it up to" number nobody set consistently, ratio'd against an
+// on-hand number nobody counted either) with the band itself as the only
+// stored fact. Configuring this is opt-in per property -- most won't have
+// any rows yet, and the cleaner's stock step simply doesn't appear for a
+// property with none (see the step logic in
 // src/app/cleaner/cleans/[id]/page.tsx).
 model PropertyStockLevel {
-  id          String    @id @default(cuid())
-  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id          String         @id @default(cuid())
+  property    Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId  String
-  stockItem   StockItem @relation(fields: [stockItemId], references: [id])
+  stockItem   StockItem      @relation(fields: [stockItemId], references: [id])
   stockItemId String
-  parQty      Int
-  onHandQty   Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  band        StockLevelBand
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@unique([propertyId, stockItemId])
   @@index([propertyId])
+}
+
+enum StockLevelBand {
+  HIGH
+  MEDIUM
+  LOW
+  NONE
 }
 
 // A cleaner designated as the regular/preferred worker for a property.
@@ -440,25 +453,18 @@ model CleanerUnavailability {
   @@unique([cleanerId, date])
 }
 
-// One item, one completed (or in-progress) visit: what the cleaner counted
-// on site, plus anything they topped up from supplies they carry. restockedQty
-// defaults to 0 rather than being required, so a business that only wants
-// counts reported (someone else delivers later) and one where cleaners
-// restock on the spot are both just this same row with a different number in
-// it -- no separate flow for either.
-//
-// PropertyStockLevel.onHandQty is set to countedQty + restockedQty when this
-// is recorded (see submitStockCounts), so this table is the audit trail
-// behind that single current number.
+// One item, one completed (or in-progress) visit: the level a cleaner
+// tapped on site. PropertyStockLevel.band is set to this same value when
+// it's recorded (see recordStockLevel), so this table is the audit trail
+// behind that single current reading.
 model StockUsageLog {
-  id           String    @id @default(cuid())
-  log          CleanLog  @relation(fields: [logId], references: [id], onDelete: Cascade)
-  logId        String
-  stockItem    StockItem @relation(fields: [stockItemId], references: [id])
-  stockItemId  String
-  countedQty   Int
-  restockedQty Int       @default(0)
-  createdAt    DateTime  @default(now())
+  id          String         @id @default(cuid())
+  log         CleanLog       @relation(fields: [logId], references: [id], onDelete: Cascade)
+  logId       String
+  stockItem   StockItem      @relation(fields: [stockItemId], references: [id])
+  stockItemId String
+  band        StockLevelBand
+  createdAt   DateTime       @default(now())
 
   @@unique([logId, stockItemId])
   @@index([logId])

@@ -15,15 +15,21 @@ export function SubmitButton({
   pendingLabel,
   variant = "primary",
   size = "sm",
+  fullWidth = false,
 }: {
   children: React.ReactNode;
   pendingLabel: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  fullWidth?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className={`${button(variant, size)} inline-flex items-center gap-2`}>
+    <button
+      type="submit"
+      disabled={pending}
+      className={`${button(variant, size)} inline-flex items-center justify-center gap-2 ${fullWidth ? "w-full" : ""}`}
+    >
       {pending && <Spinner className="h-3.5 w-3.5" />}
       {pending ? pendingLabel : children}
     </button>

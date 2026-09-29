@@ -36,26 +36,6 @@ export default async function NewStockItemPage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="usagePerGuestNight" className="text-sm font-medium">
-            Usage per guest per night
-          </label>
-          <input
-            id="usagePerGuestNight"
-            name="usagePerGuestNight"
-            type="number"
-            min={0}
-            step="0.1"
-            placeholder="0.5"
-            className={inputCompact}
-          />
-          <p className="text-xs text-zinc-500">
-            Optional. When set, the cleaner&apos;s stock count starts pre-filled with an estimate
-            from guests × nights instead of the last known figure — they still confirm it against
-            the shelf.
-          </p>
-        </div>
-
         <div>
           <button type="submit" className={button("primary", "sm")}>
             Create item

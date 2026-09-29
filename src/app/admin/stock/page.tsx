@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
-import { isRunningLow } from "@/lib/stock";
+import { bandFromDb, isRunningLow } from "@/lib/stock";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { card } from "@/lib/ui";
 
@@ -55,7 +55,7 @@ export default async function StockOverviewPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-zinc-500">Running low ({low.length})</h2>
         {low.length === 0 ? (
-          <p className="text-sm text-zinc-600">Nothing below par right now.</p>
+          <p className="text-sm text-zinc-600">Nothing running low right now.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {low.map((level) => (
@@ -70,12 +70,7 @@ export default async function StockOverviewPage() {
                       {propertyDisplayName(level.property)} · {level.property.client.name}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span className="text-sm text-zinc-500">
-                      {level.onHandQty} / {level.parQty}
-                    </span>
-                    <StockLevelIndicator level={level} />
-                  </div>
+                  <StockLevelIndicator band={bandFromDb(level.band)} />
                 </Link>
               </li>
             ))}
@@ -107,12 +102,7 @@ export default async function StockOverviewPage() {
                   {propertyLevels.map((level) => (
                     <li key={level.id} className={card("flex items-center justify-between gap-4 p-4")}>
                       <p className="font-medium">{level.stockItem.name}</p>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span className="text-sm text-zinc-500">
-                          {level.onHandQty} / {level.parQty}
-                        </span>
-                        <StockLevelIndicator level={level} />
-                      </div>
+                      <StockLevelIndicator band={bandFromDb(level.band)} />
                     </li>
                   ))}
                 </ul>

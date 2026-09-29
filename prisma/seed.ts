@@ -165,18 +165,14 @@ async function main() {
     },
   });
 
-  // A starter catalogue and one property's par levels -- bin bags seeded
-  // below par on purpose, so the "running low" view has something to show
-  // without needing a real clean to happen first. usagePerGuestNight is set
-  // on the two items where consumption genuinely tracks guest-nights (paper
-  // goods); hand soap is left unrated since a bottle usually lasts several
-  // stays regardless of headcount, which is exactly the "no rate configured"
-  // case the estimate falls back around.
+  // A starter catalogue and one property's stock levels -- bin bags and hand
+  // soap seeded as Low, so the "running low" view has something to show
+  // without needing a real clean to happen first.
   const stockItemDefs = [
-    { name: "Toilet roll", unit: "roll", usagePerGuestNight: 0.5 },
-    { name: "Bin bags", unit: "bag", usagePerGuestNight: 0.15 },
+    { name: "Toilet roll", unit: "roll" },
+    { name: "Bin bags", unit: "bag" },
     { name: "Hand soap", unit: "bottle" },
-    { name: "Welcome tea/coffee", unit: "sachet", usagePerGuestNight: 0.3 },
+    { name: "Welcome tea/coffee", unit: "sachet" },
   ];
   const stockItems = await Promise.all(
     stockItemDefs.map((s) =>
@@ -185,14 +181,10 @@ async function main() {
   );
   const [toiletRoll, binBags, handSoap] = stockItems;
 
-  // Par is the full/restocked amount -- what a fresh order brings the
-  // property up to, not the bare minimum needed. Hand soap and bin bags
-  // seeded below par on purpose, so the "running low" view has something to
-  // show without needing a real clean to happen first.
   const stockLevels = [
-    { stockItemId: toiletRoll.id, parQty: 12, onHandQty: 9 },
-    { stockItemId: binBags.id, parQty: 50, onHandQty: 20 },
-    { stockItemId: handSoap.id, parQty: 6, onHandQty: 3 },
+    { stockItemId: toiletRoll.id, band: "MEDIUM" as const },
+    { stockItemId: binBags.id, band: "LOW" as const },
+    { stockItemId: handSoap.id, band: "LOW" as const },
   ];
   for (const level of stockLevels) {
     await prisma.propertyStockLevel.upsert({

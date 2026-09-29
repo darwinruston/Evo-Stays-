@@ -13,9 +13,9 @@ import { cleanPrep } from "@/lib/cleanPrep";
 import { StockLevelStep } from "@/components/StockLevelStep";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
 import { DetailsCard } from "@/components/DetailsCard";
-import { stockLevelBand } from "@/lib/stock";
+import { bandFromDb } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
-import { nightsSincePreviousClean, estimateStockUsage } from "@/lib/stockEstimate";
+import { SubmitButton } from "@/components/SubmitButton";
 import { IssueForm } from "@/components/IssueForm";
 import { IssueList, toIssueRow } from "@/components/IssueList";
 import { sortIssuesByUrgency } from "@/lib/issues";
@@ -50,11 +50,13 @@ function PhotoUploadStep({
   heading,
   hint,
   submitLabel,
+  pendingLabel,
 }: {
   action: (formData: FormData) => void;
   heading: string;
   hint: string;
   submitLabel: string;
+  pendingLabel: string;
 }) {
   return (
     <form action={action} className={card("flex flex-col gap-3 p-4")}>
@@ -62,18 +64,22 @@ function PhotoUploadStep({
         <h2 className="text-sm font-medium">{heading}</h2>
         <p className="mt-1 text-sm text-zinc-600">{hint}</p>
       </div>
+      {/* No `capture` attribute -- with it set, most mobile browsers open the
+          camera directly and drop straight back out after one shot, so
+          `multiple` never actually gets a chance to apply. Without it, the
+          OS's own picker offers both camera and gallery, and multi-select
+          works from either. */}
       <input
         name="photos"
         type="file"
         accept="image/*"
         multiple
         required
-        capture="environment"
         className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
       />
-      <button type="submit" className={`w-full ${button("primary", "lg")}`}>
+      <SubmitButton pendingLabel={pendingLabel} size="lg" fullWidth>
         {submitLabel}
-      </button>
+      </SubmitButton>
     </form>
   );
 }
@@ -143,35 +149,20 @@ export default async function CleanerCleanPage({
   const stockDone =
     stockItems.length === 0 || stockItems.every((s) => recordedStockItemIds.has(s.stockItemId));
 
-  // Computed once per page load (not per item -- the previous-clean lookup
-  // is the same for every item on this property), then turned into a
-  // predicted High/Medium/Low/None per item below. This never writes
-  // anything; it only decides which button is pre-highlighted as "Confirm".
-  const nights = clean.scheduledFor
-    ? await nightsSincePreviousClean(clean.propertyId, clean.id, clean.scheduledFor)
-    : null;
-  const guestGuess = clean.guestCount ?? clean.property.maxOccupancy;
-
   // The next item still needing a level -- stock items are worked through
   // one at a time, in the same fixed order they were configured in, so
   // "item 2 of 3" means the same thing on every reload of this step. Folded
   // into one nullable value (rather than two separately-nullable ones) so
-  // the JSX below only has one thing to null-check.
+  // the JSX below only has one thing to null-check. Pre-highlighted with
+  // whatever was last recorded -- the cleaner still confirms it against the
+  // shelf, this is just the fast "looks right" path.
   const nextUp = stockItems.find((l) => !recordedStockItemIds.has(l.stockItemId));
   const currentStockStep = nextUp
-    ? (() => {
-        const estimate = estimateStockUsage(nights, guestGuess, nextUp);
-        const prediction = estimate
-          ? {
-              band: stockLevelBand({ onHandQty: estimate.estimatedRemaining, parQty: nextUp.parQty }),
-              reason: `Estimated from ${estimate.guestCount} ${estimate.guestCount === 1 ? "guest" : "guests"} × ${estimate.nights} ${estimate.nights === 1 ? "night" : "nights"} — check the shelf.`,
-            }
-          : {
-              band: stockLevelBand(nextUp),
-              reason: "Based on what was last recorded — check the shelf.",
-            };
-        return { level: nextUp, ...prediction };
-      })()
+    ? {
+        level: nextUp,
+        band: bandFromDb(nextUp.band),
+        reason: "Based on what was last recorded — check the shelf.",
+      }
     : null;
 
   const step =
@@ -281,6 +272,7 @@ export default async function CleanerCleanPage({
               heading="Before photos"
               hint="Photograph the place as you found it, before you touch anything. You'll need these before you can carry on."
               submitLabel="Save before photos"
+              pendingLabel="Saving…"
             />
           )}
 
@@ -292,6 +284,7 @@ export default async function CleanerCleanPage({
                 heading="After photos"
                 hint="Once the turnover is done, photograph the finished result."
                 submitLabel="Save after photos"
+                pendingLabel="Saving…"
               />
               <section className="flex flex-col gap-2">
                 <h2 className="text-sm font-medium text-zinc-500">Before ({before.length})</h2>
@@ -326,19 +319,18 @@ export default async function CleanerCleanPage({
                 <div>
                   <h2 className="text-sm font-medium">Notes</h2>
                   <p className="mt-1 text-sm text-zinc-600">
-                    Last step — how you left it, and anything worth flagging.
+                    Last step — only if there&apos;s something worth flagging. Leave it blank otherwise.
                   </p>
                 </div>
                 <textarea
                   name="note"
                   rows={4}
-                  required
-                  placeholder="How the place was left, anything that needs following up."
+                  placeholder="Anything that needs following up -- leave blank if nothing to report."
                   className={inputCompact}
                 />
-                <button type="submit" className={`w-full ${button("primary", "lg")}`}>
+                <SubmitButton pendingLabel="Completing…" size="lg" fullWidth>
                   Check out &amp; complete
-                </button>
+                </SubmitButton>
               </form>
 
               <section className="flex flex-col gap-2">
