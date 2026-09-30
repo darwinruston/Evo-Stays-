@@ -1,9 +1,10 @@
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma, scopedDb } from "@/lib/prisma";
 import { formatDate } from "@/lib/schedule";
+import { formatCurrency } from "@/lib/invoices";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
-import { createOrganization } from "./actions";
+import { createOrganization, updateOrganizationPlan } from "./actions";
 
 export const metadata = { title: "Organizations" };
 
@@ -56,19 +57,64 @@ export default async function OrganizationsPage() {
         ) : (
           <ul className="flex flex-col gap-2">
             {organizations.map((org) => (
-              <li key={org.id} className={card("flex items-center justify-between gap-4 p-4")}>
-                <div className="min-w-0">
-                  <p className="font-medium">{org.name}</p>
-                  <p className="text-sm text-zinc-500">Created {formatDate(org.createdAt)}</p>
+              <li key={org.id} className={card("flex flex-col gap-3 p-4")}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{org.name}</p>
+                    <p className="text-sm text-zinc-500">Created {formatDate(org.createdAt)}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <span className={badge("neutral")}>
+                      {org._count.users} {org._count.users === 1 ? "login" : "logins"}
+                    </span>
+                    <span className={badge("neutral")}>
+                      {org._count.properties} {org._count.properties === 1 ? "property" : "properties"}
+                    </span>
+                    <span className={badge(org.plan === "PAID" ? "solid" : "outline")}>
+                      {org.plan === "PAID"
+                        ? `Paid${org.monthlyPriceGBP !== null ? ` · ${formatCurrency(org.monthlyPriceGBP)}/mo` : ""}`
+                        : "Trial"}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className={badge("neutral")}>
-                    {org._count.users} {org._count.users === 1 ? "login" : "logins"}
-                  </span>
-                  <span className={badge("neutral")}>
-                    {org._count.properties} {org._count.properties === 1 ? "property" : "properties"}
-                  </span>
-                </div>
+
+                <form
+                  action={updateOrganizationPlan.bind(null, org.id)}
+                  className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3"
+                >
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor={`plan-${org.id}`} className="text-xs text-zinc-500">
+                      Plan
+                    </label>
+                    <select
+                      id={`plan-${org.id}`}
+                      name="plan"
+                      defaultValue={org.plan}
+                      className={`${inputCompact} w-28`}
+                    >
+                      <option value="TRIAL">Trial</option>
+                      <option value="PAID">Paid</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor={`price-${org.id}`} className="text-xs text-zinc-500">
+                      Monthly price (£)
+                    </label>
+                    <input
+                      id={`price-${org.id}`}
+                      name="monthlyPriceGBP"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      defaultValue={org.monthlyPriceGBP ?? ""}
+                      placeholder="e.g. 49.00"
+                      className={`${inputCompact} w-32`}
+                    />
+                  </div>
+                  <button type="submit" className={button("secondary", "sm")}>
+                    Save
+                  </button>
+                </form>
               </li>
             ))}
           </ul>

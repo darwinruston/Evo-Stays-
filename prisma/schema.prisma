@@ -28,9 +28,24 @@ datasource db {
 // rather than only on top-level models -- so a scoped query or an RLS policy
 // applies the exact same way regardless of how deep the relation chain back
 // to Organization actually is. See src/lib/prisma.ts.
+// Trial by default -- every organization starts here (see createOrganization
+// in src/app/admin/organizations/actions.ts) until the platform owner marks
+// it Paid with an agreed monthly price. Deliberately not a payment
+// integration: this is a record of the commercial state, for the
+// Organizations page to show, not something that processes a real charge.
+enum OrganizationPlan {
+  TRIAL
+  PAID
+}
+
 model Organization {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   name      String
+  plan      OrganizationPlan @default(TRIAL)
+  // Only meaningful once plan is PAID -- null on a trial organization, and
+  // left as whatever it was last set to if an organization is ever moved
+  // back to Trial, so re-enabling Paid doesn't lose the agreed figure.
+  monthlyPriceGBP Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

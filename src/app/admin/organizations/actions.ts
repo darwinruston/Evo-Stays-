@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import type { OrganizationPlan } from "@prisma/client";
 import { prisma, scopedDb } from "@/lib/prisma";
 import { requirePlatformOwner } from "@/lib/authz";
 
@@ -55,4 +56,41 @@ export async function createOrganization(formData: FormData) {
 
   revalidatePath("/admin/organizations");
   redirect("/admin/organizations");
+}
+
+// The commercial state shown on the Organizations page -- Trial or Paid,
+// and (only meaningful for Paid) the agreed monthly price. Not a payment
+// integration: this doesn't charge anything, it's a record of what's been
+// agreed, the same way BillingSettings.cadence is a record rather than an
+// invoicing engine. Organization carries no RLS (see UNSCOPED_MODELS in
+// src/lib/prisma.ts), so this goes through the unscoped client directly,
+// same as reading the list itself.
+export async function updateOrganizationPlan(organizationId: string, formData: FormData) {
+  await requirePlatformOwner();
+
+  const plan = formData.get("plan");
+  if (plan !== "TRIAL" && plan !== "PAID") throw new Error("Choose Trial or Paid");
+
+  const rawPrice = str(formData, "monthlyPriceGBP");
+  let monthlyPriceGBP: number | null = null;
+  if (plan === "PAID") {
+    const parsed = rawPrice !== null ? Number.parseFloat(rawPrice) : NaN;
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      throw new Error("Enter a monthly price of 0 or more");
+    }
+    monthlyPriceGBP = parsed;
+  }
+
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: {
+      plan: plan as OrganizationPlan,
+      // Only overwritten when moving to Paid -- moving back to Trial keeps
+      // whatever price was last agreed, so re-enabling Paid later doesn't
+      // need it typed in again.
+      ...(plan === "PAID" ? { monthlyPriceGBP } : {}),
+    },
+  });
+
+  revalidatePath("/admin/organizations");
 }
