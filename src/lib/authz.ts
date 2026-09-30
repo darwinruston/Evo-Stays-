@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { scopedDb, type ScopedPrismaClient } from "@/lib/prisma";
+import { prisma, scopedDb, type ScopedPrismaClient } from "@/lib/prisma";
 
 const STAFF_ROLES = ["ADMIN", "OFFICE"];
 const CLEANER_ROLES = ["ADMIN", "CLEANER"];
@@ -13,6 +13,25 @@ const CLEANER_ROLES = ["ADMIN", "CLEANER"];
 function isPlatformOwner(email: string | null | undefined): boolean {
   const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
   return !!ownerEmail && email === ownerEmail;
+}
+
+// Checked on every staff/cleaner request, not just at login -- a session
+// already issued (this app uses JWT sessions, decoded from the cookie alone)
+// stays valid for its own lifetime regardless of what changes in the
+// database afterwards, so suspending an organization has to be caught here
+// to actually cut off someone already signed in. Organization carries no
+// RLS (see UNSCOPED_MODELS in src/lib/prisma.ts), so this reads it directly.
+//
+// Skipped entirely when the owner is impersonating (see
+// src/app/impersonation/actions.ts) -- support access to a suspended
+// organization is exactly the case that access still needs to work for.
+async function redirectIfSuspended(organizationId: string, impersonatedBy?: string): Promise<void> {
+  if (impersonatedBy) return;
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { suspendedAt: true },
+  });
+  if (organization?.suspendedAt) redirect("/suspended");
 }
 
 // Gates the whole /owner area -- the platform owner's own space for managing
@@ -45,6 +64,7 @@ export async function requireStaff() {
   if (!session?.user) redirect("/login");
   if (isPlatformOwner(session.user.email)) redirect("/owner");
   if (!STAFF_ROLES.includes(session.user.role)) redirect("/");
+  await redirectIfSuspended(session.user.organizationId, session.user.impersonatedBy);
   return { session, db: scopedDb(session.user.organizationId) };
 }
 
@@ -56,6 +76,7 @@ export async function requireAdmin() {
   if (isPlatformOwner(session.user.email)) redirect("/owner");
   if (session.user.role === "OFFICE") redirect("/admin");
   if (session.user.role !== "ADMIN") redirect("/");
+  await redirectIfSuspended(session.user.organizationId, session.user.impersonatedBy);
   return { session, db: scopedDb(session.user.organizationId) };
 }
 
@@ -91,6 +112,7 @@ export async function requireCleaner() {
   if (!session?.user) redirect("/login");
   if (isPlatformOwner(session.user.email)) redirect("/owner");
   if (!CLEANER_ROLES.includes(session.user.role)) redirect("/");
+  await redirectIfSuspended(session.user.organizationId, session.user.impersonatedBy);
   return { session, db: scopedDb(session.user.organizationId) };
 }
 

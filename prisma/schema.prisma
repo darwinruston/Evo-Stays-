@@ -54,8 +54,23 @@ model Organization {
   // account's technical housekeeping staring back at them in a list of
   // customers.
   isPlatform Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  // Informational only -- nothing automatically suspends an organization
+  // when this passes. Shown on the Organizations page as a due-soon/overdue
+  // flag; whether to actually cut access off afterwards is still the
+  // owner's own call, made explicitly via `suspendedAt` below. Null means
+  // no trial end date has been set (an indefinite trial, today's default
+  // behaviour for every existing organization).
+  trialEndsAt DateTime?
+  // Set (to when) to cut off every user in this organization from signing
+  // in or reaching any page -- see requireStaff/requireAdmin/requireCleaner
+  // in src/lib/authz.ts, which all check this on every request rather than
+  // only at login, since a session already issued before suspension must
+  // still be caught. Null means active, same "nullable timestamp doubles as
+  // the toggle and the record of when" convention as Issue.resolvedAt,
+  // Invoice.paidAt and LaundryLoad.collectedAt elsewhere in this schema.
+  suspendedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   users                     User[]
   auditLogs                 AuditLog[]

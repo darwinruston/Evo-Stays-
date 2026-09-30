@@ -48,6 +48,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub as string;
         session.user.role = token.role as string;
         session.user.organizationId = token.organizationId as string;
+        // Only present on a token minted by impersonateOrganization (see
+        // src/app/impersonation/actions.ts) -- a normal sign-in's token
+        // never has this claim at all, so it comes through as undefined.
+        if (token.impersonatedBy) session.user.impersonatedBy = token.impersonatedBy;
       }
       return session;
     },

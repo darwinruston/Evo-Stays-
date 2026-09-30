@@ -2,7 +2,9 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { unreadNotificationCount } from "@/lib/notificationViews";
+import { prisma } from "@/lib/prisma";
 import { logoutAction } from "../logout/actions";
 
 // Day-to-day work areas -- left, right after the logo. Overview isn't
@@ -45,8 +47,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ...PROFILE_NAV,
   ];
 
+  // Only fetched when actually impersonating (see impersonateOrganization
+  // in src/app/impersonation/actions.ts) -- an extra query every other
+  // admin page load has no reason to pay for. Raw `prisma`, not `db`: this
+  // organization's own name isn't itself RLS-protected data (Organization
+  // carries no RLS -- see UNSCOPED_MODELS in src/lib/prisma.ts).
+  const impersonatedOrganization = session.user.impersonatedBy
+    ? await prisma.organization.findUnique({
+        where: { id: session.user.organizationId },
+        select: { name: true },
+      })
+    : null;
+
   return (
     <div className="min-h-screen">
+      {impersonatedOrganization && <ImpersonationBanner organizationName={impersonatedOrganization.name} />}
       <header className="sticky top-0 z-10 border-b border-black/5 bg-background/80 backdrop-blur-md">
         <nav className="relative flex items-center gap-6 px-4 py-4 sm:px-6 lg:px-10">
           <Link href="/admin" aria-label="Evo Stays home" className="shrink-0">

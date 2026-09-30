@@ -1,12 +1,27 @@
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma, scopedDb } from "@/lib/prisma";
-import { formatDate } from "@/lib/schedule";
+import { formatDate, toIsoDate } from "@/lib/schedule";
 import { formatCurrency } from "@/lib/invoices";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
-import { createOrganization, updateOrganizationPlan } from "./actions";
+import { createOrganization, updateOrganizationPlan, setOrganizationSuspended } from "./actions";
+import { impersonateOrganization } from "@/app/impersonation/actions";
 
 export const metadata = { title: "Organizations" };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// "Trial ends in 3 days" / "Trial ended 2 days ago" / "Trial ends today" --
+// informational only (see the comment on Organization.trialEndsAt in
+// schema.prisma), so this is purely about making the date easy to act on at
+// a glance, not a real countdown anything else in the app reacts to.
+function trialEndLabel(trialEndsAt: Date, now: Date): { text: string; overdue: boolean } {
+  const days = Math.round((trialEndsAt.getTime() - now.getTime()) / DAY_MS);
+  if (days === 0) return { text: "Trial ends today", overdue: false };
+  if (days > 0) return { text: `Trial ends in ${days} ${days === 1 ? "day" : "days"}`, overdue: false };
+  const overdueDays = -days;
+  return { text: `Trial ended ${overdueDays} ${overdueDays === 1 ? "day" : "days"} ago`, overdue: true };
+}
 
 // The one screen that legitimately spans every tenant -- gated by
 // requirePlatformOwner (via the /owner layout), not requireStaff, and reads
@@ -46,6 +61,10 @@ export default async function OrganizationsPage() {
     }),
   );
 
+  const mrr = organizations.reduce((sum, org) => sum + (org.plan === "PAID" ? (org.monthlyPriceGBP ?? 0) : 0), 0);
+  const paidCount = organizations.filter((org) => org.plan === "PAID").length;
+  const now = new Date();
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -56,73 +75,120 @@ export default async function OrganizationsPage() {
         </p>
       </div>
 
+      {paidCount > 0 && (
+        <div className={card("flex items-center justify-between gap-4 p-5")}>
+          <div>
+            <p className="text-sm text-zinc-500">Monthly recurring revenue</p>
+            <p className="mt-0.5 text-2xl font-semibold tracking-tight">{formatCurrency(mrr)}</p>
+          </div>
+          <p className="text-sm text-zinc-500">
+            across {paidCount} paid {paidCount === 1 ? "organization" : "organizations"}
+          </p>
+        </div>
+      )}
+
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-zinc-500">All organizations ({organizations.length})</h2>
         {organizations.length === 0 ? (
           <p className="text-sm text-zinc-600">None yet — create the first one below.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {organizations.map((org) => (
-              <li key={org.id} className={card("flex flex-col gap-3 p-4")}>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium">{org.name}</p>
-                    <p className="text-sm text-zinc-500">Created {formatDate(org.createdAt)}</p>
+            {organizations.map((org) => {
+              const trial = org.trialEndsAt ? trialEndLabel(org.trialEndsAt, now) : null;
+              return (
+                <li key={org.id} className={card("flex flex-col gap-3 p-4")}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {org.name}
+                        {org.suspendedAt && <span className={`ml-2 ${badge("outline")}`}>Suspended</span>}
+                      </p>
+                      <p className="text-sm text-zinc-500">
+                        Created {formatDate(org.createdAt)}
+                        {trial && (
+                          <span className={trial.overdue ? "text-red-600" : ""}> · {trial.text}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <span className={badge("neutral")}>
+                        {org._count.users} {org._count.users === 1 ? "login" : "logins"}
+                      </span>
+                      <span className={badge("neutral")}>
+                        {org._count.properties} {org._count.properties === 1 ? "property" : "properties"}
+                      </span>
+                      <span className={badge(org.plan === "PAID" ? "solid" : "outline")}>
+                        {org.plan === "PAID"
+                          ? `Paid${org.monthlyPriceGBP !== null ? ` · ${formatCurrency(org.monthlyPriceGBP)}/mo` : ""}`
+                          : "Trial"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <span className={badge("neutral")}>
-                      {org._count.users} {org._count.users === 1 ? "login" : "logins"}
-                    </span>
-                    <span className={badge("neutral")}>
-                      {org._count.properties} {org._count.properties === 1 ? "property" : "properties"}
-                    </span>
-                    <span className={badge(org.plan === "PAID" ? "solid" : "outline")}>
-                      {org.plan === "PAID"
-                        ? `Paid${org.monthlyPriceGBP !== null ? ` · ${formatCurrency(org.monthlyPriceGBP)}/mo` : ""}`
-                        : "Trial"}
-                    </span>
-                  </div>
-                </div>
 
-                <form
-                  action={updateOrganizationPlan.bind(null, org.id)}
-                  className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3"
-                >
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor={`plan-${org.id}`} className="text-xs text-zinc-500">
-                      Plan
-                    </label>
-                    <select
-                      id={`plan-${org.id}`}
-                      name="plan"
-                      defaultValue={org.plan}
-                      className={`${inputCompact} w-28`}
-                    >
-                      <option value="TRIAL">Trial</option>
-                      <option value="PAID">Paid</option>
-                    </select>
+                  <form
+                    action={updateOrganizationPlan.bind(null, org.id)}
+                    className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor={`plan-${org.id}`} className="text-xs text-zinc-500">
+                        Plan
+                      </label>
+                      <select
+                        id={`plan-${org.id}`}
+                        name="plan"
+                        defaultValue={org.plan}
+                        className={`${inputCompact} w-28`}
+                      >
+                        <option value="TRIAL">Trial</option>
+                        <option value="PAID">Paid</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor={`price-${org.id}`} className="text-xs text-zinc-500">
+                        Monthly price (£)
+                      </label>
+                      <input
+                        id={`price-${org.id}`}
+                        name="monthlyPriceGBP"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        defaultValue={org.monthlyPriceGBP ?? ""}
+                        placeholder="e.g. 49.00"
+                        className={`${inputCompact} w-32`}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor={`trialEnds-${org.id}`} className="text-xs text-zinc-500">
+                        Trial ends
+                      </label>
+                      <input
+                        id={`trialEnds-${org.id}`}
+                        name="trialEndsAt"
+                        type="date"
+                        defaultValue={org.trialEndsAt ? toIsoDate(org.trialEndsAt) : ""}
+                        className={`${inputCompact} w-40`}
+                      />
+                    </div>
+                    <button type="submit" className={button("secondary", "sm")}>
+                      Save
+                    </button>
+                  </form>
+                  <div className="flex flex-wrap gap-3">
+                    <form action={impersonateOrganization.bind(null, org.id)}>
+                      <button type="submit" className={button("ghost", "sm")}>
+                        View as this organization
+                      </button>
+                    </form>
+                    <form action={setOrganizationSuspended.bind(null, org.id, !org.suspendedAt)}>
+                      <button type="submit" className={button(org.suspendedAt ? "secondary" : "danger", "sm")}>
+                        {org.suspendedAt ? "Reactivate" : "Suspend"}
+                      </button>
+                    </form>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor={`price-${org.id}`} className="text-xs text-zinc-500">
-                      Monthly price (£)
-                    </label>
-                    <input
-                      id={`price-${org.id}`}
-                      name="monthlyPriceGBP"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      defaultValue={org.monthlyPriceGBP ?? ""}
-                      placeholder="e.g. 49.00"
-                      className={`${inputCompact} w-32`}
-                    />
-                  </div>
-                  <button type="submit" className={button("secondary", "sm")}>
-                    Save
-                  </button>
-                </form>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
