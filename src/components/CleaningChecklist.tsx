@@ -8,7 +8,12 @@ import { card } from "@/lib/ui";
 // standard list by heart can spot at a glance what's different here.
 export function CleaningChecklist({ extras = [] }: { extras?: { room: string; text: string }[] }) {
   return (
-    <div className="flex flex-col gap-2">
+    // A grid, not a single flex column -- the cleaner's own page never
+    // renders this wider than its phone-first max-w-md, so it always stays
+    // one column there regardless. Given real width (the admin preview),
+    // it fans the room cards out sideways instead of stacking every one of
+    // them into one long scroll.
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {mergeChecklist(extras).map(({ room, items }) => (
         <div key={room} className={card("p-3")}>
           <h3 className="text-sm font-semibold text-zinc-900 [overflow-wrap:anywhere]">{room}</h3>

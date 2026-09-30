@@ -320,7 +320,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <summary className="cursor-pointer text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700">
               Preview what cleaners see
             </summary>
-            <div className="mt-2 max-w-md">
+            {/* Wider than the cleaner's own phone-first max-w-md -- this is
+                the one place CleaningChecklist actually gets to use its
+                grid columns instead of stacking into one long list. */}
+            <div className="mt-2 max-w-3xl">
               <CleaningChecklist extras={property.checklistItems} />
             </div>
           </details>
