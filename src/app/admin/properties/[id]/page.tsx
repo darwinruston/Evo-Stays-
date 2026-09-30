@@ -171,9 +171,43 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
 
       <PropertyDetails property={property} />
 
-      {/* Up top, straight after the property itself -- an open problem here
-          (especially one marked "before next guests") is the thing most
-          worth seeing on arrival at this page. */}
+      {/* Up top, straight after the property itself -- who's actually
+          designated here is the other thing worth knowing before anything
+          else on the page. */}
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+          Cleaners{" "}
+          <span className="text-sm font-normal text-zinc-500">({property.designatedCleaners.length})</span>
+          <InfoTooltip text="Cleaners designated as the regular/preferred worker for this property — a new clean here is offered to this pool first, before falling back to auto-assign's wider scoring." />
+        </h2>
+        {property.designatedCleaners.length > 0 ? (
+          // Compact pills, same treatment as Access above -- a name is all
+          // there is to show here, so a full-width card per cleaner was a
+          // lot of empty space for one word.
+          <div className="flex flex-wrap gap-1.5">
+            {property.designatedCleaners.map((dc) => (
+              <Link
+                key={dc.id}
+                href={`/admin/cleaners/${dc.cleaner.id}`}
+                className={`${badge("neutral")} transition-colors hover:bg-black/10`}
+              >
+                {dc.cleaner.name}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-500">
+            No cleaner designated yet — set one from the{" "}
+            <Link href="/admin/cleaners" className="underline underline-offset-2">
+              Cleaners
+            </Link>{" "}
+            page.
+          </p>
+        )}
+      </section>
+
+      {/* An open problem here (especially one marked "before next guests")
+          is the next most important thing worth seeing on arrival. */}
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
@@ -201,36 +235,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           />
         ) : (
           <p className="text-sm text-zinc-500">Nothing reported that still needs dealing with.</p>
-        )}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
-          Cleaners{" "}
-          <span className="text-sm font-normal text-zinc-500">({property.designatedCleaners.length})</span>
-          <InfoTooltip text="Cleaners designated as the regular/preferred worker for this property — a new clean here is offered to this pool first, before falling back to auto-assign's wider scoring." />
-        </h2>
-        {property.designatedCleaners.length > 0 ? (
-          <ul className="flex flex-col gap-2">
-            {property.designatedCleaners.map((dc) => (
-              <li key={dc.id}>
-                <Link
-                  href={`/admin/cleaners/${dc.cleaner.id}`}
-                  className={card("block p-4 transition-colors hover:bg-black/[0.02]")}
-                >
-                  {dc.cleaner.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-zinc-500">
-            No cleaner designated yet — set one from the{" "}
-            <Link href="/admin/cleaners" className="underline underline-offset-2">
-              Cleaners
-            </Link>{" "}
-            page.
-          </p>
         )}
       </section>
 

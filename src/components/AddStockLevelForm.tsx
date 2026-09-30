@@ -27,7 +27,11 @@ export function AddStockLevelForm({
           setItemId("");
           setOpen(true);
         }}
-        className={button("secondary", "sm")}
+        // self-start -- this renders as a direct child of a flex-col
+        // section elsewhere on the page, which stretches children to full
+        // width by default; every other button here sits inside its own
+        // row wrapper instead, so this is the one that needs to opt out.
+        className={`${button("secondary", "sm")} self-start`}
       >
         + Add stock item
       </button>
