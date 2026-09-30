@@ -23,21 +23,21 @@ datasource db {
   directUrl = env("MIGRATE_DATABASE_URL")
 }
 
-// One tenant: a cleaning-management company using the platform. Every other
-// model below carries its own organizationId, denormalized directly onto it
-// rather than only on top-level models -- so a scoped query or an RLS policy
-// applies the exact same way regardless of how deep the relation chain back
-// to Organization actually is. See src/lib/prisma.ts.
 // Trial by default -- every organization starts here (see createOrganization
-// in src/app/admin/organizations/actions.ts) until the platform owner marks
-// it Paid with an agreed monthly price. Deliberately not a payment
-// integration: this is a record of the commercial state, for the
-// Organizations page to show, not something that processes a real charge.
+// in src/app/owner/actions.ts) until the platform owner marks it Paid with
+// an agreed monthly price. Deliberately not a payment integration: this is
+// a record of the commercial state, for the Organizations page to show, not
+// something that processes a real charge.
 enum OrganizationPlan {
   TRIAL
   PAID
 }
 
+// One tenant: a cleaning-management company using the platform. Every other
+// model below carries its own organizationId, denormalized directly onto it
+// rather than only on top-level models -- so a scoped query or an RLS policy
+// applies the exact same way regardless of how deep the relation chain back
+// to Organization actually is. See src/lib/prisma.ts.
 model Organization {
   id        String           @id @default(cuid())
   name      String
@@ -46,8 +46,16 @@ model Organization {
   // left as whatever it was last set to if an organization is ever moved
   // back to Trial, so re-enabling Paid doesn't lose the agreed figure.
   monthlyPriceGBP Float?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // True for exactly one row: the technical home of the platform owner's
+  // own User (every User needs an organizationId, and the owner is no
+  // exception -- see requirePlatformOwner in src/lib/authz.ts). Not a real
+  // customer, so it's excluded from the Organizations page's own list (see
+  // src/app/owner/page.tsx) -- the owner would otherwise see their own
+  // account's technical housekeeping staring back at them in a list of
+  // customers.
+  isPlatform Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   users                     User[]
   auditLogs                 AuditLog[]

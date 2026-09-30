@@ -14,8 +14,11 @@ async function main() {
   // never scopes into its own organization the way /admin does.
   const platformOrg = await prisma.organization.upsert({
     where: { id: "seed-org-platform" },
-    update: {},
-    create: { id: "seed-org-platform", name: "Platform Administration" },
+    // isPlatform also set on update, not just create, so re-running this
+    // seed against a database that already had this row from before the
+    // isPlatform column existed still ends up flagged correctly.
+    update: { isPlatform: true },
+    create: { id: "seed-org-platform", name: "Platform Administration", isPlatform: true },
   });
   await scopedDb(platformOrg.id).user.upsert({
     where: { email: "owner@evostays.test" },

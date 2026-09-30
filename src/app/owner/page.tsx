@@ -25,7 +25,13 @@ export const metadata = { title: "Organizations" };
 export default async function OrganizationsPage() {
   await requirePlatformOwner();
 
-  const organizationRows = await prisma.organization.findMany({ orderBy: { createdAt: "asc" } });
+  // isPlatform: false excludes the owner's own technical home organization
+  // (see the comment on Organization.isPlatform in schema.prisma) -- it's
+  // not a real customer, so it has no place in a list of them.
+  const organizationRows = await prisma.organization.findMany({
+    where: { isPlatform: false },
+    orderBy: { createdAt: "asc" },
+  });
   const organizations = await Promise.all(
     organizationRows.map(async (org) => {
       const db = scopedDb(org.id);
