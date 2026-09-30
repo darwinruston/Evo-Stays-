@@ -1,9 +1,22 @@
-import { PrismaClient, Role, PropertyType, CleanStatus } from "@prisma/client";
+import { Role, PropertyType, CleanStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
+import { prisma, scopedDb } from "@/lib/prisma";
 
 async function main() {
+  // Everything below belongs to one demo organization -- a fresh install's
+  // very first tenant. Organization itself carries no RLS (see
+  // UNSCOPED_MODELS in src/lib/prisma.ts), so this upsert uses the raw
+  // client directly; everything else goes through the scoped `db` built
+  // from it, since RLS would otherwise reject every insert below (its WITH
+  // CHECK has nothing to compare against without app.current_organization_id
+  // set).
+  const organization = await prisma.organization.upsert({
+    where: { id: "seed-org-demo" },
+    update: {},
+    create: { id: "seed-org-demo", name: "Demo Cleaning Co" },
+  });
+  const db = scopedDb(organization.id);
+
   const staff: { name: string; email: string; password: string; role: Role }[] = [
     { name: "Admin User", email: "admin@evostays.test", password: "password123", role: Role.ADMIN },
     { name: "Office User", email: "office@evostays.test", password: "password123", role: Role.OFFICE },
@@ -15,10 +28,10 @@ async function main() {
 
   for (const u of staff) {
     const passwordHash = await bcrypt.hash(u.password, 10);
-    await prisma.user.upsert({
+    await db.user.upsert({
       where: { email: u.email },
       update: {},
-      create: { name: u.name, email: u.email, passwordHash, role: u.role },
+      create: { organizationId: organization.id, name: u.name, email: u.email, passwordHash, role: u.role },
     });
   }
 
@@ -26,17 +39,19 @@ async function main() {
   // Two rather than one on purpose: the thing most worth testing in this app
   // is that a cleaner can't reach a property they're not assigned at, which
   // needs a second portfolio to fail against.
-  const harbour = await prisma.client.upsert({
+  const harbour = await db.client.upsert({
     where: { id: "seed-client-harbour" },
     update: {},
     create: {
       id: "seed-client-harbour",
+      organizationId: organization.id,
       name: "Harbour Lets",
       email: "hello@harbourlets.example",
       phone: "07700 900123",
       properties: {
         create: [
           {
+            organizationId: organization.id,
             name: "Riverside Loft",
             address: "12 Wapping High Street, London, E1W 1NJ",
             type: PropertyType.APARTMENT,
@@ -47,6 +62,7 @@ async function main() {
             accessNotes: "Key safe to the left of the main door, code 4821. Lift to 3rd floor.",
           },
           {
+            organizationId: organization.id,
             name: "Dockside Studio",
             address: "4 Narrow Street, London, E14 8DP",
             type: PropertyType.STUDIO,
@@ -61,17 +77,19 @@ async function main() {
     },
   });
 
-  const peak = await prisma.client.upsert({
+  const peak = await db.client.upsert({
     where: { id: "seed-client-peak" },
     update: {},
     create: {
       id: "seed-client-peak",
+      organizationId: organization.id,
       name: "Peak Retreats",
       email: "stay@peakretreats.example",
       phone: "07700 900456",
       properties: {
         create: [
           {
+            organizationId: organization.id,
             name: "Millstone Cottage",
             address: "3 Church Lane, Hathersage, S32 1AJ",
             type: PropertyType.COTTAGE,
@@ -90,15 +108,15 @@ async function main() {
   // Retreats cottage, so cleaner@ has a property they must not be able to
   // reach.
   const [admin, cleaner1, cleaner2] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { email: "admin@evostays.test" } }),
-    prisma.user.findUniqueOrThrow({ where: { email: "cleaner@evostays.test" } }),
-    prisma.user.findUniqueOrThrow({ where: { email: "cleaner2@evostays.test" } }),
+    db.user.findUniqueOrThrow({ where: { email: "admin@evostays.test" } }),
+    db.user.findUniqueOrThrow({ where: { email: "cleaner@evostays.test" } }),
+    db.user.findUniqueOrThrow({ where: { email: "cleaner2@evostays.test" } }),
   ]);
 
   const [riverside, dockside, millstone] = await Promise.all([
-    prisma.property.findFirstOrThrow({ where: { name: "Riverside Loft" } }),
-    prisma.property.findFirstOrThrow({ where: { name: "Dockside Studio" } }),
-    prisma.property.findFirstOrThrow({ where: { name: "Millstone Cottage" } }),
+    db.property.findFirstOrThrow({ where: { name: "Riverside Loft" } }),
+    db.property.findFirstOrThrow({ where: { name: "Dockside Studio" } }),
+    db.property.findFirstOrThrow({ where: { name: "Millstone Cottage" } }),
   ]);
 
   function at(daysFromNow: number, hour: number): Date {
@@ -144,19 +162,20 @@ async function main() {
   ];
 
   for (const c of cleans) {
-    await prisma.clean.upsert({
+    await db.clean.upsert({
       where: { id: c.id },
       update: {},
-      create: { ...c, createdById: admin.id },
+      create: { organizationId: organization.id, ...c, createdById: admin.id },
     });
   }
 
   // A completed clean needs its log, otherwise the history view has nothing
   // to show.
-  await prisma.cleanLog.upsert({
+  await db.cleanLog.upsert({
     where: { cleanId: "seed-clean-riverside-past" },
     update: {},
     create: {
+      organizationId: organization.id,
       cleanId: "seed-clean-riverside-past",
       recordedById: cleaner1.id,
       note: "All done. Shower sealant is starting to go mouldy — worth flagging to the owner.",
@@ -176,7 +195,11 @@ async function main() {
   ];
   const stockItems = await Promise.all(
     stockItemDefs.map((s) =>
-      prisma.stockItem.upsert({ where: { name: s.name }, update: {}, create: s }),
+      db.stockItem.upsert({
+        where: { organizationId_name: { organizationId: organization.id, name: s.name } },
+        update: {},
+        create: { organizationId: organization.id, ...s },
+      }),
     ),
   );
   const [toiletRoll, binBags, handSoap] = stockItems;
@@ -187,10 +210,10 @@ async function main() {
     { stockItemId: handSoap.id, band: "LOW" as const },
   ];
   for (const level of stockLevels) {
-    await prisma.propertyStockLevel.upsert({
+    await db.propertyStockLevel.upsert({
       where: { propertyId_stockItemId: { propertyId: riverside.id, stockItemId: level.stockItemId } },
       update: {},
-      create: { propertyId: riverside.id, ...level },
+      create: { organizationId: organization.id, propertyId: riverside.id, ...level },
     });
   }
 
@@ -198,6 +221,7 @@ async function main() {
     "Seeded logins:",
     staff.map((u) => `${u.email} / password123`).join(", "),
   );
+  console.log("Seeded organization:", organization.name);
   console.log("Seeded clients:", [harbour.name, peak.name].join(", "));
   console.log("Seeded cleans:", cleans.length);
   console.log("Seeded stock items:", stockItems.map((s) => s.name).join(", "));

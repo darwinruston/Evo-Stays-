@@ -1,5 +1,5 @@
 import type { CleanStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { autoAssignCleaner } from "@/lib/autoAssign";
 import { calendarDayKey, toIsoDate } from "@/lib/schedule";
 
@@ -15,19 +15,23 @@ import { calendarDayKey, toIsoDate } from "@/lib/schedule";
 // a second lookup. Doesn't notify on its own: the admin form notifies
 // straight away, but a sync collects every clean it creates and sends one
 // batch at the end, which only the caller knows how to do.
-export async function createCleanRecord(input: {
-  propertyId: string;
-  createdById: string;
-  scheduledFor: Date | null;
-  guestCount?: number | null;
-  instructions?: string | null;
-  assignedToId?: string;
-}) {
+export async function createCleanRecord(
+  db: ScopedPrismaClient,
+  input: {
+    propertyId: string;
+    createdById: string;
+    scheduledFor: Date | null;
+    guestCount?: number | null;
+    instructions?: string | null;
+    assignedToId?: string;
+  },
+) {
   const assignedToId =
-    input.assignedToId ?? (await autoAssignCleaner(input.propertyId, input.scheduledFor));
+    input.assignedToId ?? (await autoAssignCleaner(db, input.propertyId, input.scheduledFor));
 
-  return prisma.clean.create({
+  return db.clean.create({
     data: {
+      organizationId: db.organizationId,
       propertyId: input.propertyId,
       assignedToId,
       createdById: input.createdById,
@@ -42,8 +46,8 @@ export async function createCleanRecord(input: {
 // Shared by the create and edit clean pages -- every cleaner plus the days
 // they've blocked (see CleanerUnavailability in schema.prisma), for
 // CleanForm's live "this cleaner is unavailable that day" warning.
-export async function getCleanerOptions() {
-  const cleaners = await prisma.user.findMany({
+export async function getCleanerOptions(db: ScopedPrismaClient) {
+  const cleaners = await db.user.findMany({
     where: { role: "CLEANER" },
     orderBy: { name: "asc" },
     select: { id: true, name: true, unavailability: { select: { date: true } } },

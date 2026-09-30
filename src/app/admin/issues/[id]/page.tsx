@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { IssueSeverity, IssueStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { requireStaff, isStaffSession } from "@/lib/authz";
+import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatScheduledFor } from "@/lib/schedule";
 import {
@@ -16,8 +15,9 @@ import { updateIssue, deleteIssue } from "../actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await isStaffSession())) return { title: "Issue" };
-  const issue = await prisma.issue.findUnique({
+  const metaDb = await staffMetadataDb();
+  if (!metaDb) return { title: "Issue" };
+  const issue = await metaDb.issue.findUnique({
     where: { id },
     select: { category: true, property: { select: { nickname: true, name: true, address: true } } },
   });
@@ -35,10 +35,10 @@ function capitalise(text: string): string {
 }
 
 export default async function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const issue = await prisma.issue.findUnique({
+  const issue = await db.issue.findUnique({
     where: { id },
     include: {
       property: { select: { id: true, name: true, address: true, client: { select: { id: true, name: true } } } },
@@ -50,7 +50,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
   });
   if (!issue) notFound();
 
-  const activity = await prisma.auditLog.findMany({
+  const activity = await db.auditLog.findMany({
     where: { entityType: "Issue", entityId: issue.id },
     orderBy: { createdAt: "desc" },
     include: { actor: { select: { name: true } } },

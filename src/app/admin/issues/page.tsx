@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { sortIssuesByUrgency } from "@/lib/issues";
@@ -25,14 +24,14 @@ export default async function IssuesPage({
 }: {
   searchParams: Promise<{ view?: string; propertyId?: string }>;
 }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { view: rawView, propertyId } = await searchParams;
   // Own keys only, so ?view=toString falls back to "open" rather than
   // matching an inherited property.
   const view: View = rawView && Object.hasOwn(VIEWS, rawView) ? (rawView as View) : "open";
 
   const [issues, property] = await Promise.all([
-    prisma.issue.findMany({
+    db.issue.findMany({
       where: { ...VIEWS[view].where, ...(propertyId ? { propertyId } : {}) },
       orderBy: { createdAt: "desc" },
       include: {
@@ -42,7 +41,7 @@ export default async function IssuesPage({
       },
     }),
     propertyId
-      ? prisma.property.findUnique({ where: { id: propertyId }, select: { id: true, name: true, address: true } })
+      ? db.property.findUnique({ where: { id: propertyId }, select: { id: true, name: true, address: true } })
       : null,
   ]);
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 
@@ -13,10 +13,10 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-async function resolveFacilityId(formData: FormData): Promise<string | null> {
+async function resolveFacilityId(db: ScopedPrismaClient, formData: FormData): Promise<string | null> {
   const raw = str(formData, "facilityId");
   if (!raw) return null;
-  const facility = await prisma.laundryFacility.findUnique({ where: { id: raw }, select: { id: true } });
+  const facility = await db.laundryFacility.findUnique({ where: { id: raw }, select: { id: true } });
   return facility?.id ?? null;
 }
 
@@ -43,18 +43,18 @@ export async function createLaundryLoad(
   _prevState: LaundryLoadFormState,
   formData: FormData,
 ): Promise<LaundryLoadFormState> {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const requestedIds = selectedCleanLogIds(formData);
   if (requestedIds.length === 0) return { error: "Pick at least one clean." };
 
-  const facilityId = await resolveFacilityId(formData);
+  const facilityId = await resolveFacilityId(db, formData);
   if (!facilityId) return { error: "Pick who's collecting it." };
 
   // Re-validated server-side: only logs that are actually still eligible get
   // connected, regardless of what the submitted checkboxes claimed -- the
   // same defense-in-depth every other action in this app applies.
-  const eligible = await prisma.cleanLog.findMany({
+  const eligible = await db.cleanLog.findMany({
     where: { id: { in: requestedIds }, ...ELIGIBLE_LOG_WHERE },
     select: { id: true },
   });
@@ -63,8 +63,9 @@ export async function createLaundryLoad(
   // No cost or receipt photo any more -- see the comment on
   // LaundryLoad.cost in schema.prisma. Both columns stay nullable rather
   // than removed, so loads recorded before this change keep showing theirs.
-  await prisma.laundryLoad.create({
+  await db.laundryLoad.create({
     data: {
+      organizationId: session.user.organizationId,
       facilityId,
       recordedById: session.user.id,
       logs: { connect: eligible.map((l) => ({ id: l.id })) },
@@ -81,8 +82,8 @@ export async function createLaundryLoad(
 // from before receiptPath went optional (if this load has one) is left on
 // disk, same tradeoff already accepted for property photos.
 export async function deleteLaundryLoad(id: string) {
-  await requireStaff();
-  await prisma.laundryLoad.delete({ where: { id } });
+  const { db } = await requireStaff();
+  await db.laundryLoad.delete({ where: { id } });
   revalidatePath("/admin/laundry");
   revalidatePath("/cleaner/laundry");
   redirect("/admin/laundry");
@@ -96,9 +97,9 @@ export async function deleteLaundryLoad(id: string) {
 // from (a load can cover several properties, so there's no single one to
 // derive) -- pass null when there isn't one, e.g. from the load detail page.
 export async function setLaundryLoadCollected(id: string, propertyId: string | null, collected: boolean) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  await prisma.laundryLoad.update({
+  await db.laundryLoad.update({
     where: { id },
     data: { collectedAt: collected ? new Date() : null },
   });

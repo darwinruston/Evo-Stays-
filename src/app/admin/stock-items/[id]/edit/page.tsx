@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { updateStockItem, deleteStockItem } from "../../actions";
 import { button, inputCompact } from "@/lib/ui";
@@ -8,10 +7,10 @@ import { button, inputCompact } from "@/lib/ui";
 export const metadata = { title: "Edit stock item" };
 
 export default async function EditStockItemPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const item = await prisma.stockItem.findUnique({
+  const item = await db.stockItem.findUnique({
     where: { id },
     include: { _count: { select: { levels: true, usage: true } } },
   });

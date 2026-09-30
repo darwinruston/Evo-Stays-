@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { scopedDb } from "@/lib/prisma";
 import { notificationsHref } from "@/lib/notificationViews";
 
 // Following a notification: mark it read, then land wherever it points. A
@@ -15,15 +15,16 @@ import { notificationsHref } from "@/lib/notificationViews";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) return NextResponse.redirect(new URL("/login", req.nextUrl));
+  const db = scopedDb(session.user.organizationId);
 
   const { id } = await params;
-  const notification = await prisma.notification.findFirst({
+  const notification = await db.notification.findFirst({
     where: { id, userId: session.user.id },
     select: { id: true, href: true, readAt: true },
   });
 
   if (notification && !notification.readAt) {
-    await prisma.notification.update({ where: { id: notification.id }, data: { readAt: new Date() } });
+    await db.notification.update({ where: { id: notification.id }, data: { readAt: new Date() } });
   }
 
   // href is only ever written by src/lib/notify.ts, but it's still checked

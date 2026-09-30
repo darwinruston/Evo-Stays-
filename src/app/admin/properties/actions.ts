@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma, PropertyType } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { savePropertyPhotos, saveHostifyCoverPhoto } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
@@ -63,30 +63,31 @@ function photoFiles(formData: FormData): File[] {
 
 // Keeps exactly one primary image per property: used after uploads and
 // deletions so a property with photos always has a cover shot.
-async function ensurePrimary(propertyId: string) {
-  const images = await prisma.propertyImage.findMany({
+async function ensurePrimary(db: ScopedPrismaClient, propertyId: string) {
+  const images = await db.propertyImage.findMany({
     where: { propertyId },
     orderBy: { createdAt: "asc" },
     select: { id: true, isPrimary: true },
   });
   if (images.length === 0) return;
   if (images.some((i) => i.isPrimary)) return;
-  await prisma.propertyImage.update({
+  await db.propertyImage.update({
     where: { id: images[0].id },
     data: { isPrimary: true },
   });
 }
 
 export async function createProperty(formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const clientId = str(formData, "clientId");
   const address = str(formData, "address");
   if (!clientId) throw new Error("Client is required");
   if (!address) throw new Error("Address is required");
 
-  const property = await prisma.property.create({
+  const property = await db.property.create({
     data: {
+      organizationId: session.user.organizationId,
       clientId,
       address,
       name: str(formData, "name"),
@@ -106,10 +107,14 @@ export async function createProperty(formData: FormData) {
   const files = photoFiles(formData);
   if (files.length > 0) {
     const paths = await savePropertyPhotos(property.id, files);
-    await prisma.propertyImage.createMany({
-      data: paths.map((path) => ({ propertyId: property.id, path })),
+    await db.propertyImage.createMany({
+      data: paths.map((path) => ({
+        organizationId: session.user.organizationId,
+        propertyId: property.id,
+        path,
+      })),
     });
-    await ensurePrimary(property.id);
+    await ensurePrimary(db, property.id);
   }
 
   revalidatePath("/admin/properties");
@@ -118,12 +123,12 @@ export async function createProperty(formData: FormData) {
 }
 
 export async function updateProperty(id: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const address = str(formData, "address");
   if (!address) throw new Error("Address is required");
 
-  const property = await prisma.property.update({
+  const property = await db.property.update({
     where: { id },
     data: {
       address,
@@ -144,7 +149,7 @@ export async function updateProperty(id: string, formData: FormData) {
   // One line for the whole edit rather than a field-by-field diff -- this
   // app doesn't have generic diffing anywhere else, and "who touched this
   // and when" already answers the question an audit trail is for.
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Property",
     entityId: id,
@@ -158,11 +163,11 @@ export async function updateProperty(id: string, formData: FormData) {
 }
 
 export async function deleteProperty(id: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
-  const property = await prisma.property.delete({ where: { id } });
+  const property = await db.property.delete({ where: { id } });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Property",
     entityId: id,
@@ -175,16 +180,16 @@ export async function deleteProperty(id: string) {
 }
 
 export async function addPropertyPhotos(id: string, formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const files = photoFiles(formData);
   if (files.length === 0) return;
 
   const paths = await savePropertyPhotos(id, files);
-  await prisma.propertyImage.createMany({
-    data: paths.map((path) => ({ propertyId: id, path })),
+  await db.propertyImage.createMany({
+    data: paths.map((path) => ({ organizationId: session.user.organizationId, propertyId: id, path })),
   });
-  await ensurePrimary(id);
+  await ensurePrimary(db, id);
 
   revalidatePath(`/admin/properties/${id}`);
 }
@@ -198,9 +203,9 @@ export async function addPropertyPhotos(id: string, formData: FormData) {
 // property has none, so this can't silently replace a photo staff already
 // chose.
 export async function fetchPropertyCoverPhoto(id: string) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
-  const property = await prisma.property.findUniqueOrThrow({
+  const property = await db.property.findUniqueOrThrow({
     where: { id },
     select: { hostifyListingId: true, client: { select: { hostifyApiKey: true } } },
   });
@@ -220,36 +225,44 @@ export async function fetchPropertyCoverPhoto(id: string) {
   }
 
   const photoPath = await saveHostifyCoverPhoto(id, photoUrl);
-  await prisma.propertyImage.create({ data: { propertyId: id, path: photoPath, isPrimary: false } });
-  await ensurePrimary(id);
+  await db.propertyImage.create({
+    data: { organizationId: session.user.organizationId, propertyId: id, path: photoPath, isPrimary: false },
+  });
+  await ensurePrimary(db, id);
 
   revalidatePath(`/admin/properties/${id}`);
   revalidatePath("/admin/properties");
 }
 
 export async function setPrimaryPhoto(propertyId: string, imageId: string) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   // Scoped to the property so a stray image id can't repoint another
   // property's cover shot.
-  const image = await prisma.propertyImage.findFirst({
+  const image = await db.propertyImage.findFirst({
     where: { id: imageId, propertyId },
     select: { id: true },
   });
   if (!image) throw new Error("Photo not found for this property");
 
-  await prisma.$transaction([
-    prisma.propertyImage.updateMany({ where: { propertyId }, data: { isPrimary: false } }),
-    prisma.propertyImage.update({ where: { id: image.id }, data: { isPrimary: true } }),
-  ]);
+  // Needs the two writes atomic with each other (never leave two photos, or
+  // none, marked primary) -- the scoped `db` extension can't provide a real
+  // interactive transaction (see the matching comment in
+  // admin/invoices/actions.ts's adjustInvoiceLineHours), so this uses the
+  // raw client's own $transaction, setting the RLS session variable by hand.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${session.user.organizationId}, TRUE)`;
+    await tx.propertyImage.updateMany({ where: { propertyId }, data: { isPrimary: false } });
+    await tx.propertyImage.update({ where: { id: image.id }, data: { isPrimary: true } });
+  });
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
 export async function deletePropertyPhoto(propertyId: string, imageId: string) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const image = await prisma.propertyImage.findFirst({
+  const image = await db.propertyImage.findFirst({
     where: { id: imageId, propertyId },
     select: { id: true },
   });
@@ -257,8 +270,8 @@ export async function deletePropertyPhoto(propertyId: string, imageId: string) {
 
   // Row only -- the file is left on disk, the same tradeoff the sibling app
   // accepts for local dev storage.
-  await prisma.propertyImage.delete({ where: { id: image.id } });
-  await ensurePrimary(propertyId);
+  await db.propertyImage.delete({ where: { id: image.id } });
+  await ensurePrimary(db, propertyId);
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
@@ -267,20 +280,20 @@ export async function deletePropertyPhoto(propertyId: string, imageId: string) {
 // par, no count, just what's on the shelf right now as best guessed (staff
 // can correct it immediately with the same toggle used everywhere else).
 export async function addPropertyStockLevel(propertyId: string, formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const stockItemId = str(formData, "stockItemId");
   const band = formData.get("band");
   if (!stockItemId) throw new Error("Pick an item");
   if (typeof band !== "string" || !isStockLevelBand(band)) throw new Error("Pick a level");
 
-  const existing = await prisma.propertyStockLevel.findUnique({
+  const existing = await db.propertyStockLevel.findUnique({
     where: { propertyId_stockItemId: { propertyId, stockItemId } },
   });
   if (existing) throw new Error("That item is already configured on this property");
 
-  await prisma.propertyStockLevel.create({
-    data: { propertyId, stockItemId, band: bandToDb(band) },
+  await db.propertyStockLevel.create({
+    data: { organizationId: session.user.organizationId, propertyId, stockItemId, band: bandToDb(band) },
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);
@@ -294,9 +307,9 @@ export async function addPropertyStockLevel(propertyId: string, formData: FormDa
 // Unlike that one, this doesn't create a StockUsageLog row: it's a standing
 // correction, not something that happened during a specific visit.
 export async function setPropertyStockLevel(propertyId: string, levelId: string, formData: FormData) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const level = await prisma.propertyStockLevel.findFirst({
+  const level = await db.propertyStockLevel.findFirst({
     where: { id: levelId, propertyId },
   });
   if (!level) throw new Error("Stock level not found for this property");
@@ -304,7 +317,7 @@ export async function setPropertyStockLevel(propertyId: string, levelId: string,
   const band = formData.get("band");
   if (typeof band !== "string" || !isStockLevelBand(band)) throw new Error("Pick a level.");
 
-  await prisma.propertyStockLevel.update({ where: { id: level.id }, data: { band: bandToDb(band) } });
+  await db.propertyStockLevel.update({ where: { id: level.id }, data: { band: bandToDb(band) } });
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/stock");
@@ -315,9 +328,9 @@ export async function setPropertyStockLevel(propertyId: string, levelId: string,
 // separate checkbox -- the field itself being set or not is the toggle,
 // same pattern as par being left blank on the stock item form.
 export async function updatePropertyMinBillableHours(propertyId: string, formData: FormData) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  await prisma.property.update({
+  await db.property.update({
     where: { id: propertyId },
     data: { minBillableHours: hours(formData, "minBillableHours") },
   });
@@ -326,9 +339,9 @@ export async function updatePropertyMinBillableHours(propertyId: string, formDat
 }
 
 export async function removePropertyStockLevel(propertyId: string, levelId: string) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const level = await prisma.propertyStockLevel.findFirst({
+  const level = await db.propertyStockLevel.findFirst({
     where: { id: levelId, propertyId },
     select: { id: true },
   });
@@ -337,7 +350,7 @@ export async function removePropertyStockLevel(propertyId: string, levelId: stri
   // The usage history (StockUsageLog) stays -- it's a record of what was
   // physically counted on real visits, independent of whether the property
   // still tracks that item's par level today.
-  await prisma.propertyStockLevel.delete({ where: { id: level.id } });
+  await db.propertyStockLevel.delete({ where: { id: level.id } });
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/stock");
@@ -349,9 +362,9 @@ export async function removePropertyStockLevel(propertyId: string, levelId: stri
 // Applies to every calendar feed on this property, not one at a time, since
 // a property listed on several platforms wants one consistent lookahead.
 export async function updatePropertySyncHorizon(propertyId: string, formData: FormData) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  await prisma.property.update({
+  await db.property.update({
     where: { id: propertyId },
     data: { syncHorizonDays: int(formData, "syncHorizonDays") },
   });
@@ -363,24 +376,24 @@ export async function updatePropertySyncHorizon(propertyId: string, formData: Fo
 // publish their own separate iCal URL for the same physical unit, so this
 // isn't a one-per-property field.
 export async function addPropertyCalendarFeed(propertyId: string, formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const label = str(formData, "label");
   const url = str(formData, "url");
   if (!label) throw new Error("Label is required");
   if (!url) throw new Error("Calendar URL is required");
 
-  await prisma.propertyCalendarFeed.create({
-    data: { propertyId, label, url },
+  await db.propertyCalendarFeed.create({
+    data: { organizationId: session.user.organizationId, propertyId, label, url },
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
 export async function removePropertyCalendarFeed(propertyId: string, feedId: string) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const feed = await prisma.propertyCalendarFeed.findFirst({
+  const feed = await db.propertyCalendarFeed.findFirst({
     where: { id: feedId, propertyId },
     select: { id: true },
   });
@@ -389,7 +402,7 @@ export async function removePropertyCalendarFeed(propertyId: string, feedId: str
   // Its SyncedBookingEvents cascade with it; the Cleans they produced stay
   // put (cleanId just goes back to unlinked) -- deleting a feed shouldn't
   // delete real scheduled work.
-  await prisma.propertyCalendarFeed.delete({ where: { id: feed.id } });
+  await db.propertyCalendarFeed.delete({ where: { id: feed.id } });
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
@@ -398,15 +411,15 @@ export async function removePropertyCalendarFeed(propertyId: string, feedId: str
 // is recorded on the feed itself (lastSyncError) for the property page to
 // show, so there's nothing here to catch.
 export async function syncPropertyCalendarFeed(propertyId: string, feedId: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
-  const feed = await prisma.propertyCalendarFeed.findFirst({
+  const feed = await db.propertyCalendarFeed.findFirst({
     where: { id: feedId, propertyId },
     select: { id: true },
   });
   if (!feed) throw new Error("Calendar not found for this property");
 
-  await syncCalendarFeed(feed.id, session.user.id);
+  await syncCalendarFeed(db, feed.id, session.user.id);
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/cleans");
@@ -417,18 +430,18 @@ export async function syncPropertyCalendarFeed(propertyId: string, feedId: strin
 // toggle" convention as updatePropertySyncHorizon/updatePropertyMinBillableHours.
 // A listing already aggregates every channel for one physical unit, so
 // unlike calendar feeds this is a single field, not a one-to-many list --
-// see hostifyListingId's @unique in schema.prisma.
+// see hostifyListingId's @unique in schema.db.
 export async function updatePropertyHostifyListingId(propertyId: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const hostifyListingId = str(formData, "hostifyListingId");
   try {
-    await prisma.property.update({
+    await db.property.update({
       where: { id: propertyId },
       // str(), not int() -- real Hostify listing ids run well past what a
       // JS number (or a 32-bit column) can hold without rounding, so this
       // is stored and handled as an opaque string throughout, never parsed
-      // as a number. See hostifyListingId's comment in schema.prisma.
+      // as a number. See hostifyListingId's comment in schema.db.
       data: { hostifyListingId },
     });
   } catch (err) {
@@ -438,7 +451,7 @@ export async function updatePropertyHostifyListingId(propertyId: string, formDat
     throw err;
   }
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Property",
     entityId: propertyId,
@@ -449,14 +462,14 @@ export async function updatePropertyHostifyListingId(propertyId: string, formDat
 }
 
 export async function removePropertyHostifyListing(propertyId: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
-  await prisma.property.update({
+  await db.property.update({
     where: { id: propertyId },
     data: { hostifyListingId: null, hostifyLastSyncedAt: null, hostifyLastSyncError: null },
   });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Property",
     entityId: propertyId,
@@ -470,16 +483,16 @@ export async function removePropertyHostifyListing(propertyId: string) {
 // recorded on the property itself (hostifyLastSyncError) for the page to
 // show, so there's nothing here to catch.
 export async function syncPropertyHostifyListing(propertyId: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
-  const property = await prisma.property.findFirst({
+  const property = await db.property.findFirst({
     where: { id: propertyId },
     select: { id: true, hostifyListingId: true },
   });
   if (!property) throw new Error("Property not found");
   if (property.hostifyListingId === null) throw new Error("No Hostify listing configured for this property");
 
-  await syncHostifyListing(propertyId, session.user.id);
+  await syncHostifyListing(db, propertyId, session.user.id);
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/cleans");
@@ -490,7 +503,7 @@ export async function syncPropertyHostifyListing(propertyId: string) {
 // (see PropertyChecklistItem in schema.prisma). The room is normalised so
 // "kitchen" joins the standard Kitchen card instead of starting another.
 export async function addPropertyChecklistItem(propertyId: string, formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const rawRoom = str(formData, "room");
   const text = str(formData, "text");
@@ -500,7 +513,7 @@ export async function addPropertyChecklistItem(propertyId: string, formData: For
   // same for a custom room the property already uses, so "hot tub" after
   // "Hot Tub" joins that card rather than listing the room twice.
   const normalised = normaliseRoom(rawRoom);
-  const existingRooms = await prisma.propertyChecklistItem.findMany({
+  const existingRooms = await db.propertyChecklistItem.findMany({
     where: { propertyId },
     select: { room: true },
     distinct: ["room"],
@@ -510,18 +523,20 @@ export async function addPropertyChecklistItem(propertyId: string, formData: For
   if (room.length > CHECKLIST_ROOM_MAX) throw new Error(`Keep the room name under ${CHECKLIST_ROOM_MAX} characters`);
   if (text.length > CHECKLIST_TEXT_MAX) throw new Error(`Keep the item under ${CHECKLIST_TEXT_MAX} characters`);
 
-  await prisma.propertyChecklistItem.create({ data: { propertyId, room, text } });
+  await db.propertyChecklistItem.create({
+    data: { organizationId: session.user.organizationId, propertyId, room, text },
+  });
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/cleaner", "layout");
 }
 
 export async function removePropertyChecklistItem(propertyId: string, itemId: string) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
   // Scoped to the property so a crafted POST can't remove another
   // property's item through this one's page.
-  await prisma.propertyChecklistItem.deleteMany({ where: { id: itemId, propertyId } });
+  await db.propertyChecklistItem.deleteMany({ where: { id: itemId, propertyId } });
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/cleaner", "layout");

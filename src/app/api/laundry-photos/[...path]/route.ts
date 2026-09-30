@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { scopedDb } from "@/lib/prisma";
 import { LAUNDRY_STORAGE_ROOT } from "@/lib/uploads";
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -45,7 +45,8 @@ export async function GET(
   const laundryLoadId = segments[0];
 
   if (session.user.role === "CLEANER") {
-    const assigned = await prisma.laundryLoad.findFirst({
+    const db = scopedDb(session.user.organizationId);
+    const assigned = await db.laundryLoad.findFirst({
       where: { id: laundryLoadId, logs: { some: { clean: { assignedToId: session.user.id } } } },
       select: { id: true },
     });

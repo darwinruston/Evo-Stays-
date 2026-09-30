@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { requireStaff, isStaffSession } from "@/lib/authz";
+import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
@@ -40,8 +39,9 @@ import { sortIssuesByUrgency } from "@/lib/issues";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await isStaffSession())) return { title: "Property" };
-  const property = await prisma.property.findUnique({
+  const metaDb = await staffMetadataDb();
+  if (!metaDb) return { title: "Property" };
+  const property = await metaDb.property.findUnique({
     where: { id },
     select: { nickname: true, name: true, address: true },
   });
@@ -49,10 +49,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const property = await prisma.property.findUnique({
+  const property = await db.property.findUnique({
     where: { id },
     include: {
       client: { select: { id: true, name: true, hostifyApiKey: true } },
@@ -72,18 +72,18 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   });
   if (!property) notFound();
 
-  const cleanCount = await prisma.clean.count({ where: { propertyId: property.id } });
+  const cleanCount = await db.clean.count({ where: { propertyId: property.id } });
 
   const [openIssues, issueCount] = await Promise.all([
-    prisma.issue.findMany({
+    db.issue.findMany({
       where: { propertyId: property.id, status: { not: "RESOLVED" } },
       include: { reportedBy: { select: { name: true } }, _count: { select: { photos: true } } },
     }),
-    prisma.issue.count({ where: { propertyId: property.id } }),
+    db.issue.count({ where: { propertyId: property.id } }),
   ]);
 
   const configuredItemIds = new Set(property.stockLevels.map((l) => l.stockItemId));
-  const availableItems = await prisma.stockItem.findMany({
+  const availableItems = await db.stockItem.findMany({
     where: { active: true, id: { notIn: [...configuredItemIds] } },
     orderBy: { name: "asc" },
   });
@@ -93,7 +93,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   // hidden -- once a load is marked collected it stops matching this query
   // on its own, which is what keeps this section from clogging up with old
   // resolved drop-offs.
-  const laundryOut = await prisma.laundryLoad.findMany({
+  const laundryOut = await db.laundryLoad.findMany({
     where: { collectedAt: null, logs: { some: { clean: { propertyId: property.id } } } },
     orderBy: { createdAt: "desc" },
     include: {

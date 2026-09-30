@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
 import { button, card } from "@/lib/ui";
@@ -7,9 +6,9 @@ import { button, card } from "@/lib/ui";
 export const metadata = { title: "Clients" };
 
 export default async function ClientsPage() {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const clients = await prisma.client.findMany({
+  const clients = await db.client.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { properties: true } } },
   });

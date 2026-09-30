@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
@@ -28,8 +28,8 @@ function str(formData: FormData, key: string): string | null {
 // having rendered the button is not the authorisation. The same goes for the
 // stage checks below: the turnover is a forced march in the UI, and these
 // make it one in the data too rather than only on screen.
-async function ownCleanOrThrow(cleanId: string, userId: string) {
-  const clean = await prisma.clean.findFirst({
+async function ownCleanOrThrow(db: ScopedPrismaClient, cleanId: string, userId: string) {
+  const clean = await db.clean.findFirst({
     where: { id: cleanId, assignedToId: userId },
     include: { log: { include: { photos: true, stockUsage: true } } },
   });
@@ -41,23 +41,33 @@ async function ownCleanOrThrow(cleanId: string, userId: string) {
 // check-out, so the before photos taken in the next step have somewhere to
 // live -- a log with departedAt still null is a visit in progress.
 export async function checkInClean(cleanId: string) {
-  const session = await requireCleaner();
-  const clean = await ownCleanOrThrow(cleanId, session.user.id);
+  const { session, db } = await requireCleaner();
+  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
 
   if (clean.status !== "PENDING") {
     throw new Error("This clean has already been started.");
   }
 
   const arrivedAt = new Date();
-  await prisma.$transaction([
-    prisma.clean.update({
+  // The clean and its brand-new log need to land together -- the scoped
+  // `db` extension can't provide a real interactive transaction (each of its
+  // calls opens its own, to carry the set_config), so this falls back to the
+  // raw client's own $transaction, setting the RLS session variable by hand.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${session.user.organizationId}, TRUE)`;
+    await tx.clean.update({
       where: { id: cleanId },
       data: { status: "IN_PROGRESS", arrivedAt },
-    }),
-    prisma.cleanLog.create({
-      data: { cleanId, recordedById: session.user.id, arrivedAt },
-    }),
-  ]);
+    });
+    await tx.cleanLog.create({
+      data: {
+        organizationId: session.user.organizationId,
+        cleanId,
+        recordedById: session.user.id,
+        arrivedAt,
+      },
+    });
+  });
 
   revalidatePath("/cleaner");
   revalidatePath(`/cleaner/cleans/${cleanId}`);
@@ -71,8 +81,8 @@ export async function uploadCleanPhotos(
   stage: "BEFORE" | "AFTER",
   formData: FormData,
 ) {
-  const session = await requireCleaner();
-  const clean = await ownCleanOrThrow(cleanId, session.user.id);
+  const { session, db } = await requireCleaner();
+  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
 
   if (clean.status !== "IN_PROGRESS") {
     throw new Error("Check in before adding photos.");
@@ -85,8 +95,13 @@ export async function uploadCleanPhotos(
   // before the log moved to check-in time looks like.
   const log =
     clean.log ??
-    (await prisma.cleanLog.create({
-      data: { cleanId, recordedById: session.user.id, arrivedAt: clean.arrivedAt },
+    (await db.cleanLog.create({
+      data: {
+        organizationId: session.user.organizationId,
+        cleanId,
+        recordedById: session.user.id,
+        arrivedAt: clean.arrivedAt,
+      },
       include: { photos: true },
     }));
 
@@ -108,8 +123,13 @@ export async function uploadCleanPhotos(
   // Stored under the property's own folder, so the single per-property check
   // in /api/photos covers these without a second rule.
   const paths = await savePropertyPhotos(clean.propertyId, files);
-  await prisma.cleanPhoto.createMany({
-    data: paths.map((path) => ({ logId: log.id, path, stage })),
+  await db.cleanPhoto.createMany({
+    data: paths.map((path) => ({
+      organizationId: session.user.organizationId,
+      logId: log.id,
+      path,
+      stage,
+    })),
   });
 
   revalidatePath(`/cleaner/cleans/${cleanId}`);
@@ -117,8 +137,8 @@ export async function uploadCleanPhotos(
 
 // Fetches this property's configured par levels -- what the stock step (and
 // the completeClean guard below) checks the cleaner's counts against.
-async function configuredStockItemIds(propertyId: string): Promise<string[]> {
-  const levels = await prisma.propertyStockLevel.findMany({
+async function configuredStockItemIds(db: ScopedPrismaClient, propertyId: string): Promise<string[]> {
+  const levels = await db.propertyStockLevel.findMany({
     where: { propertyId },
     select: { stockItemId: true },
   });
@@ -138,14 +158,14 @@ async function configuredStockItemIds(propertyId: string): Promise<string[]> {
 // count would mean typing a second number, which is exactly the friction
 // this flow is for avoiding.
 export async function recordStockLevel(cleanId: string, stockItemId: string, formData: FormData) {
-  const session = await requireCleaner();
-  const clean = await ownCleanOrThrow(cleanId, session.user.id);
+  const { session, db } = await requireCleaner();
+  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
 
   if (clean.status !== "IN_PROGRESS" || !clean.log) {
     throw new Error("Check in before recording stock.");
   }
 
-  const level = await prisma.propertyStockLevel.findFirst({
+  const level = await db.propertyStockLevel.findFirst({
     where: { propertyId: clean.propertyId, stockItemId },
   });
   if (!level) throw new Error("That item isn't configured on this property.");
@@ -160,12 +180,14 @@ export async function recordStockLevel(cleanId: string, stockItemId: string, for
   }
   const dbBand = bandToDb(band);
 
-  await prisma.$transaction([
-    prisma.stockUsageLog.create({
-      data: { logId: clean.log.id, stockItemId, band: dbBand },
-    }),
-    prisma.propertyStockLevel.update({ where: { id: level.id }, data: { band: dbBand } }),
-  ]);
+  // Same atomicity note as checkInClean above.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${session.user.organizationId}, TRUE)`;
+    await tx.stockUsageLog.create({
+      data: { organizationId: session.user.organizationId, logId: clean.log!.id, stockItemId, band: dbBand },
+    });
+    await tx.propertyStockLevel.update({ where: { id: level.id }, data: { band: dbBand } });
+  });
 
   revalidatePath(`/cleaner/cleans/${cleanId}`);
   revalidatePath("/admin/stock");
@@ -173,8 +195,8 @@ export async function recordStockLevel(cleanId: string, stockItemId: string, for
 }
 
 export async function completeClean(cleanId: string, formData: FormData) {
-  const session = await requireCleaner();
-  const clean = await ownCleanOrThrow(cleanId, session.user.id);
+  const { session, db } = await requireCleaner();
+  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
 
   if (clean.status !== "IN_PROGRESS" || !clean.log) {
     throw new Error("Check in before checking out.");
@@ -185,7 +207,7 @@ export async function completeClean(cleanId: string, formData: FormData) {
     throw new Error("Both before and after photos are needed before checking out.");
   }
 
-  const itemIds = await configuredStockItemIds(clean.propertyId);
+  const itemIds = await configuredStockItemIds(db, clean.propertyId);
   const recorded = new Set(clean.log.stockUsage.map((u) => u.stockItemId));
   if (itemIds.some((id) => !recorded.has(id))) {
     throw new Error("Stock counts are needed before checking out.");
@@ -194,13 +216,15 @@ export async function completeClean(cleanId: string, formData: FormData) {
   // Optional -- only worth writing when there's actually something to flag.
   const note = str(formData, "note");
 
-  await prisma.$transaction([
-    prisma.cleanLog.update({
-      where: { id: clean.log.id },
+  // Same atomicity note as checkInClean above.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${session.user.organizationId}, TRUE)`;
+    await tx.cleanLog.update({
+      where: { id: clean.log!.id },
       data: { note, departedAt: new Date() },
-    }),
-    prisma.clean.update({ where: { id: cleanId }, data: { status: "COMPLETED" } }),
-  ]);
+    });
+    await tx.clean.update({ where: { id: cleanId }, data: { status: "COMPLETED" } });
+  });
 
   revalidatePath("/cleaner");
   revalidatePath(`/cleaner/cleans/${cleanId}`);
@@ -222,15 +246,15 @@ export async function reportIssue(
   prev: IssueFormState,
   formData: FormData,
 ): Promise<IssueFormState> {
-  const session = await requireCleaner();
-  const clean = await ownCleanOrThrow(cleanId, session.user.id);
+  const { session, db } = await requireCleaner();
+  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
 
   if (clean.status !== "IN_PROGRESS") {
     return { error: "Check in before reporting a problem.", attempt: (prev.attempt ?? 0) + 1 };
   }
 
   try {
-    await createIssueRecord({
+    await createIssueRecord(db, {
       propertyId: clean.propertyId,
       cleanId,
       reportedById: session.user.id,
@@ -262,7 +286,7 @@ export async function createLaundryLoad(
   _prevState: LaundryLoadFormState,
   formData: FormData,
 ): Promise<LaundryLoadFormState> {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
 
   const requestedIds = formData
     .getAll("cleanLogIds")
@@ -271,11 +295,11 @@ export async function createLaundryLoad(
 
   const rawFacilityId = str(formData, "facilityId");
   const facility = rawFacilityId
-    ? await prisma.laundryFacility.findUnique({ where: { id: rawFacilityId }, select: { id: true } })
+    ? await db.laundryFacility.findUnique({ where: { id: rawFacilityId }, select: { id: true } })
     : null;
   if (!facility) return { error: "Pick who's collecting it." };
 
-  const eligible = await prisma.cleanLog.findMany({
+  const eligible = await db.cleanLog.findMany({
     where: {
       id: { in: requestedIds },
       laundryLoadId: null,
@@ -289,8 +313,9 @@ export async function createLaundryLoad(
 
   // No cost or receipt photo any more -- see the comment on
   // LaundryLoad.cost in schema.prisma.
-  await prisma.laundryLoad.create({
+  await db.laundryLoad.create({
     data: {
+      organizationId: session.user.organizationId,
       facilityId: facility.id,
       recordedById: session.user.id,
       logs: { connect: eligible.map((l) => ({ id: l.id })) },
@@ -307,14 +332,14 @@ export async function createLaundryLoad(
 // day. Staff can still assign them by hand regardless (see the warning in
 // CleanForm.tsx); this only changes what auto-assign guesses.
 export async function blockDay(formData: FormData) {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
 
   const raw = str(formData, "date");
   const date = raw ? parseIsoDate(raw) : null;
   if (!date) throw new Error("Choose a date");
 
   const { start, end } = dayBounds(date);
-  const existingClean = await prisma.clean.findFirst({
+  const existingClean = await db.clean.findFirst({
     where: {
       assignedToId: session.user.id,
       scheduledFor: { gte: start, lt: end },
@@ -329,8 +354,8 @@ export async function blockDay(formData: FormData) {
   }
 
   try {
-    await prisma.cleanerUnavailability.create({
-      data: { cleanerId: session.user.id, date: start },
+    await db.cleanerUnavailability.create({
+      data: { organizationId: session.user.organizationId, cleanerId: session.user.id, date: start },
     });
   } catch (err) {
     // Already blocked -- nothing to do.
@@ -341,10 +366,10 @@ export async function blockDay(formData: FormData) {
 }
 
 export async function unblockDay(id: string) {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
 
   // Scoped to the caller so this can't be used to unblock someone else's day.
-  await prisma.cleanerUnavailability.deleteMany({ where: { id, cleanerId: session.user.id } });
+  await db.cleanerUnavailability.deleteMany({ where: { id, cleanerId: session.user.id } });
 
   revalidatePath("/cleaner/calendar");
 }

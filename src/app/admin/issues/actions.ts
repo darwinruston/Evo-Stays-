@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { propertyDisplayName } from "@/lib/address";
@@ -50,17 +49,17 @@ function revalidateIssueViews(issueId?: string, propertyId?: string, cleanId?: s
 // Returns a rejected submission to IssueForm's useActionState (see
 // reportIssue in src/app/cleaner/actions.ts); success redirects away.
 export async function createIssue(prev: IssueFormState, formData: FormData): Promise<IssueFormState> {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   let issue;
   try {
     const propertyId = str(formData, "propertyId");
     const property = propertyId
-      ? await prisma.property.findUnique({ where: { id: propertyId }, select: { id: true } })
+      ? await db.property.findUnique({ where: { id: propertyId }, select: { id: true } })
       : null;
     if (!property) throw new IssueFormError("Choose a property.");
 
-    issue = await createIssueRecord({
+    issue = await createIssueRecord(db, {
       propertyId: property.id,
       cleanId: null,
       reportedById: session.user.id,
@@ -84,7 +83,7 @@ export async function createIssue(prev: IssueFormState, formData: FormData): Pro
 // Changing it marks the issue severityOverridden (the automatic reason is
 // kept as the record of what the system thought).
 export async function updateIssue(id: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const status = formData.get("status");
   if (!isIssueStatus(status)) throw new Error("Pick a status.");
@@ -95,12 +94,12 @@ export async function updateIssue(id: string, formData: FormData) {
     throw new Error(`Keep the note under ${ISSUE_DESCRIPTION_MAX} characters.`);
   }
 
-  const before = await prisma.issue.findUniqueOrThrow({ where: { id } });
+  const before = await db.issue.findUniqueOrThrow({ where: { id } });
   const severityChanged = severity !== before.severity;
   const nowResolved = status === "RESOLVED" && before.status !== "RESOLVED";
   const reopened = status !== "RESOLVED" && before.status === "RESOLVED";
 
-  const issue = await prisma.issue.update({
+  const issue = await db.issue.update({
     where: { id },
     data: {
       status,
@@ -116,7 +115,7 @@ export async function updateIssue(id: string, formData: FormData) {
   });
 
   if (severityChanged) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Issue",
       entityId: id,
@@ -125,7 +124,7 @@ export async function updateIssue(id: string, formData: FormData) {
   }
 
   if (before.status !== status) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Issue",
       entityId: id,
@@ -136,7 +135,7 @@ export async function updateIssue(id: string, formData: FormData) {
   } else if ((before.resolutionNote ?? null) !== resolutionNote) {
     // A note-only edit ("plumber booked for Thursday") is progress worth
     // having on the record too, not just status changes.
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Issue",
       entityId: id,
@@ -146,7 +145,7 @@ export async function updateIssue(id: string, formData: FormData) {
 
   // Only the reporter, and only if it wasn't them who just resolved it.
   if (nowResolved && issue.reportedBy && issue.reportedBy.id !== session.user.id) {
-    await notify(issueResolvedNotice(issue.reportedBy, issue, resolutionNote));
+    await notify(db, issueResolvedNotice(issue.reportedBy, issue, resolutionNote));
   }
 
   revalidateIssueViews(id, issue.propertyId, issue.cleanId);
@@ -156,15 +155,15 @@ export async function updateIssue(id: string, formData: FormData) {
 // should be Resolved instead, so its history stays. Photos are left on disk,
 // the same trade-off deletePropertyPhoto makes for local storage.
 export async function deleteIssue(id: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
-  const issue = await prisma.issue.findUniqueOrThrow({
+  const issue = await db.issue.findUniqueOrThrow({
     where: { id },
     include: { property: { select: { nickname: true, name: true, address: true } } },
   });
-  await prisma.issue.delete({ where: { id } });
+  await db.issue.delete({ where: { id } });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Issue",
     entityId: id,

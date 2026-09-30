@@ -4,6 +4,6 @@ import { NotificationsView } from "@/components/NotificationsView";
 export const metadata = { title: "Notifications" };
 
 export default async function AdminNotificationsPage() {
-  const session = await requireStaff();
-  return <NotificationsView userId={session.user.id} />;
+  const { session, db } = await requireStaff();
+  return <NotificationsView db={db} userId={session.user.id} />;
 }

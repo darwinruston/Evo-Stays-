@@ -1,3 +1,4 @@
+import { prisma, scopedDb } from "@/lib/prisma";
 import { runAllSyncs } from "@/lib/runAllSyncs";
 import { checkAtRiskTurnovers } from "@/lib/turnover";
 
@@ -30,10 +31,21 @@ export function startSyncScheduler(): void {
   setTimeout(run, INITIAL_DELAY_MS);
   setInterval(run, intervalMs());
 
+  // Same outer per-Organization loop as runAllSyncs -- at-risk checking is
+  // also a background job with no request context of its own to scope from.
   const checkTurnovers = () => {
-    checkAtRiskTurnovers().catch((err) => {
-      console.error("[turnover check] run failed:", err);
-    });
+    prisma.organization
+      .findMany({ select: { id: true } })
+      .then(async (organizations) => {
+        for (const org of organizations) {
+          await checkAtRiskTurnovers(scopedDb(org.id)).catch((err) => {
+            console.error(`[turnover check] run failed for organization ${org.id}:`, err);
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("[turnover check] couldn't list organizations:", err);
+      });
   };
   setTimeout(checkTurnovers, INITIAL_DELAY_MS);
   setInterval(checkTurnovers, TURNOVER_CHECK_INTERVAL_MS);

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { propertyDisplayName } from "@/lib/address";
 import { calendarDayKey as calendarDay, dayBounds, isDateOnly, toIsoDate } from "@/lib/schedule";
 import { notify, staffUserIds, type NotificationInput } from "@/lib/notify";
@@ -51,7 +51,10 @@ type CleanLike = { id: string; propertyId: string; scheduledFor: Date | null };
 // the whole set rather than per clean, since list pages call this for
 // dozens of rows at once. A clean with no scheduled date, or no known
 // booking after it, is simply absent from the map.
-export async function turnoversFor(cleans: CleanLike[]): Promise<Map<string, Turnover>> {
+export async function turnoversFor(
+  db: ScopedPrismaClient,
+  cleans: CleanLike[],
+): Promise<Map<string, Turnover>> {
   const scheduled = cleans.filter((c): c is CleanLike & { scheduledFor: Date } => c.scheduledFor !== null);
   const result = new Map<string, Turnover>();
   if (scheduled.length === 0) return result;
@@ -64,18 +67,18 @@ export async function turnoversFor(cleans: CleanLike[]): Promise<Map<string, Tur
   const lowerBound = new Date(earliest - 24 * 60 * 60 * 1000);
 
   const [events, reservations, properties] = await Promise.all([
-    prisma.syncedBookingEvent.findMany({
+    db.syncedBookingEvent.findMany({
       where: { cancelled: false, checkIn: { gte: lowerBound }, feed: { propertyId: { in: propertyIds } } },
       select: { checkIn: true, feed: { select: { propertyId: true } } },
     }),
     // Only confirmed reservations -- the same "accepted" test hostifySync
     // uses before it will create a clean. A pending request may never turn
     // into guests, and shouldn't put a deadline on anyone.
-    prisma.syncedHostifyReservation.findMany({
+    db.syncedHostifyReservation.findMany({
       where: { cancelled: false, status: "accepted", checkIn: { gte: lowerBound }, propertyId: { in: propertyIds } },
       select: { checkIn: true, propertyId: true },
     }),
-    prisma.property.findMany({ where: { id: { in: propertyIds } }, select: { id: true, checkInTime: true } }),
+    db.property.findMany({ where: { id: { in: propertyIds } }, select: { id: true, checkInTime: true } }),
   ]);
 
   const checkInsByProperty = new Map<string, Date[]>();
@@ -102,8 +105,8 @@ export async function turnoversFor(cleans: CleanLike[]): Promise<Map<string, Tur
   return result;
 }
 
-export async function turnoverFor(clean: CleanLike): Promise<Turnover | null> {
-  return (await turnoversFor([clean])).get(clean.id) ?? null;
+export async function turnoverFor(db: ScopedPrismaClient, clean: CleanLike): Promise<Turnover | null> {
+  return (await turnoversFor(db, [clean])).get(clean.id) ?? null;
 }
 
 // The next guests due at a property from a given moment -- the same lookup
@@ -112,8 +115,12 @@ export async function turnoverFor(clean: CleanLike): Promise<Turnover | null> {
 // which is what severity assessment wants: a problem found with guests on
 // site or about to be is as pressing as it gets. See assessIssueSeverity in
 // src/lib/issues.ts.
-export async function nextArrivalFrom(propertyId: string, from: Date): Promise<Turnover | null> {
-  return turnoverFor({ id: "_", propertyId, scheduledFor: from });
+export async function nextArrivalFrom(
+  db: ScopedPrismaClient,
+  propertyId: string,
+  from: Date,
+): Promise<Turnover | null> {
+  return turnoverFor(db, { id: "_", propertyId, scheduledFor: from });
 }
 
 function timeOfDay(date: Date): string {
@@ -240,9 +247,9 @@ export function isAtRisk(status: string, t: Turnover, now: Date): boolean {
 // guests close (or just past due), and alerts staff plus the assigned
 // cleaner once each (see Clean.atRiskNotifiedAt). Returns how many cleans
 // it alerted on.
-export async function checkAtRiskTurnovers(now = new Date()): Promise<number> {
+export async function checkAtRiskTurnovers(db: ScopedPrismaClient, now = new Date()): Promise<number> {
   const { start, end } = dayBounds(now);
-  const cleans = await prisma.clean.findMany({
+  const cleans = await db.clean.findMany({
     where: {
       status: { in: ["PENDING", "IN_PROGRESS"] },
       atRiskNotifiedAt: null,
@@ -255,8 +262,8 @@ export async function checkAtRiskTurnovers(now = new Date()): Promise<number> {
   });
   if (cleans.length === 0) return 0;
 
-  const turnovers = await turnoversFor(cleans);
-  const staffIds = await staffUserIds();
+  const turnovers = await turnoversFor(db, cleans);
+  const staffIds = await staffUserIds(db);
   const notices: NotificationInput[] = [];
   const alerted: string[] = [];
 
@@ -268,8 +275,8 @@ export async function checkAtRiskTurnovers(now = new Date()): Promise<number> {
   }
 
   if (alerted.length > 0) {
-    await prisma.clean.updateMany({ where: { id: { in: alerted } }, data: { atRiskNotifiedAt: now } });
-    await notify(notices);
+    await db.clean.updateMany({ where: { id: { in: alerted } }, data: { atRiskNotifiedAt: now } });
+    await notify(db, notices);
   }
   return alerted.length;
 }

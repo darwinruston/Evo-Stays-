@@ -1,5 +1,5 @@
 import type { InvoiceCadence } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { formatDate } from "@/lib/schedule";
 
 // The period offered when generating, based on the cadence setting -- "the
@@ -70,10 +70,11 @@ export type GenerateInvoicesResult = {
 // mean re-running for an overlapping period just picks up whatever's still
 // unbilled, never double-bills a visit already on an invoice).
 export async function generateInvoices(
+  db: ScopedPrismaClient,
   periodStart: Date,
   periodEnd: Date,
 ): Promise<GenerateInvoicesResult> {
-  const eligibleLogs = await prisma.cleanLog.findMany({
+  const eligibleLogs = await db.cleanLog.findMany({
     where: {
       departedAt: { gte: periodStart, lt: periodEnd },
       arrivedAt: { not: null },
@@ -106,7 +107,7 @@ export async function generateInvoices(
 
   // `not: null` is the null-aware form Prisma handles itself -- only pairs
   // with a fee agreed come back.
-  const feeRows = await prisma.propertyCleaner.findMany({
+  const feeRows = await db.propertyCleaner.findMany({
     where: {
       flatFee: { not: null },
       cleanerId: { in: [...new Set(eligibleLogs.map((l) => l.clean.assignedTo!.id))] },
@@ -156,6 +157,7 @@ export async function generateInvoices(
       const hours =
         group.minBillableHours !== null ? Math.max(actualHours, group.minBillableHours) : actualHours;
       return {
+        organizationId: db.organizationId,
         cleanLogId: log.id,
         arrivedAt: log.arrivedAt,
         departedAt: log.departedAt,
@@ -169,8 +171,9 @@ export async function generateInvoices(
     const totalHours = lines.reduce((sum, l) => sum + l.hours, 0);
     const totalAmount = lines.reduce((sum, l) => sum + l.amount, 0);
 
-    const invoice = await prisma.invoice.create({
+    const invoice = await db.invoice.create({
       data: {
+        organizationId: db.organizationId,
         cleanerId: group.cleanerId,
         propertyId: group.propertyId,
         periodStart,

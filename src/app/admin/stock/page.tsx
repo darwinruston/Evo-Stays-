@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { bandFromDb, isRunningLow } from "@/lib/stock";
@@ -9,13 +8,13 @@ import { card } from "@/lib/ui";
 export const metadata = { title: "Stock" };
 
 export default async function StockOverviewPage() {
-  await requireStaff();
+  const { db } = await requireStaff();
 
   // Every configured level, not just low ones -- filtering happens here in
   // JS rather than in the query, since "low" is a comparison between two
   // columns on the same row (SQLite can't express that in a where clause
   // without raw SQL, and this list is small enough that it doesn't matter).
-  const levels = await prisma.propertyStockLevel.findMany({
+  const levels = await db.propertyStockLevel.findMany({
     include: {
       stockItem: true,
       property: { select: { id: true, name: true, address: true, client: { select: { name: true } } } },

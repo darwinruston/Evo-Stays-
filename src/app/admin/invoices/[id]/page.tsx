@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { requireStaff, isStaffSession } from "@/lib/authz";
+import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
@@ -15,8 +14,9 @@ const SUSPICIOUSLY_SHORT_MINUTES = 10;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await isStaffSession())) return { title: "Invoice" };
-  const invoice = await prisma.invoice.findUnique({
+  const metaDb = await staffMetadataDb();
+  if (!metaDb) return { title: "Invoice" };
+  const invoice = await metaDb.invoice.findUnique({
     where: { id },
     select: { cleaner: { select: { name: true } }, property: { select: { nickname: true, name: true, address: true } } },
   });
@@ -26,10 +26,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const invoice = await prisma.invoice.findUnique({
+  const invoice = await db.invoice.findUnique({
     where: { id },
     include: {
       cleaner: { select: { id: true, name: true, email: true } },
@@ -43,7 +43,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   // the same way: every one at the agreed flat fee, or all by the hour.
   const allFlat = invoice.lines.length > 0 && invoice.lines.every((l) => l.flatFee !== null);
 
-  const activity = await prisma.auditLog.findMany({
+  const activity = await db.auditLog.findMany({
     where: { entityType: "Invoice", entityId: invoice.id },
     orderBy: { createdAt: "desc" },
     include: { actor: { select: { name: true } } },

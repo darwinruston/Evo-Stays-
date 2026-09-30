@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { ClientForm } from "../../ClientForm";
 import { updateClient, deleteClient, removeClientHostifyApiKey } from "../../actions";
@@ -9,10 +8,10 @@ import { button } from "@/lib/ui";
 export const metadata = { title: "Edit client" };
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const client = await prisma.client.findUnique({
+  const client = await db.client.findUnique({
     where: { id },
     include: { _count: { select: { properties: true } } },
   });

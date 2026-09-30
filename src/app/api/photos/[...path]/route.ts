@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { scopedDb } from "@/lib/prisma";
 import { STORAGE_ROOT } from "@/lib/uploads";
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -47,7 +47,8 @@ export async function GET(
   const propertyId = segments[0];
 
   if (session.user.role === "CLEANER") {
-    const assigned = await prisma.clean.findFirst({
+    const db = scopedDb(session.user.organizationId);
+    const assigned = await db.clean.findFirst({
       where: { propertyId, assignedToId: session.user.id },
       select: { id: true },
     });

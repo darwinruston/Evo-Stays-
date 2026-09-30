@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { savePropertyPhotos } from "@/lib/uploads";
 import { notify, staffUserIds, issueReportedNotices } from "@/lib/notify";
 import { logAudit } from "@/lib/audit";
@@ -90,24 +90,28 @@ export function issueFormErrorState(err: IssueFormError, formData: FormData, pre
 // Severity comes from assessIssueSeverity -- what's wrong, the property's
 // bathroom count, and when the next guests are due -- so it's the same
 // answer whoever reports it. Staff can override it afterwards.
-export async function createIssueRecord(input: {
-  propertyId: string;
-  cleanId: string | null;
-  reportedById: string;
-  form: ReturnType<typeof parseIssueForm>;
-}) {
+export async function createIssueRecord(
+  db: ScopedPrismaClient,
+  input: {
+    propertyId: string;
+    cleanId: string | null;
+    reportedById: string;
+    form: ReturnType<typeof parseIssueForm>;
+  },
+) {
   const { category, description, photos } = input.form;
   const now = new Date();
   const [property, nextArrival] = await Promise.all([
-    prisma.property.findUniqueOrThrow({ where: { id: input.propertyId }, select: { bathrooms: true } }),
-    nextArrivalFrom(input.propertyId, now),
+    db.property.findUniqueOrThrow({ where: { id: input.propertyId }, select: { bathrooms: true } }),
+    nextArrivalFrom(db, input.propertyId, now),
   ]);
   const { severity, reason } = assessIssueSeverity({ category, bathrooms: property.bathrooms, nextArrival, now });
 
   const paths = await savePropertyPhotos(input.propertyId, photos);
 
-  const issue = await prisma.issue.create({
+  const issue = await db.issue.create({
     data: {
+      organizationId: db.organizationId,
       propertyId: input.propertyId,
       cleanId: input.cleanId,
       reportedById: input.reportedById,
@@ -115,19 +119,19 @@ export async function createIssueRecord(input: {
       severity,
       severityReason: reason,
       description,
-      photos: { create: paths.map((path) => ({ path })) },
+      photos: { create: paths.map((path) => ({ organizationId: db.organizationId, path })) },
     },
     include: { property: { select: { nickname: true, name: true, address: true } } },
   });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: input.reportedById,
     entityType: "Issue",
     entityId: issue.id,
     summary: `Reported — ${ISSUE_CATEGORY_LABELS[category]} at ${propertyDisplayName(issue.property)}; assessed as "${ISSUE_SEVERITY_LABELS[severity]}"`,
   });
 
-  await notify(issueReportedNotices(await staffUserIds(), issue, input.reportedById));
+  await notify(db, issueReportedNotices(await staffUserIds(db), issue, input.reportedById));
 
   return issue;
 }

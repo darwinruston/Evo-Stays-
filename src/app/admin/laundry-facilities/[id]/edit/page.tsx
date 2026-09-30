@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { updateLaundryFacility, deleteLaundryFacility } from "../../actions";
 import { button, inputCompact } from "@/lib/ui";
@@ -8,10 +7,10 @@ import { button, inputCompact } from "@/lib/ui";
 export const metadata = { title: "Edit laundry company" };
 
 export default async function EditLaundryFacilityPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const facility = await prisma.laundryFacility.findUnique({
+  const facility = await db.laundryFacility.findUnique({
     where: { id },
     include: { _count: { select: { loads: true } } },
   });

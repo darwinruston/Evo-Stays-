@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
 import { button, card } from "@/lib/ui";
@@ -15,11 +14,11 @@ function weekWindow() {
 }
 
 export default async function CleanersPage() {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
   const { start, end } = weekWindow();
 
   const [cleaners, thisWeekByCleaner] = await Promise.all([
-    prisma.user.findMany({
+    db.user.findMany({
       where: { role: "CLEANER" },
       orderBy: { name: "asc" },
       include: { _count: { select: { assignedCleans: true } } },
@@ -27,7 +26,7 @@ export default async function CleanersPage() {
     // One grouped query rather than one count per cleaner -- this page's
     // whole point is comparing workload at a glance, so it reads as one
     // list, not N round trips.
-    prisma.clean.groupBy({
+    db.clean.groupBy({
       by: ["assignedToId"],
       where: {
         assignedToId: { not: null },

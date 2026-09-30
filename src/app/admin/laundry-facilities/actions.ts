@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 
 function str(formData: FormData, key: string): string | null {
@@ -13,12 +12,12 @@ function str(formData: FormData, key: string): string | null {
 }
 
 export async function createLaundryFacility(formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
-  await prisma.laundryFacility.create({ data: { name } });
+  await db.laundryFacility.create({ data: { organizationId: session.user.organizationId, name } });
 
   revalidatePath("/admin/laundry-facilities");
   redirect("/admin/laundry-facilities");
@@ -32,17 +31,21 @@ export async function createLaundryFacility(formData: FormData) {
 // reactivating it first if it had been deactivated -- since the point is
 // "make sure this exists and is usable", not strict duplicate-prevention.
 export async function createLaundryFacilityQuick(name: string): Promise<{ id: string; name: string }> {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Enter a name for the laundry company.");
 
-  const existing = await prisma.laundryFacility.findUnique({ where: { name: trimmed } });
+  const existing = await db.laundryFacility.findUnique({
+    where: { organizationId_name: { organizationId: session.user.organizationId, name: trimmed } },
+  });
   const facility = existing
     ? existing.active
       ? existing
-      : await prisma.laundryFacility.update({ where: { id: existing.id }, data: { active: true } })
-    : await prisma.laundryFacility.create({ data: { name: trimmed } });
+      : await db.laundryFacility.update({ where: { id: existing.id }, data: { active: true } })
+    : await db.laundryFacility.create({
+        data: { organizationId: session.user.organizationId, name: trimmed },
+      });
 
   revalidatePath("/admin/laundry-facilities");
   revalidatePath("/admin/laundry");
@@ -52,12 +55,12 @@ export async function createLaundryFacilityQuick(name: string): Promise<{ id: st
 }
 
 export async function updateLaundryFacility(id: string, formData: FormData) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
-  await prisma.laundryFacility.update({
+  await db.laundryFacility.update({
     where: { id },
     data: { name, active: formData.get("active") === "on" },
   });
@@ -67,19 +70,19 @@ export async function updateLaundryFacility(id: string, formData: FormData) {
 }
 
 export async function deleteLaundryFacility(id: string) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
   // A facility with loads against it stays as the record of where that
   // linen actually went -- deleting it would rewrite that history out from
   // under every load logged against it. Mark it inactive instead.
-  const used = await prisma.laundryLoad.findFirst({ where: { facilityId: id }, select: { id: true } });
+  const used = await db.laundryLoad.findFirst({ where: { facilityId: id }, select: { id: true } });
   if (used) {
     throw new Error(
       "This facility has laundry loads logged against it, so it can't be deleted. Mark it inactive instead.",
     );
   }
 
-  await prisma.laundryFacility.delete({ where: { id } });
+  await db.laundryFacility.delete({ where: { id } });
 
   revalidatePath("/admin/laundry-facilities");
   redirect("/admin/laundry-facilities");

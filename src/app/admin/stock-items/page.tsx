@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { badge, button, card } from "@/lib/ui";
 
 export const metadata = { title: "Stock items" };
 
 export default async function StockItemsPage() {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const items = await prisma.stockItem.findMany({
+  const items = await db.stockItem.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { levels: true } } },
   });

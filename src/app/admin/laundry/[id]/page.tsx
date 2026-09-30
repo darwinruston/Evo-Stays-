@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
@@ -11,10 +10,10 @@ import { deleteLaundryLoad, setLaundryLoadCollected } from "../actions";
 export const metadata = { title: "Laundry load" };
 
 export default async function LaundryLoadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const load = await prisma.laundryLoad.findUnique({
+  const load = await db.laundryLoad.findUnique({
     where: { id },
     include: {
       facility: { select: { name: true } },

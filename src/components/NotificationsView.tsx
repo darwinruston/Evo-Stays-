@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { emailConfigured } from "@/lib/email";
 import { formatScheduledFor } from "@/lib/schedule";
 import { button, card } from "@/lib/ui";
@@ -13,18 +13,18 @@ const LIST_LIMIT = 50;
 // The whole Notifications page body, shared by /admin/notifications and
 // /cleaner/notifications -- the only difference between the two is which
 // layout wraps it, so the page files are just a heading and this.
-export async function NotificationsView({ userId }: { userId: string }) {
+export async function NotificationsView({ db, userId }: { db: ScopedPrismaClient; userId: string }) {
   const [notifications, user, unread] = await Promise.all([
-    prisma.notification.findMany({
+    db.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: LIST_LIMIT,
     }),
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { emailNotifications: true, email: true } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { emailNotifications: true, email: true } }),
     // Counted across ALL of them, not just the LIST_LIMIT shown -- the same
     // number as the nav badge, so "Mark all as read" is always there to
     // clear it, even when the unread ones have scrolled out of the list.
-    unreadNotificationCount(userId),
+    unreadNotificationCount(db, userId),
   ]);
 
   return (

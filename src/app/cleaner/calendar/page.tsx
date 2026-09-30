@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
@@ -36,7 +35,7 @@ export default async function CleanerCalendarPage({
 }: {
   searchParams: Promise<{ month?: string; day?: string }>;
 }) {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
   const { month: monthParamRaw, day: dayParamRaw } = await searchParams;
   const { year, monthIndex0 } = parseMonth(monthParamRaw);
 
@@ -50,7 +49,7 @@ export default async function CleanerCalendarPage({
     dayParamRaw && /^\d{4}-\d{2}-\d{2}$/.test(dayParamRaw) ? dayParamRaw : todayIso;
 
   const [cleans, blockedDays] = await Promise.all([
-    prisma.clean.findMany({
+    db.clean.findMany({
       where: {
         assignedToId: session.user.id,
         scheduledFor: { gte: gridStart, lt: gridEnd },
@@ -58,7 +57,7 @@ export default async function CleanerCalendarPage({
       include: { property: { select: { nickname: true, name: true, address: true } } },
       orderBy: { scheduledFor: "asc" },
     }),
-    prisma.cleanerUnavailability.findMany({
+    db.cleanerUnavailability.findMany({
       where: { cleanerId: session.user.id, date: { gte: gridStart, lt: gridEnd } },
     }),
   ]);

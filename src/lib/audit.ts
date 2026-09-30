@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 
 // Kept to the entities this app actually tracks history for -- see the
 // AuditLog model comment in schema.prisma for what's deliberately excluded.
@@ -31,11 +31,14 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {
 // or calendar sync) still has a real actor, the "Automated sync" system
 // user (see src/lib/systemUser.ts), so this is really only null for a
 // hypothetical caller with no session at all.
-export async function logAudit(input: {
-  actorId: string | null;
-  entityType: AuditEntityType;
-  entityId: string;
-  summary: string;
-}): Promise<void> {
-  await prisma.auditLog.create({ data: input });
+export async function logAudit(
+  db: ScopedPrismaClient,
+  input: {
+    actorId: string | null;
+    entityType: AuditEntityType;
+    entityId: string;
+    summary: string;
+  },
+): Promise<void> {
+  await db.auditLog.create({ data: { organizationId: db.organizationId, ...input } });
 }

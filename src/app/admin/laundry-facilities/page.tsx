@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { badge, button, card } from "@/lib/ui";
 
 export const metadata = { title: "Laundry companies" };
 
 export default async function LaundryFacilitiesPage() {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const facilities = await prisma.laundryFacility.findMany({
+  const facilities = await db.laundryFacility.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { loads: true } } },
   });

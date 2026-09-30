@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
@@ -9,9 +8,9 @@ import { turnoversFor } from "@/lib/turnover";
 export const metadata = { title: "My cleans" };
 
 export default async function CleanerHomePage() {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
 
-  const cleaner = await prisma.user.findUniqueOrThrow({
+  const cleaner = await db.user.findUniqueOrThrow({
     where: { id: session.user.id },
     select: { scheduleHorizonDays: true },
   });
@@ -22,7 +21,7 @@ export default async function CleanerHomePage() {
       ? new Date(new Date().getTime() + cleaner.scheduleHorizonDays * 24 * 60 * 60 * 1000)
       : null;
 
-  const cleans = await prisma.clean.findMany({
+  const cleans = await db.clean.findMany({
     where: {
       // Only ever this cleaner's own work -- never anyone else's.
       assignedToId: session.user.id,
@@ -40,7 +39,7 @@ export default async function CleanerHomePage() {
 
   // Only unfinished cleans have a turnover worth flagging -- one pass over
   // the synced bookings for the whole list (see turnoversFor).
-  const turnovers = await turnoversFor(cleans.filter((c) => !isCleanFinished(c.status)));
+  const turnovers = await turnoversFor(db, cleans.filter((c) => !isCleanFinished(c.status)));
   const rows: CleanRow[] = cleans.map((c) => ({
     id: c.id,
     href: `/cleaner/cleans/${c.id}`,
@@ -55,7 +54,7 @@ export default async function CleanerHomePage() {
   // work exists past their own cutoff, rather than the list just quietly
   // ending and looking complete when it isn't.
   const hiddenCount = horizonCutoff
-    ? await prisma.clean.count({
+    ? await db.clean.count({
         where: { assignedToId: session.user.id, scheduledFor: { gt: horizonCutoff } },
       })
     : 0;

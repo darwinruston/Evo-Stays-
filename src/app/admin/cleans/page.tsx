@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Prisma, CleanStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
@@ -17,7 +16,7 @@ export default async function CleansPage({
 }: {
   searchParams: Promise<{ status?: string; propertyId?: string; cleanerId?: string }>;
 }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { status, propertyId, cleanerId } = await searchParams;
 
   const where: Prisma.CleanWhereInput = {};
@@ -39,7 +38,7 @@ export default async function CleansPage({
   const filterQuery = filterParams.toString();
 
   const [cleans, properties, cleaners] = await Promise.all([
-    prisma.clean.findMany({
+    db.clean.findMany({
       where,
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
       include: {
@@ -57,11 +56,11 @@ export default async function CleansPage({
         assignedTo: { select: { name: true } },
       },
     }),
-    prisma.property.findMany({
+    db.property.findMany({
       orderBy: [{ client: { name: "asc" } }, { createdAt: "asc" }],
       select: { id: true, name: true, address: true, client: { select: { name: true } } },
     }),
-    prisma.user.findMany({
+    db.user.findMany({
       where: { role: "CLEANER" },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -70,7 +69,7 @@ export default async function CleansPage({
 
   // Only unfinished cleans have a turnover worth flagging -- one pass over
   // the synced bookings for the whole list (see turnoversFor).
-  const turnovers = await turnoversFor(cleans.filter((c) => !isCleanFinished(c.status)));
+  const turnovers = await turnoversFor(db, cleans.filter((c) => !isCleanFinished(c.status)));
   const clashes = sameDayCounts(cleans);
   const rows: CleanRow[] = cleans.map((c) => ({
     id: c.id,

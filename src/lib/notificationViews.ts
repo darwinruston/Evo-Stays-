@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 
 // Which area's Notifications page a user reads -- the same split "/" uses to
 // route a signed-in user (see src/app/page.tsx). Takes a plain string since
@@ -8,6 +8,6 @@ export function notificationsHref(role: string): string {
 }
 
 // For the nav badge in both area layouts.
-export function unreadNotificationCount(userId: string): Promise<number> {
-  return prisma.notification.count({ where: { userId, readAt: null } });
+export function unreadNotificationCount(db: ScopedPrismaClient, userId: string): Promise<number> {
+  return db.notification.count({ where: { userId, readAt: null } });
 }

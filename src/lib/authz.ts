@@ -52,6 +52,16 @@ export async function isStaffSession(): Promise<boolean> {
   return !!session?.user && STAFF_ROLES.includes(session.user.role);
 }
 
+// Same use case as isStaffSession (generateMetadata can't call requireStaff,
+// which redirects), but for the common case of also needing a lookup for
+// the title itself -- hands back a scoped db instead of a bare boolean, or
+// null when there's no staff session to scope into.
+export async function staffMetadataDb(): Promise<ScopedPrismaClient | null> {
+  const session = await auth();
+  if (!session?.user || !STAFF_ROLES.includes(session.user.role)) return null;
+  return scopedDb(session.user.organizationId);
+}
+
 // Cleaners work their own schedule on site. Admins can also reach this area
 // (support/testing); office staff cannot. Same { session, db } shape as
 // requireStaff, for the same reason.

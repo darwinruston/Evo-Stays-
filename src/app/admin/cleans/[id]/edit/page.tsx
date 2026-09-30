@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanForm } from "../../CleanForm";
@@ -11,16 +10,16 @@ import { getCleanerOptions } from "@/lib/cleans";
 export const metadata = { title: "Edit clean" };
 
 export default async function EditCleanPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const clean = await prisma.clean.findUnique({
+  const clean = await db.clean.findUnique({
     where: { id },
     include: { property: { select: { nickname: true, name: true, address: true, maxOccupancy: true } } },
   });
   if (!clean) notFound();
 
-  const cleaners = await getCleanerOptions();
+  const cleaners = await getCleanerOptions(db);
 
   return (
     <div className="flex flex-col gap-8">

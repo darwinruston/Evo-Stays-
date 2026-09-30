@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency, formatHours, formatPeriod, defaultPeriodForCadence } from "@/lib/invoices";
@@ -26,13 +25,13 @@ export default async function InvoicesPage({
     clientId?: string;
   }>;
 }) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
   const { created, skipped, cleanerId, propertyId, clientId } = await searchParams;
 
-  const settings = await prisma.billingSettings.upsert({
-    where: { id: "singleton" },
+  const settings = await db.billingSettings.upsert({
+    where: { organizationId: session.user.organizationId },
     update: {},
-    create: { id: "singleton" },
+    create: { organizationId: session.user.organizationId },
   });
 
   const { start, end } = defaultPeriodForCadence(settings.cadence);
@@ -46,19 +45,19 @@ export default async function InvoicesPage({
   // invoice, not every cleaner/property in the system -- an empty dropdown
   // entry would just filter to nothing.
   const [cleanerOptions, propertyOptions] = await Promise.all([
-    prisma.invoice.findMany({
+    db.invoice.findMany({
       distinct: ["cleanerId"],
       orderBy: { cleanerId: "asc" },
       select: { cleaner: { select: { id: true, name: true } } },
     }),
-    prisma.invoice.findMany({
+    db.invoice.findMany({
       distinct: ["propertyId"],
       orderBy: { propertyId: "asc" },
       select: { property: { select: { id: true, name: true, address: true } } },
     }),
   ]);
 
-  const invoices = await prisma.invoice.findMany({
+  const invoices = await db.invoice.findMany({
     where: {
       cleanerId: cleanerId || undefined,
       propertyId: propertyId || undefined,

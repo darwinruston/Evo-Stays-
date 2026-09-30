@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { dayBounds } from "@/lib/schedule";
 
 // A designated cleaner (see PropertyCleaner in schema.prisma) already
@@ -50,10 +50,11 @@ function pickBest(
 // whichever cleaner account happened to be created first on every tie,
 // which reads as a real assignment decision when it isn't one.
 export async function autoAssignCleaner(
+  db: ScopedPrismaClient,
   propertyId: string,
   scheduledFor: Date | null,
 ): Promise<string | null> {
-  const familiarity = await prisma.clean.groupBy({
+  const familiarity = await db.clean.groupBy({
     by: ["assignedToId"],
     where: { propertyId, status: "COMPLETED", assignedToId: { not: null } },
     _count: { _all: true },
@@ -70,7 +71,7 @@ export async function autoAssignCleaner(
   let unavailableIds = new Set<string>();
   if (scheduledFor) {
     const { start, end } = dayBounds(scheduledFor);
-    const load = await prisma.clean.groupBy({
+    const load = await db.clean.groupBy({
       by: ["assignedToId"],
       where: {
         scheduledFor: { gte: start, lt: end },
@@ -81,14 +82,14 @@ export async function autoAssignCleaner(
     });
     for (const l of load) loadById.set(l.assignedToId as string, l._count._all);
 
-    const unavailable = await prisma.cleanerUnavailability.findMany({
+    const unavailable = await db.cleanerUnavailability.findMany({
       where: { date: { gte: start, lt: end } },
       select: { cleanerId: true },
     });
     unavailableIds = new Set(unavailable.map((u) => u.cleanerId));
   }
 
-  const designated = await prisma.propertyCleaner.findMany({
+  const designated = await db.propertyCleaner.findMany({
     where: { propertyId },
     select: { cleanerId: true },
   });

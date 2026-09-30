@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { IssueForm } from "@/components/IssueForm";
@@ -14,10 +13,10 @@ export default async function NewIssuePage({
   // Pre-selects the property when reached from a property's own page.
   searchParams: Promise<{ propertyId?: string }>;
 }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { propertyId } = await searchParams;
 
-  const properties = await prisma.property.findMany({
+  const properties = await db.property.findMany({
     orderBy: [{ client: { name: "asc" } }, { createdAt: "asc" }],
     select: { id: true, name: true, address: true, client: { select: { name: true } } },
   });

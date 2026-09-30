@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { saveProfilePhoto } from "@/lib/profilePhotos";
 import { saveHostifyCoverPhoto } from "@/lib/uploads";
@@ -32,15 +31,16 @@ function file(formData: FormData, key: string): File | null {
 }
 
 export async function createClient(formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
   const hostifyApiKey = str(formData, "hostifyApiKey");
 
-  const client = await prisma.client.create({
+  const client = await db.client.create({
     data: {
+      organizationId: session.user.organizationId,
       name,
       email: str(formData, "email"),
       phone: str(formData, "phone"),
@@ -52,7 +52,7 @@ export async function createClient(formData: FormData) {
   const photo = file(formData, "photo");
   if (photo) {
     const photoPath = await saveProfilePhoto(client.id, photo);
-    await prisma.client.update({ where: { id: client.id }, data: { photoPath } });
+    await db.client.update({ where: { id: client.id }, data: { photoPath } });
   }
 
   revalidatePath("/admin/clients");
@@ -60,7 +60,7 @@ export async function createClient(formData: FormData) {
 }
 
 export async function updateClient(id: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
@@ -75,7 +75,7 @@ export async function updateClient(id: string, formData: FormData) {
   // as photoPath being left alone below.
   const hostifyApiKey = str(formData, "hostifyApiKey");
 
-  await prisma.client.update({
+  await db.client.update({
     where: { id },
     data: {
       name,
@@ -89,7 +89,7 @@ export async function updateClient(id: string, formData: FormData) {
     },
   });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Client",
     entityId: id,
@@ -98,7 +98,7 @@ export async function updateClient(id: string, formData: FormData) {
   // Its own row -- never worth burying "a secret changed" inside the same
   // generic "Details updated" line, or logging the key itself.
   if (hostifyApiKey) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Client",
       entityId: id,
@@ -115,11 +115,11 @@ export async function updateClient(id: string, formData: FormData) {
 // key field can't double as "clear it" once it's left blank meaning
 // "unchanged" (see updateClient).
 export async function removeClientHostifyApiKey(id: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
-  await prisma.client.update({ where: { id }, data: { hostifyApiKey: null } });
+  await db.client.update({ where: { id }, data: { hostifyApiKey: null } });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Client",
     entityId: id,
@@ -138,7 +138,7 @@ export async function removeClientHostifyApiKey(id: string) {
 // fetched for the picker page, so this doesn't need a second round-trip to
 // Hostify just to re-fetch what was already on screen.
 export async function importHostifyListings(clientId: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const selectedIds = new Set(formData.getAll("selectedIds").map(String));
   if (selectedIds.size === 0) throw new Error("Select at least one listing to import");
@@ -147,7 +147,7 @@ export async function importHostifyListings(clientId: string, formData: FormData
   // everything else, but photos are a separate Hostify endpoint (see
   // fetchHostifyCoverPhotoUrl) not worth calling for every listing shown in
   // the picker, only the ones actually selected.
-  const client = await prisma.client.findUniqueOrThrow({
+  const client = await db.client.findUniqueOrThrow({
     where: { id: clientId },
     select: { hostifyApiKey: true },
   });
@@ -165,8 +165,9 @@ export async function importHostifyListings(clientId: string, formData: FormData
   for (const listing of toImport) {
     let property;
     try {
-      property = await prisma.property.create({
+      property = await db.property.create({
         data: {
+          organizationId: session.user.organizationId,
           clientId,
           name: listing.name,
           address: buildHostifyAddress(listing),
@@ -187,7 +188,7 @@ export async function importHostifyListings(clientId: string, formData: FormData
       throw err;
     }
 
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Property",
       entityId: property.id,
@@ -202,8 +203,8 @@ export async function importHostifyListings(clientId: string, formData: FormData
         const photoUrl = await fetchHostifyCoverPhotoUrl(client.hostifyApiKey, listing.id);
         if (photoUrl) {
           const photoPath = await saveHostifyCoverPhoto(property.id, photoUrl);
-          await prisma.propertyImage.create({
-            data: { propertyId: property.id, path: photoPath, isPrimary: true },
+          await db.propertyImage.create({
+            data: { organizationId: session.user.organizationId, propertyId: property.id, path: photoPath, isPrimary: true },
           });
         }
       } catch {
@@ -216,7 +217,7 @@ export async function importHostifyListings(clientId: string, formData: FormData
     // existing. Never throws -- a failure here just leaves
     // hostifyLastSyncError set for the property page to show, same
     // contract as any other sync.
-    await syncHostifyListing(property.id, session.user.id);
+    await syncHostifyListing(db, property.id, session.user.id);
   }
 
   revalidatePath(`/admin/clients/${clientId}`);
@@ -225,15 +226,15 @@ export async function importHostifyListings(clientId: string, formData: FormData
 }
 
 export async function deleteClient(id: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
-  const client = await prisma.client.findUniqueOrThrow({ where: { id }, select: { name: true } });
+  const client = await db.client.findUniqueOrThrow({ where: { id }, select: { name: true } });
 
   // Cascades to this client's properties and their images (see the
   // onDelete rules in schema.prisma).
-  await prisma.client.delete({ where: { id } });
+  await db.client.delete({ where: { id } });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Client",
     entityId: id,

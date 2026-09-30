@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { decrypt } from "@/lib/encryption";
 import { createCleanRecord } from "@/lib/cleans";
 import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
@@ -148,8 +148,12 @@ function outcomeFor(status: string): ReservationOutcome {
 // syncCalendarFeed in src/lib/icalSync.ts as closely as the data differs --
 // never throws, a fetch/decrypt/API failure is recorded as
 // Property.hostifyLastSyncError instead.
-export async function syncHostifyListing(propertyId: string, triggeredById: string): Promise<void> {
-  const property = await prisma.property.findUniqueOrThrow({
+export async function syncHostifyListing(
+  db: ScopedPrismaClient,
+  propertyId: string,
+  triggeredById: string,
+): Promise<void> {
+  const property = await db.property.findUniqueOrThrow({
     where: { id: propertyId },
     select: {
       hostifyListingId: true,
@@ -166,14 +170,14 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
   // property can be reached here from the unattended scheduler too, which
   // has no form to validate ahead of time.
   if (property.hostifyListingId === null) {
-    await prisma.property.update({
+    await db.property.update({
       where: { id: propertyId },
       data: { hostifyLastSyncError: "No Hostify listing configured on this property" },
     });
     return;
   }
   if (!property.client.hostifyApiKey) {
-    await prisma.property.update({
+    await db.property.update({
       where: { id: propertyId },
       data: { hostifyLastSyncError: "No Hostify API key configured on this client" },
     });
@@ -187,7 +191,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
   // Collected and sent as one batch at the end -- same reasoning as the
   // matching comment in syncCalendarFeed (src/lib/icalSync.ts).
   const notices: NotificationInput[] = [];
-  const staffIds = await staffUserIds();
+  const staffIds = await staffUserIds(db);
 
   try {
     let apiKey: string;
@@ -206,7 +210,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       const checkOut = new Date(reservation.checkOut);
       const outcome = outcomeFor(reservation.status);
 
-      const existing = await prisma.syncedHostifyReservation.findUnique({
+      const existing = await db.syncedHostifyReservation.findUnique({
         where: {
           propertyId_hostifyReservationId: { propertyId, hostifyReservationId: String(reservation.id) },
         },
@@ -218,15 +222,16 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       // a change below, not mistaken for brand new.
       if (!existing) {
         if (outcome === "active" && (cutoff === null || checkOut <= cutoff)) {
-          const clean = await createCleanRecord({
+          const clean = await createCleanRecord(db, {
             propertyId,
             createdById: triggeredById,
             scheduledFor: checkOut,
             guestCount: reservation.guests,
           });
           notices.push(...newCleanNotices(clean, { staffIds }));
-          await prisma.syncedHostifyReservation.create({
+          await db.syncedHostifyReservation.create({
             data: {
+              organizationId: db.organizationId,
               propertyId,
               hostifyReservationId: String(reservation.id),
               status: reservation.status,
@@ -237,8 +242,9 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
             },
           });
         } else {
-          await prisma.syncedHostifyReservation.create({
+          await db.syncedHostifyReservation.create({
             data: {
+              organizationId: db.organizationId,
               propertyId,
               hostifyReservationId: String(reservation.id),
               status: reservation.status,
@@ -261,14 +267,14 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       // First confirmation (pending -> accepted) with no Clean yet behaves
       // like a brand-new booking.
       if (outcome === "active" && !existing.clean && (cutoff === null || checkOut <= cutoff)) {
-        const clean = await createCleanRecord({
+        const clean = await createCleanRecord(db, {
           propertyId,
           createdById: triggeredById,
           scheduledFor: checkOut,
           guestCount: reservation.guests,
         });
         notices.push(...newCleanNotices(clean, { staffIds }));
-        await prisma.syncedHostifyReservation.update({
+        await db.syncedHostifyReservation.update({
           where: { id: existing.id },
           data: {
             status: reservation.status,
@@ -281,7 +287,7 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
         continue;
       }
 
-      await prisma.syncedHostifyReservation.update({
+      await db.syncedHostifyReservation.update({
         where: { id: existing.id },
         data: {
           status: reservation.status,
@@ -296,8 +302,8 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       // booking state.
       if (existing.clean && existing.clean.status === "PENDING") {
         if (outcome === "cancelled") {
-          await prisma.clean.update({ where: { id: existing.clean.id }, data: { status: "CANCELLED" } });
-          await logAudit({
+          await db.clean.update({ where: { id: existing.clean.id }, data: { status: "CANCELLED" } });
+          await logAudit(db, {
             actorId: triggeredById,
             entityType: "Clean",
             entityId: existing.clean.id,
@@ -317,14 +323,14 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
           // also fires on a check-in or status change that leaves the clean
           // where it is. atRiskNotifiedAt cleared on a day change for the
           // same reason as in syncCalendarFeed.
-          await prisma.clean.update({
+          await db.clean.update({
             where: { id: existing.clean.id },
             data: {
               scheduledFor: checkOut,
               ...(sameCalendarDay(existing.clean.scheduledFor, checkOut) ? {} : { atRiskNotifiedAt: null }),
             },
           });
-          await logAudit({
+          await logAudit(db, {
             actorId: triggeredById,
             entityType: "Clean",
             entityId: existing.clean.id,
@@ -343,16 +349,16 @@ export async function syncHostifyListing(propertyId: string, triggeredById: stri
       }
     }
 
-    await prisma.property.update({
+    await db.property.update({
       where: { id: propertyId },
       data: { hostifyLastSyncedAt: new Date(), hostifyLastSyncError: null },
     });
   } catch (err) {
-    await prisma.property.update({
+    await db.property.update({
       where: { id: propertyId },
       data: { hostifyLastSyncError: describeSyncError(err) },
     });
   } finally {
-    await notify(notices);
+    await notify(db, notices);
   }
 }

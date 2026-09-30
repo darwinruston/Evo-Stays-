@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { AUDIT_ENTITY_HREF, AUDIT_ENTITY_LABELS, type AuditEntityType } from "@/lib/audit";
 import { AuditFilters } from "@/components/AuditFilters";
@@ -19,12 +18,12 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<{ entityType?: string }>;
 }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { entityType } = await searchParams;
 
   const isValidType = entityType !== undefined && Object.hasOwn(AUDIT_ENTITY_LABELS, entityType);
 
-  const entries = await prisma.auditLog.findMany({
+  const entries = await db.auditLog.findMany({
     where: isValidType ? { entityType } : {},
     orderBy: { createdAt: "desc" },
     take: RECENT_LIMIT,

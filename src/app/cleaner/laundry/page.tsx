@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
@@ -10,11 +9,11 @@ import { createLaundryLoad } from "../actions";
 export const metadata = { title: "Laundry" };
 
 export default async function CleanerLaundryPage() {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
 
   // This cleaner's own completed visits not already claimed by a load --
   // same eligibility rule createLaundryLoad re-validates server-side.
-  const eligibleLogs = await prisma.cleanLog.findMany({
+  const eligibleLogs = await db.cleanLog.findMany({
     where: {
       laundryLoadId: null,
       arrivedAt: { not: null },
@@ -25,7 +24,7 @@ export default async function CleanerLaundryPage() {
     include: { clean: { include: { property: { select: { nickname: true, name: true, address: true } } } } },
   });
 
-  const facilities = await prisma.laundryFacility.findMany({
+  const facilities = await db.laundryFacility.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -33,7 +32,7 @@ export default async function CleanerLaundryPage() {
 
   // Loads covering any of this cleaner's own visits -- even one office
   // staff logged on their behalf, so they can see it was actually done.
-  const loads = await prisma.laundryLoad.findMany({
+  const loads = await db.laundryLoad.findMany({
     where: { logs: { some: { clean: { assignedToId: session.user.id } } } },
     orderBy: { createdAt: "desc" },
     include: {

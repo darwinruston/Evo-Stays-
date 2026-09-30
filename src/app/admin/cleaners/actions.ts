@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { formatCurrency } from "@/lib/invoices";
 import { logAudit } from "@/lib/audit";
@@ -19,7 +19,7 @@ function str(formData: FormData, key: string): string | null {
 }
 
 export async function createCleaner(formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
   const email = str(formData, "email");
@@ -27,11 +27,12 @@ export async function createCleaner(formData: FormData) {
   if (!name || !email || !password) throw new Error("Name, email and password are all required");
   if (password.length < 8) throw new Error("Password must be at least 8 characters");
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await db.user.findUnique({ where: { email } });
   if (existing) throw new Error("That email address already has a login");
 
-  await prisma.user.create({
+  await db.user.create({
     data: {
+      organizationId: session.user.organizationId,
       name,
       email,
       passwordHash: await bcrypt.hash(password, 10),
@@ -50,24 +51,24 @@ export async function createCleaner(formData: FormData) {
 // never read back into the form to prefill (a decrypted secret showing up
 // in page source is bad practice regardless of how it got there).
 export async function updateCleaner(id: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
   const email = str(formData, "email");
   if (!name || !email) throw new Error("Name and email are both required");
 
-  const emailOwner = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  const emailOwner = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (emailOwner && emailOwner.id !== id) throw new Error("That email address already has a login");
 
   const password = str(formData, "password");
   if (password !== null && password.length < 8) throw new Error("Password must be at least 8 characters");
 
-  const before = await prisma.user.findUniqueOrThrow({
+  const before = await db.user.findUniqueOrThrow({
     where: { id, role: "CLEANER" },
     select: { name: true, email: true },
   });
 
-  await prisma.user.update({
+  await db.user.update({
     where: { id, role: "CLEANER" },
     data: {
       name,
@@ -77,7 +78,7 @@ export async function updateCleaner(id: string, formData: FormData) {
   });
 
   if (before.name !== name) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Cleaner",
       entityId: id,
@@ -85,7 +86,7 @@ export async function updateCleaner(id: string, formData: FormData) {
     });
   }
   if (before.email !== email) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Cleaner",
       entityId: id,
@@ -115,15 +116,15 @@ function int(formData: FormData, key: string): number | null {
 // whatever rate was snapshotted onto them at the time (see
 // Invoice.hourlyRate / src/lib/invoices.ts).
 export async function updateCleanerRate(id: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const hourlyRate = rate(formData, "hourlyRate");
-  await prisma.user.update({
+  await db.user.update({
     where: { id, role: "CLEANER" },
     data: { hourlyRate },
   });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Cleaner",
     entityId: id,
@@ -134,14 +135,14 @@ export async function updateCleanerRate(id: string, formData: FormData) {
 }
 
 // How far ahead "My cleans" shows this cleaner's upcoming work -- see the
-// scheduleHorizonDays comment on User in schema.prisma. Not audited, unlike
+// scheduleHorizonDays comment on User in schema.db. Not audited, unlike
 // most of what's on this page: it's a display preference, not something
 // worth being able to answer for later the way a pay rate or reassignment
 // is.
 export async function updateCleanerScheduleHorizon(id: string, formData: FormData) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  await prisma.user.update({
+  await db.user.update({
     where: { id, role: "CLEANER" },
     data: { scheduleHorizonDays: int(formData, "scheduleHorizonDays") },
   });
@@ -157,13 +158,15 @@ export async function updateCleanerScheduleHorizon(id: string, formData: FormDat
 // regardless. A property with no designation at all is left Unassigned for
 // an admin to direct, rather than auto-assign guessing at random.
 export async function assignCleanerProperty(cleanerId: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const propertyId = str(formData, "propertyId");
   if (!propertyId) throw new Error("Choose a property");
 
   try {
-    await prisma.propertyCleaner.create({ data: { cleanerId, propertyId } });
+    await db.propertyCleaner.create({
+      data: { organizationId: session.user.organizationId, cleanerId, propertyId },
+    });
   } catch (err) {
     // Already designated -- nothing to do. Not a rethrow-as-friendly-error
     // like the Hostify listing link elsewhere, since there's no meaningful
@@ -176,7 +179,7 @@ export async function assignCleanerProperty(cleanerId: string, formData: FormDat
   // box hands over what's already on the books too. Nothing to move is
   // fine here -- the designation itself is what was asked for.
   if (formData.get("moveCleans") === "on") {
-    await moveCleansToCleaner(session.user.id, propertyId, cleanerId);
+    await moveCleansToCleaner(db, session.user.id, propertyId, cleanerId);
   }
 
   revalidatePath(`/admin/cleaners/${cleanerId}`);
@@ -186,24 +189,24 @@ export async function assignCleanerProperty(cleanerId: string, formData: FormDat
 // and they go back to being paid by the hour there. Only affects invoices
 // generated afterwards; each invoice line keeps the fee it was billed at.
 export async function updateCleanerPropertyFee(cleanerId: string, propertyId: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const flatFee = rate(formData, "flatFee");
   const raw = str(formData, "flatFee");
   if (raw !== null && flatFee === null) throw new Error("Enter an amount of 0 or more, like 80 or 80.00");
 
-  const designation = await prisma.propertyCleaner.findUnique({
+  const designation = await db.propertyCleaner.findUnique({
     where: { propertyId_cleanerId: { propertyId, cleanerId } },
     select: { property: { select: { nickname: true, name: true, address: true } } },
   });
   if (!designation) throw new Error("That property isn't designated to this cleaner any more");
 
-  await prisma.propertyCleaner.update({
+  await db.propertyCleaner.update({
     where: { propertyId_cleanerId: { propertyId, cleanerId } },
     data: { flatFee },
   });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Cleaner",
     entityId: cleanerId,
@@ -217,9 +220,9 @@ export async function updateCleanerPropertyFee(cleanerId: string, propertyId: st
 }
 
 export async function removeCleanerProperty(cleanerId: string, propertyId: string) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  await prisma.propertyCleaner.deleteMany({ where: { cleanerId, propertyId } });
+  await db.propertyCleaner.deleteMany({ where: { cleanerId, propertyId } });
 
   revalidatePath(`/admin/cleaners/${cleanerId}`);
 }
@@ -231,7 +234,7 @@ export async function removeCleanerProperty(cleanerId: string, propertyId: strin
 // underway or done, same guard icalSync/hostifySync already use before ever
 // touching a clean's date or assignee.
 export async function reassignUpcomingCleans(cleanerId: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const targetCleanerId = str(formData, "targetCleanerId");
   if (!targetCleanerId) throw new Error("Choose who to reassign to");
@@ -243,11 +246,11 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
   const toDate = toRaw ? parseIsoDate(toRaw) : null;
 
   const [source, target] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: cleanerId }, select: { name: true } }),
-    prisma.user.findUniqueOrThrow({ where: { id: targetCleanerId, role: "CLEANER" }, select: { name: true } }),
+    db.user.findUniqueOrThrow({ where: { id: cleanerId }, select: { name: true } }),
+    db.user.findUniqueOrThrow({ where: { id: targetCleanerId, role: "CLEANER" }, select: { name: true } }),
   ]);
 
-  const affected = await prisma.clean.findMany({
+  const affected = await db.clean.findMany({
     where: {
       assignedToId: cleanerId,
       status: "PENDING",
@@ -269,11 +272,12 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
   }
 
   const ids = affected.map((c) => c.id);
-  await prisma.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: targetCleanerId } });
+  await db.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: targetCleanerId } });
 
   // One notify call for the whole batch, so each cleaner gets a single
   // email listing every clean that moved rather than one per clean.
   await notify(
+    db,
     affected.flatMap((clean) => [
       ...cleanUnassignedNotice(cleanerId, clean),
       ...cleanAssignedNotice(targetCleanerId, clean, "reassigned"),
@@ -281,7 +285,7 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
   );
 
   for (const cleanId of ids) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Clean",
       entityId: cleanId,
@@ -304,18 +308,19 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
 // id]` because a plain `not` would silently skip Unassigned cleans under
 // SQL's NULL semantics (SQL's `<>` is NULL-unsafe). Returns how many moved.
 async function moveCleansToCleaner(
+  db: ScopedPrismaClient,
   actorId: string,
   propertyId: string,
   cleanerId: string,
   range: { fromDate: Date | null; toDate: Date | null } = { fromDate: null, toDate: null },
 ): Promise<number> {
   const [property, cleaner] = await Promise.all([
-    prisma.property.findUniqueOrThrow({ where: { id: propertyId }, select: { name: true, address: true } }),
-    prisma.user.findUniqueOrThrow({ where: { id: cleanerId, role: "CLEANER" }, select: { name: true } }),
+    db.property.findUniqueOrThrow({ where: { id: propertyId }, select: { name: true, address: true } }),
+    db.user.findUniqueOrThrow({ where: { id: cleanerId, role: "CLEANER" }, select: { name: true } }),
   ]);
   const { fromDate, toDate } = range;
 
-  const affected = await prisma.clean.findMany({
+  const affected = await db.clean.findMany({
     where: {
       propertyId,
       status: "PENDING",
@@ -337,9 +342,10 @@ async function moveCleansToCleaner(
   if (affected.length === 0) return 0;
 
   const ids = affected.map((c) => c.id);
-  await prisma.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: cleanerId } });
+  await db.clean.updateMany({ where: { id: { in: ids } }, data: { assignedToId: cleanerId } });
 
   await notify(
+    db,
     affected.flatMap((clean) => [
       ...(clean.assignedToId ? cleanUnassignedNotice(clean.assignedToId, clean) : []),
       ...cleanAssignedNotice(cleanerId, clean, "reassigned"),
@@ -347,7 +353,7 @@ async function moveCleansToCleaner(
   );
 
   for (const clean of affected) {
-    await logAudit({
+    await logAudit(db, {
       actorId,
       entityType: "Clean",
       entityId: clean.id,
@@ -367,11 +373,11 @@ export async function reassignPropertyCleansToCleaner(
   cleanerId: string,
   formData: FormData,
 ) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const fromRaw = str(formData, "fromDate");
   const toRaw = str(formData, "toDate");
-  const moved = await moveCleansToCleaner(session.user.id, propertyId, cleanerId, {
+  const moved = await moveCleansToCleaner(db, session.user.id, propertyId, cleanerId, {
     fromDate: fromRaw ? parseIsoDate(fromRaw) : null,
     toDate: toRaw ? parseIsoDate(toRaw) : null,
   });
@@ -379,14 +385,14 @@ export async function reassignPropertyCleansToCleaner(
 }
 
 export async function deleteCleaner(id: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   // Cleans keep pointing at a deleted cleaner would break the assignee
   // relation, so unassign them first -- the work still needs doing, it just
   // needs somebody else. Completed cleans keep their log (CleanLog.recordedBy
   // is a separate, restrictive relation), so history isn't rewritten.
-  const cleaner = await prisma.user.findUniqueOrThrow({ where: { id }, select: { name: true } });
-  const hasHistory = await prisma.cleanLog.findFirst({
+  const cleaner = await db.user.findUniqueOrThrow({ where: { id }, select: { name: true } });
+  const hasHistory = await db.cleanLog.findFirst({
     where: { recordedById: id },
     select: { id: true },
   });
@@ -396,10 +402,10 @@ export async function deleteCleaner(id: string) {
     );
   }
 
-  await prisma.clean.updateMany({ where: { assignedToId: id }, data: { assignedToId: null } });
-  await prisma.user.delete({ where: { id } });
+  await db.clean.updateMany({ where: { assignedToId: id }, data: { assignedToId: null } });
+  await db.user.delete({ where: { id } });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Cleaner",
     entityId: id,

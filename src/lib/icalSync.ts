@@ -1,5 +1,5 @@
 import * as ical from "node-ical";
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { createCleanRecord } from "@/lib/cleans";
 import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
 import { logAudit } from "@/lib/audit";
@@ -18,8 +18,12 @@ import {
 // Never throws -- a fetch/parse failure is recorded as feed.lastSyncError
 // instead, since "Sync now" is a button a staff member clicks and the
 // property page just needs something to show, not an exception to catch.
-export async function syncCalendarFeed(feedId: string, triggeredById: string): Promise<void> {
-  const feed = await prisma.propertyCalendarFeed.findUniqueOrThrow({
+export async function syncCalendarFeed(
+  db: ScopedPrismaClient,
+  feedId: string,
+  triggeredById: string,
+): Promise<void> {
+  const feed = await db.propertyCalendarFeed.findUniqueOrThrow({
     where: { id: feedId },
     include: { property: { select: { syncHorizonDays: true, nickname: true, name: true, address: true } } },
   });
@@ -37,7 +41,7 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
   // since whatever cleans were already created or changed before it are
   // real and their cleaners still need to know.
   const notices: NotificationInput[] = [];
-  const staffIds = await staffUserIds();
+  const staffIds = await staffUserIds(db);
 
   try {
     const parsed = await ical.async.fromURL(feed.url);
@@ -52,21 +56,21 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
       const checkIn = new Date(event.start);
       const checkOut = new Date(event.end as Date);
 
-      const existing = await prisma.syncedBookingEvent.findUnique({
+      const existing = await db.syncedBookingEvent.findUnique({
         where: { feedId_externalUid: { feedId, externalUid: event.uid } },
         include: { clean: true },
       });
 
       if (!existing) {
         if (cutoff !== null && checkOut > cutoff) continue;
-        const clean = await createCleanRecord({
+        const clean = await createCleanRecord(db, {
           propertyId: feed.propertyId,
           createdById: triggeredById,
           scheduledFor: checkOut,
         });
         notices.push(...newCleanNotices(clean, { staffIds }));
-        await prisma.syncedBookingEvent.create({
-          data: { feedId, externalUid: event.uid, checkIn, checkOut, cleanId: clean.id },
+        await db.syncedBookingEvent.create({
+          data: { organizationId: db.organizationId, feedId, externalUid: event.uid, checkIn, checkOut, cleanId: clean.id },
         });
         continue;
       }
@@ -77,7 +81,7 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
         existing.cancelled;
       if (!changed) continue;
 
-      await prisma.syncedBookingEvent.update({
+      await db.syncedBookingEvent.update({
         where: { id: existing.id },
         data: { checkIn, checkOut, cancelled: false },
       });
@@ -90,7 +94,7 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
         existing.clean.status === "PENDING" &&
         existing.clean.scheduledFor?.getTime() !== checkOut.getTime()
       ) {
-        await prisma.clean.update({
+        await db.clean.update({
           where: { id: existing.clean.id },
           // A new day is a new deadline -- clear any at-risk alert already
           // sent for the old one (see checkAtRiskTurnovers).
@@ -99,7 +103,7 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
             ...(sameCalendarDay(existing.clean.scheduledFor, checkOut) ? {} : { atRiskNotifiedAt: null }),
           },
         });
-        await logAudit({
+        await logAudit(db, {
           actorId: triggeredById,
           entityType: "Clean",
           entityId: existing.clean.id,
@@ -120,21 +124,21 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
     // Anything previously synced from this feed that's no longer in it --
     // the guest cancelled. notIn: [] (an empty feed) correctly matches every
     // row rather than excluding nothing.
-    const disappeared = await prisma.syncedBookingEvent.findMany({
+    const disappeared = await db.syncedBookingEvent.findMany({
       where: { feedId, cancelled: false, externalUid: { notIn: [...seenUids] } },
       include: { clean: true },
     });
     for (const event of disappeared) {
-      await prisma.syncedBookingEvent.update({
+      await db.syncedBookingEvent.update({
         where: { id: event.id },
         data: { cancelled: true },
       });
       if (event.clean && event.clean.status === "PENDING") {
-        await prisma.clean.update({
+        await db.clean.update({
           where: { id: event.clean.id },
           data: { status: "CANCELLED" },
         });
-        await logAudit({
+        await logAudit(db, {
           actorId: triggeredById,
           entityType: "Clean",
           entityId: event.clean.id,
@@ -152,17 +156,17 @@ export async function syncCalendarFeed(feedId: string, triggeredById: string): P
       }
     }
 
-    await prisma.propertyCalendarFeed.update({
+    await db.propertyCalendarFeed.update({
       where: { id: feedId },
       data: { lastSyncedAt: new Date(), lastSyncError: null },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Couldn't read that calendar";
-    await prisma.propertyCalendarFeed.update({
+    await db.propertyCalendarFeed.update({
       where: { id: feedId },
       data: { lastSyncError: message },
     });
   } finally {
-    await notify(notices);
+    await notify(db, notices);
   }
 }

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency } from "@/lib/invoices";
@@ -12,11 +11,11 @@ import { createLaundryFacilityQuick } from "../laundry-facilities/actions";
 export const metadata = { title: "Laundry" };
 
 export default async function LaundryPage() {
-  await requireStaff();
+  const { db } = await requireStaff();
 
   // Same "real completed visit, not already claimed" filter
   // createLaundryLoad re-validates server-side -- see src/app/admin/laundry/actions.ts.
-  const eligibleLogs = await prisma.cleanLog.findMany({
+  const eligibleLogs = await db.cleanLog.findMany({
     where: {
       laundryLoadId: null,
       arrivedAt: { not: null },
@@ -31,13 +30,13 @@ export default async function LaundryPage() {
     },
   });
 
-  const facilities = await prisma.laundryFacility.findMany({
+  const facilities = await db.laundryFacility.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
 
-  const loads = await prisma.laundryLoad.findMany({
+  const loads = await db.laundryLoad.findMany({
     orderBy: { createdAt: "desc" },
     include: {
       facility: { select: { name: true } },

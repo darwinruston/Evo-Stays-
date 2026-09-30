@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { scopedDb } from "@/lib/prisma";
 
 // Shared by admin/office and cleaners -- every one of these only ever
 // touches the caller's own notifications, so there's no role check beyond
@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 async function requireUser() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  return session;
+  return { session, db: scopedDb(session.user.organizationId) };
 }
 
 // Both areas' layouts show the unread count in the nav, so both are
@@ -23,8 +23,8 @@ function revalidateNotificationViews() {
 }
 
 export async function markAllNotificationsRead() {
-  const session = await requireUser();
-  await prisma.notification.updateMany({
+  const { session, db } = await requireUser();
+  await db.notification.updateMany({
     where: { userId: session.user.id, readAt: null },
     data: { readAt: new Date() },
   });
@@ -32,8 +32,8 @@ export async function markAllNotificationsRead() {
 }
 
 export async function setEmailNotifications(formData: FormData) {
-  const session = await requireUser();
-  await prisma.user.update({
+  const { session, db } = await requireUser();
+  await db.user.update({
     where: { id: session.user.id },
     data: { emailNotifications: formData.get("enabled") === "on" },
   });

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
@@ -94,7 +93,7 @@ export default async function CleanerCleanPage({
   // month/day instead of always dropping to My cleans / the current month.
   searchParams: Promise<{ from?: string; month?: string; day?: string }>;
 }) {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
   const { id } = await params;
   const { from, month, day } = await searchParams;
 
@@ -106,7 +105,7 @@ export default async function CleanerCleanPage({
 
   // Scoped in the query: a clean assigned to someone else simply doesn't
   // resolve, so there's no branch where another cleaner's job could render.
-  const clean = await prisma.clean.findFirst({
+  const clean = await db.clean.findFirst({
     where: { id, assignedToId: session.user.id },
     include: {
       property: {
@@ -184,7 +183,7 @@ export default async function CleanerCleanPage({
   const reportedHere = clean.issues;
 
   const active = clean.status === "PENDING" || clean.status === "IN_PROGRESS";
-  const turnover = active ? await turnoverFor(clean) : null;
+  const turnover = active ? await turnoverFor(db, clean) : null;
 
   return (
     <div className="flex flex-col gap-6">

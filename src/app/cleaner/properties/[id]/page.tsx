@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireCleaner, cleanerPropertyWhere } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
@@ -9,13 +8,13 @@ import { card } from "@/lib/ui";
 export const metadata = { title: "Property" };
 
 export default async function CleanerPropertyPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
   const { id } = await params;
 
   // The assignment check is part of the query, so a property this cleaner has
   // never been sent to doesn't resolve at all -- important here because
   // access notes carry key safe and alarm codes.
-  const property = await prisma.property.findFirst({
+  const property = await db.property.findFirst({
     where: { id, ...cleanerPropertyWhere(session.user.id) },
     include: { images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] } },
   });

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { createCleanRecord, CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { propertyDisplayName } from "@/lib/address";
@@ -36,7 +35,7 @@ function int(formData: FormData, key: string): number | null {
 }
 
 export async function createClean(formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const propertyId = str(formData, "propertyId");
   if (!propertyId) throw new Error("Property is required");
@@ -46,7 +45,7 @@ export async function createClean(formData: FormData) {
   // from the input is what tells createCleanRecord to auto-assign.
   const assignedToId = str(formData, "assignedToId");
 
-  const clean = await createCleanRecord({
+  const clean = await createCleanRecord(db, {
     propertyId,
     createdById: session.user.id,
     scheduledFor,
@@ -57,7 +56,7 @@ export async function createClean(formData: FormData) {
 
   // No staffIds: a clean staff just made by hand and left Unassigned isn't
   // news to staff -- only the assignee (if any) is told.
-  await notify(newCleanNotices(clean));
+  await notify(db, newCleanNotices(clean));
 
   revalidatePath("/admin/cleans");
   revalidatePath("/cleaner");
@@ -65,12 +64,12 @@ export async function createClean(formData: FormData) {
 }
 
 export async function updateClean(id: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const scheduledFor = dateTime(formData, "scheduledFor");
   const status = str(formData, "status");
 
-  const before = await prisma.clean.findUniqueOrThrow({
+  const before = await db.clean.findUniqueOrThrow({
     where: { id },
     include: {
       assignedTo: { select: { name: true } },
@@ -93,7 +92,7 @@ export async function updateClean(id: string, formData: FormData) {
     (status === "CANCELLED" && before.status !== "COMPLETED") ||
     (status === "PENDING" && (before.status === "PENDING" || before.status === "CANCELLED"));
 
-  const after = await prisma.clean.update({
+  const after = await db.clean.update({
     where: { id },
     data: {
       assignedToId: str(formData, "assignedToId"),
@@ -109,7 +108,7 @@ export async function updateClean(id: string, formData: FormData) {
     },
   });
 
-  await notify(cleanEditNotices(before, after));
+  await notify(db, cleanEditNotices(before, after));
 
   // Staff were already alerted this clean is at risk (and it's still the
   // same day, so that alert stands) -- but a cleaner just handed it wasn't
@@ -121,9 +120,9 @@ export async function updateClean(id: string, formData: FormData) {
     after.assignedToId !== before.assignedToId
   ) {
     const now = new Date();
-    const turnover = await turnoverFor(after);
+    const turnover = await turnoverFor(db, after);
     if (turnover && isAtRisk(after.status, turnover, now)) {
-      await notify(atRiskNotices(after, turnover, now, { staffIds: [], cleaner: true }));
+      await notify(db, atRiskNotices(after, turnover, now, { staffIds: [], cleaner: true }));
     }
   }
 
@@ -131,7 +130,7 @@ export async function updateClean(id: string, formData: FormData) {
   // change more than one of these at once, and each is independently
   // meaningful in the activity list.
   if (before.assignedToId !== after.assignedToId) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Clean",
       entityId: id,
@@ -139,7 +138,7 @@ export async function updateClean(id: string, formData: FormData) {
     });
   }
   if (before.scheduledFor?.getTime() !== after.scheduledFor?.getTime()) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Clean",
       entityId: id,
@@ -147,7 +146,7 @@ export async function updateClean(id: string, formData: FormData) {
     });
   }
   if (before.status !== after.status) {
-    await logAudit({
+    await logAudit(db, {
       actorId: session.user.id,
       entityType: "Clean",
       entityId: id,
@@ -167,12 +166,12 @@ export async function updateClean(id: string, formData: FormData) {
 // booking syncs create) stays date-only. The booking syncs only re-apply a
 // booking's date when that booking itself changes, so this sticks until then.
 export async function rescheduleClean(id: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const day = str(formData, "date");
   if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("Choose a date");
 
-  const before = await prisma.clean.findUniqueOrThrow({
+  const before = await db.clean.findUniqueOrThrow({
     where: { id },
     include: {
       assignedTo: { select: { name: true } },
@@ -190,7 +189,7 @@ export async function rescheduleClean(id: string, formData: FormData) {
 
   // A new day is a new deadline, so any at-risk alert already sent for the
   // old one is cleared (see checkAtRiskTurnovers).
-  const after = await prisma.clean.update({
+  const after = await db.clean.update({
     where: { id },
     data: { scheduledFor, atRiskNotifiedAt: null },
     include: {
@@ -199,8 +198,8 @@ export async function rescheduleClean(id: string, formData: FormData) {
     },
   });
 
-  await notify(cleanEditNotices(before, after));
-  await logAudit({
+  await notify(db, cleanEditNotices(before, after));
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Clean",
     entityId: id,
@@ -214,11 +213,11 @@ export async function rescheduleClean(id: string, formData: FormData) {
 }
 
 export async function deleteClean(id: string) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   // Fetched before deleting so the audit summary can stand on its own --
   // entityId survives the delete, but a join to look this back up wouldn't.
-  const clean = await prisma.clean.findUniqueOrThrow({
+  const clean = await db.clean.findUniqueOrThrow({
     where: { id },
     include: {
       property: { select: { nickname: true, name: true, address: true } },
@@ -226,15 +225,15 @@ export async function deleteClean(id: string) {
     },
   });
 
-  await prisma.clean.delete({ where: { id } });
+  await db.clean.delete({ where: { id } });
 
   // Only worth telling the cleaner if they still had it to do -- deleting a
   // completed or already-cancelled clean changes nothing for them.
   if (clean.assignedToId && (clean.status === "PENDING" || clean.status === "IN_PROGRESS")) {
-    await notify(cleanCancelledNotice(clean.assignedToId, clean, { deleted: true }));
+    await notify(db, cleanCancelledNotice(clean.assignedToId, clean, { deleted: true }));
   }
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Clean",
     entityId: id,

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+// prisma (the raw client) is used once below, deliberately -- see the
+// comment on deleteStockItem.
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -26,13 +28,13 @@ function unit(formData: FormData, key: string): string | null {
 }
 
 export async function createStockItem(formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
-  await prisma.stockItem.create({
-    data: { name, unit: unit(formData, "unit") },
+  await db.stockItem.create({
+    data: { organizationId: session.user.organizationId, name, unit: unit(formData, "unit") },
   });
 
   revalidatePath("/admin/stock-items");
@@ -40,12 +42,12 @@ export async function createStockItem(formData: FormData) {
 }
 
 export async function updateStockItem(id: string, formData: FormData) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
-  await prisma.stockItem.update({
+  await db.stockItem.update({
     where: { id },
     data: {
       name,
@@ -59,13 +61,13 @@ export async function updateStockItem(id: string, formData: FormData) {
 }
 
 export async function deleteStockItem(id: string) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   // An item with usage history stays as a record of what was actually
   // counted on real visits -- deleting it would rewrite that history out
   // from under every clean it was recorded against. Mark it inactive
   // instead, same as Service in the sibling app.
-  const used = await prisma.stockUsageLog.findFirst({ where: { stockItemId: id }, select: { id: true } });
+  const used = await db.stockUsageLog.findFirst({ where: { stockItemId: id }, select: { id: true } });
   if (used) {
     throw new Error(
       "This item has recorded usage on past cleans, so it can't be deleted. Mark it inactive instead.",
@@ -73,11 +75,16 @@ export async function deleteStockItem(id: string) {
   }
 
   // No usage yet, but it may still be configured as a par level somewhere --
-  // that's fine to remove along with it, nothing to lose.
-  await prisma.$transaction([
-    prisma.propertyStockLevel.deleteMany({ where: { stockItemId: id } }),
-    prisma.stockItem.delete({ where: { id } }),
-  ]);
+  // that's fine to remove along with it, nothing to lose. Needs the two
+  // deletes atomic with each other, which the scoped `db` extension can't
+  // provide (see the matching comment in admin/invoices/actions.ts's
+  // adjustInvoiceLineHours) -- falls back to the raw client's own
+  // $transaction, setting the RLS session variable by hand.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${session.user.organizationId}, TRUE)`;
+    await tx.propertyStockLevel.deleteMany({ where: { stockItemId: id } });
+    await tx.stockItem.delete({ where: { id } });
+  });
 
   revalidatePath("/admin/stock-items");
   redirect("/admin/stock-items");

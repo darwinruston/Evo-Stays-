@@ -3,7 +3,6 @@ import { requireStaff } from "@/lib/authz";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
 import { unreadNotificationCount } from "@/lib/notificationViews";
-import { prisma } from "@/lib/prisma";
 import { logoutAction } from "../logout/actions";
 
 // Day-to-day work areas -- left, right after the logo. Overview isn't
@@ -27,7 +26,7 @@ const PROFILE_NAV = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
   // Notifications leads the right-hand group -- it's personal to whoever's
   // signed in, like the directories beside it, rather than a shared work
   // area. Built per request since the count is.
@@ -35,8 +34,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // the dashboard's "Open issues" tile and the Issues page's Open tab, so
   // the three never disagree about how much is outstanding.
   const [unread, openIssues] = await Promise.all([
-    unreadNotificationCount(session.user.id),
-    prisma.issue.count({ where: { status: { not: "RESOLVED" } } }),
+    unreadNotificationCount(db, session.user.id),
+    db.issue.count({ where: { status: { not: "RESOLVED" } } }),
   ]);
   const items = NAV.map((item) =>
     item.href === "/admin/issues" ? { ...item, count: openIssues, countLabel: "open" } : item,

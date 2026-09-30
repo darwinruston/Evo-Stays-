@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { isRunningLow } from "@/lib/stock";
@@ -24,22 +23,22 @@ function weekWindow() {
 }
 
 export default async function AdminHomePage() {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
   const { start, end } = weekWindow();
 
   const [clients, properties, upcoming, unscheduled, stockLevels, openIssues, thisWeek] = await Promise.all([
-    prisma.client.count(),
-    prisma.property.count(),
-    prisma.clean.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
+    db.client.count(),
+    db.property.count(),
+    db.clean.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
     // Still needs a slot -- the one number here that means something is
     // waiting to be scheduled.
-    prisma.clean.count({ where: { status: "PENDING", scheduledFor: null } }),
+    db.clean.count({ where: { status: "PENDING", scheduledFor: null } }),
     // "Low" compares two columns on the same row, which SQLite can't express
     // in a where clause without raw SQL -- filtered in JS instead, see
     // src/lib/stock.ts.
-    prisma.propertyStockLevel.findMany({ select: { propertyId: true, band: true } }),
-    prisma.issue.count({ where: { status: { not: "RESOLVED" } } }),
-    prisma.clean.findMany({
+    db.propertyStockLevel.findMany({ select: { propertyId: true, band: true } }),
+    db.issue.count({ where: { status: { not: "RESOLVED" } } }),
+    db.clean.findMany({
       where: { scheduledFor: { gte: start, lt: end }, status: { not: "CANCELLED" } },
       orderBy: { scheduledFor: "asc" },
       include: {
@@ -63,7 +62,7 @@ export default async function AdminHomePage() {
 
   // Only unfinished cleans have a turnover worth flagging -- one pass over
   // the synced bookings for the whole list (see turnoversFor).
-  const turnovers = await turnoversFor(thisWeek.filter((c) => !isCleanFinished(c.status)));
+  const turnovers = await turnoversFor(db, thisWeek.filter((c) => !isCleanFinished(c.status)));
   const todayIso = toIsoDate(new Date());
   const sameDayToday = thisWeek.filter(
     (c) => c.scheduledFor && toIsoDate(c.scheduledFor) === todayIso && turnovers.get(c.id)?.sameDay,

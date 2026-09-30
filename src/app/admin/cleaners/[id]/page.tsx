@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { requireStaff, isStaffSession } from "@/lib/authz";
+import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { AddPropertyForm } from "@/components/AddPropertyForm";
 import { Avatar } from "@/components/Avatar";
 import { DesignatedPropertyRow } from "@/components/DesignatedPropertyRow";
@@ -31,16 +30,17 @@ import {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await isStaffSession())) return { title: "Cleaner" };
-  const cleaner = await prisma.user.findUnique({ where: { id }, select: { name: true } });
+  const db = await staffMetadataDb();
+  if (!db) return { title: "Cleaner" };
+  const cleaner = await db.user.findUnique({ where: { id }, select: { name: true } });
   return { title: cleaner?.name ?? "Cleaner" };
 }
 
 export default async function CleanerDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const cleaner = await prisma.user.findUnique({
+  const cleaner = await db.user.findUnique({
     where: { id, role: "CLEANER" },
     include: {
       assignedCleans: {
@@ -73,7 +73,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
 
   // Only unfinished cleans have a turnover worth flagging -- one pass over
   // the synced bookings for the whole list (see turnoversFor).
-  const turnovers = await turnoversFor(cleaner.assignedCleans.filter((c) => !isCleanFinished(c.status)));
+  const turnovers = await turnoversFor(db, cleaner.assignedCleans.filter((c) => !isCleanFinished(c.status)));
   const clashes = sameDayCounts(cleaner.assignedCleans);
   const rows: CleanRow[] = cleaner.assignedCleans.map((c) => ({
     id: c.id,
@@ -88,13 +88,13 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   }));
 
   const designatedPropertyIds = new Set(cleaner.designatedProperties.map((d) => d.propertyId));
-  const availableProperties = await prisma.property.findMany({
+  const availableProperties = await db.property.findMany({
     where: { id: { notIn: [...designatedPropertyIds] } },
     orderBy: { name: "asc" },
     select: { id: true, name: true, address: true, client: { select: { name: true } } },
   });
 
-  const otherCleaners = await prisma.user.findMany({
+  const otherCleaners = await db.user.findMany({
     where: { role: "CLEANER", id: { not: cleaner.id } },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -109,7 +109,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   // a plain `not` excludes Unassigned cleans under SQL's NULL semantics.
   const movablePendingCounts =
     cleaner.designatedProperties.length > 0
-      ? await prisma.clean.groupBy({
+      ? await db.clean.groupBy({
           by: ["propertyId"],
           where: {
             propertyId: { in: cleaner.designatedProperties.map((d) => d.propertyId) },

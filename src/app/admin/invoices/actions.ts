@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import type { InvoiceCadence } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+// prisma (the raw client) is used once below, deliberately -- see the
+// comment on adjustInvoiceLineHours.
 import { generateInvoices, formatHours } from "@/lib/invoices";
 import { logAudit } from "@/lib/audit";
 
@@ -37,7 +39,7 @@ function localDateFromInput(formData: FormData, key: string): Date | null {
 }
 
 export async function updateBillingCadence(formData: FormData) {
-  await requireStaff();
+  const { session, db } = await requireStaff();
 
   const cadence = str(formData, "cadence");
   const valid: InvoiceCadence[] = ["WEEKLY", "FORTNIGHTLY", "MONTHLY"];
@@ -45,17 +47,17 @@ export async function updateBillingCadence(formData: FormData) {
     throw new Error("Pick a cadence");
   }
 
-  await prisma.billingSettings.upsert({
-    where: { id: "singleton" },
+  await db.billingSettings.upsert({
+    where: { organizationId: session.user.organizationId },
     update: { cadence: cadence as InvoiceCadence },
-    create: { id: "singleton", cadence: cadence as InvoiceCadence },
+    create: { organizationId: session.user.organizationId, cadence: cadence as InvoiceCadence },
   });
 
   revalidatePath("/admin/invoices");
 }
 
 export async function runInvoiceGeneration(formData: FormData) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
   const periodStart = localDateFromInput(formData, "periodStart");
   // The form's "To" is the last included day; generateInvoices wants an
@@ -66,7 +68,7 @@ export async function runInvoiceGeneration(formData: FormData) {
   periodEnd.setDate(periodEnd.getDate() + 1);
   if (periodEnd <= periodStart) throw new Error("End date must be on or after the start date");
 
-  const result = await generateInvoices(periodStart, periodEnd);
+  const result = await generateInvoices(db, periodStart, periodEnd);
 
   revalidatePath("/admin/invoices");
 
@@ -85,12 +87,12 @@ export async function runInvoiceGeneration(formData: FormData) {
 // happened). Locked once the invoice is marked paid, same as everything else
 // about a paid invoice -- unmark it first to make a correction.
 export async function adjustInvoiceLineHours(lineId: string, formData: FormData) {
-  const session = await requireStaff();
+  const { session, db } = await requireStaff();
 
   const hours = float(formData, "hours");
   if (hours === null) throw new Error("Enter a number of hours (0 or more)");
 
-  const line = await prisma.invoiceLine.findUniqueOrThrow({
+  const line = await db.invoiceLine.findUniqueOrThrow({
     where: { id: lineId },
     include: { invoice: true },
   });
@@ -105,7 +107,16 @@ export async function adjustInvoiceLineHours(lineId: string, formData: FormData)
   const amount = hours * line.invoice.hourlyRate;
   const previousHours = line.hours;
 
+  // The two writes below need to be atomic with each other (a line's hours
+  // and its invoice's totals must never be seen out of step), which needs a
+  // real interactive transaction -- something the scoped `db` extension
+  // can't provide (each of its calls opens its own transaction to carry the
+  // set_config, so nesting one interactive transaction inside that would
+  // just open a second, unrelated one). Falls back to the raw `prisma`
+  // client's own $transaction instead, setting the same RLS session
+  // variable by hand at the top so both statements stay correctly scoped.
   await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${session.user.organizationId}, TRUE)`;
     await tx.invoiceLine.update({ where: { id: lineId }, data: { hours, amount, adjusted: true } });
     const lines = await tx.invoiceLine.findMany({ where: { invoiceId: line.invoiceId } });
     await tx.invoice.update({
@@ -117,7 +128,7 @@ export async function adjustInvoiceLineHours(lineId: string, formData: FormData)
     });
   });
 
-  await logAudit({
+  await logAudit(db, {
     actorId: session.user.id,
     entityType: "Invoice",
     entityId: line.invoiceId,
@@ -129,9 +140,9 @@ export async function adjustInvoiceLineHours(lineId: string, formData: FormData)
 }
 
 export async function setInvoicePaid(id: string, paid: boolean) {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  await prisma.invoice.update({
+  await db.invoice.update({
     where: { id },
     data: { paidAt: paid ? new Date() : null },
   });

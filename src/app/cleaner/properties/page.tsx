@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireCleaner, cleanerPropertyWhere } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyCover } from "@/components/PropertyCover";
@@ -8,10 +7,10 @@ import { card } from "@/lib/ui";
 export const metadata = { title: "Properties" };
 
 export default async function CleanerPropertiesPage() {
-  const session = await requireCleaner();
+  const { session, db } = await requireCleaner();
 
   // Only places this cleaner has been assigned to -- see cleanerPropertyWhere.
-  const properties = await prisma.property.findMany({
+  const properties = await db.property.findMany({
     where: cleanerPropertyWhere(session.user.id),
     orderBy: { createdAt: "asc" },
     include: { images: { where: { isPrimary: true }, take: 1, select: { path: true } } },

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyCover } from "@/components/PropertyCover";
@@ -8,9 +7,9 @@ import { button, card } from "@/lib/ui";
 export const metadata = { title: "Properties" };
 
 export default async function PropertiesPage() {
-  await requireStaff();
+  const { db } = await requireStaff();
 
-  const properties = await prisma.property.findMany({
+  const properties = await db.property.findMany({
     orderBy: [{ client: { name: "asc" } }, { createdAt: "asc" }],
     include: {
       client: { select: { id: true, name: true } },

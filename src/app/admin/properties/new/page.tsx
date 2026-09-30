@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { PropertyForm } from "../PropertyForm";
 import { createProperty } from "../actions";
@@ -11,11 +10,11 @@ export default async function NewPropertyPage({
 }: {
   searchParams: Promise<{ clientId?: string }>;
 }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   // Preselected when arriving from a client's own page ("Add property").
   const { clientId } = await searchParams;
 
-  const clients = await prisma.client.findMany({
+  const clients = await db.client.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

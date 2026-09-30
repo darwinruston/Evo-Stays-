@@ -16,6 +16,23 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
+const globalForAuthPrisma = globalThis as unknown as {
+  authPrisma: PrismaClient | undefined;
+};
+
+// A separate connection using the narrowly-scoped evo_auth Postgres role
+// (SELECT only, and only on the User table) -- used exclusively by
+// src/auth.ts's login lookup, which has to find an account by email alone,
+// before it knows which organization to scope into. See the comment on the
+// 20260930150000_auth_lookup_role migration for why this needs its own role
+// rather than going through the restricted runtime role (RLS would deny the
+// lookup outright) or the privileged migration role (far more access than
+// a login lookup should ever have).
+export const authPrisma =
+  globalForAuthPrisma.authPrisma ?? new PrismaClient({ datasourceUrl: process.env.AUTH_DATABASE_URL });
+
+if (process.env.NODE_ENV !== "production") globalForAuthPrisma.authPrisma = authPrisma;
+
 type AnyRecord = Record<string, unknown>;
 
 function isPlainObject(value: unknown): value is AnyRecord {
@@ -90,14 +107,21 @@ export type ScopedPrismaClient = ReturnType<typeof scopedDb>;
 //    this extension entirely.
 // 2. create/createMany/upsert calls get organizationId stamped onto their
 //    payload automatically (including nested writes, see withOrganizationId
-//    above), so a page or action never has to remember to set it by hand and
-//    can't accidentally write a row into the wrong organization -- or, worse,
-//    a row RLS would then hide from everyone, including its own organization.
+//    above). NOTE this is a safety net, not a replacement for writing it: a
+//    Prisma Client Extension can't loosen the TypeScript types on the base
+//    create/createMany/upsert methods, so organizationId is still a required
+//    field as far as the compiler's concerned, and every call site (top-level
+//    and nested) still has to pass it explicitly to type-check. What this
+//    layer actually buys is a real backstop against a call site that gets it
+//    wrong -- a stale copy-paste, an `as any`, a value from the wrong
+//    session -- which would otherwise write a row into another organization,
+//    or (worse) one RLS would then hide from everyone, including its own
+//    organization.
 //
-// Layer 2 is ergonomics and a write-time safety net; layer 1 is the actual
-// guarantee. Neither replaces the other.
+// Layer 1 is the actual guarantee. Layer 2 is defense in depth, not
+// ergonomics -- neither replaces the other.
 export function scopedDb(organizationId: string) {
-  return prisma.$extends({
+  const client = prisma.$extends({
     name: "organization-scope",
     query: {
       $allModels: {
@@ -127,4 +151,8 @@ export function scopedDb(organizationId: string) {
       },
     },
   });
+  // Exposed so a shared lib helper that only receives `db` (not the whole
+  // session) can still fill in organizationId explicitly where TypeScript
+  // requires it -- see the note on layer 2 above.
+  return Object.assign(client, { organizationId });
 }

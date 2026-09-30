@@ -14,8 +14,8 @@ const NAV = [
 ];
 
 export default async function CleanerLayout({ children }: { children: React.ReactNode }) {
-  const session = await requireCleaner();
-  const unread = await unreadNotificationCount(session.user.id);
+  const { session, db } = await requireCleaner();
+  const unread = await unreadNotificationCount(db, session.user.id);
   const items = [...NAV, { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }];
 
   return (

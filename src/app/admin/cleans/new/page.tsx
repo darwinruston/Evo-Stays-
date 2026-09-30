@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { CleanForm } from "../CleanForm";
 import { createClean } from "../actions";
@@ -12,15 +11,15 @@ export default async function NewCleanPage({
 }: {
   searchParams: Promise<{ propertyId?: string }>;
 }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { propertyId } = await searchParams;
 
   const [properties, cleaners] = await Promise.all([
-    prisma.property.findMany({
+    db.property.findMany({
       orderBy: [{ client: { name: "asc" } }, { createdAt: "asc" }],
       select: { id: true, name: true, address: true, client: { select: { name: true } } },
     }),
-    getCleanerOptions(),
+    getCleanerOptions(db),
   ]);
 
   return (

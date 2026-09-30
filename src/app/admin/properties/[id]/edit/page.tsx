@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyForm } from "../../PropertyForm";
@@ -10,10 +9,10 @@ import { button } from "@/lib/ui";
 export const metadata = { title: "Edit property" };
 
 export default async function EditPropertyPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const property = await prisma.property.findUnique({
+  const property = await db.property.findUnique({
     where: { id },
     include: { client: { select: { id: true, name: true } } },
   });

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { requireStaff, isStaffSession } from "@/lib/authz";
+import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
 import { propertyDisplayName } from "@/lib/address";
 import { button, card } from "@/lib/ui";
@@ -9,16 +8,17 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await isStaffSession())) return { title: "Client" };
-  const client = await prisma.client.findUnique({ where: { id }, select: { name: true } });
+  const metaDb = await staffMetadataDb();
+  if (!metaDb) return { title: "Client" };
+  const client = await metaDb.client.findUnique({ where: { id }, select: { name: true } });
   return { title: client?.name ?? "Client" };
 }
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const client = await prisma.client.findUnique({
+  const client = await db.client.findUnique({
     where: { id },
     include: {
       properties: { orderBy: { createdAt: "asc" } },
@@ -26,13 +26,13 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   });
   if (!client) notFound();
 
-  const invoiceCount = await prisma.invoice.count({ where: { property: { clientId: client.id } } });
+  const invoiceCount = await db.invoice.count({ where: { property: { clientId: client.id } } });
 
   // Every cleaner designated on any of this client's properties -- there's
   // no direct Client-to-Cleaner relation, so this is the same designation
   // data the property page's own Cleaners section reads, just aggregated
   // and deduped across the whole portfolio instead of one property.
-  const designations = await prisma.propertyCleaner.findMany({
+  const designations = await db.propertyCleaner.findMany({
     where: { property: { clientId: client.id } },
     include: { cleaner: { select: { id: true, name: true } } },
   });

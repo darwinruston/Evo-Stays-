@@ -1,10 +1,10 @@
 import type { IssueCategory, IssueSeverity, NotificationKind } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import type { ScopedPrismaClient } from "@/lib/prisma";
 import { propertyDisplayName } from "@/lib/address";
 import { ISSUE_CATEGORY_LABELS, ISSUE_SEVERITY_LABELS } from "@/lib/issues";
 import { formatScheduledFor } from "@/lib/schedule";
 import { absoluteUrl, emailConfigured, sendEmail } from "@/lib/email";
-import { SYSTEM_USER_ID } from "@/lib/systemUser";
+import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 
 export type NotificationInput = {
   userId: string;
@@ -26,15 +26,16 @@ export type NotificationInput = {
 // into the change itself looking like it failed. Email goes out
 // fire-and-forget for the same reason -- an SMTP round trip shouldn't hold
 // up the staff member's form submission.
-export async function notify(items: NotificationInput[]): Promise<void> {
+export async function notify(db: ScopedPrismaClient, items: NotificationInput[]): Promise<void> {
   if (items.length === 0) return;
   let created: RecordedNotification[];
   try {
     // ...AndReturn so each email line can link through its own row's
     // /notifications/{id} -- following it from an inbox then marks it read
     // in the app too, exactly like clicking it in the list.
-    created = await prisma.notification.createManyAndReturn({
+    created = await db.notification.createManyAndReturn({
       data: items.map((n) => ({
+        organizationId: db.organizationId,
         userId: n.userId,
         kind: n.kind,
         title: n.title,
@@ -49,7 +50,7 @@ export async function notify(items: NotificationInput[]): Promise<void> {
   }
 
   if (emailConfigured()) {
-    emailNotifications(created).catch((err) => {
+    emailNotifications(db, created).catch((err) => {
       console.error("[notify] couldn't send notification email:", err);
     });
   }
@@ -57,7 +58,7 @@ export async function notify(items: NotificationInput[]): Promise<void> {
 
 type RecordedNotification = { id: string; userId: string; title: string; body: string | null };
 
-async function emailNotifications(items: RecordedNotification[]): Promise<void> {
+async function emailNotifications(db: ScopedPrismaClient, items: RecordedNotification[]): Promise<void> {
   const byUser = new Map<string, RecordedNotification[]>();
   for (const item of items) {
     const list = byUser.get(item.userId);
@@ -65,7 +66,7 @@ async function emailNotifications(items: RecordedNotification[]): Promise<void> 
     else byUser.set(item.userId, [item]);
   }
 
-  const users = await prisma.user.findMany({
+  const users = await db.user.findMany({
     where: { id: { in: [...byUser.keys()] }, emailNotifications: true },
     select: { id: true, email: true, name: true },
   });
@@ -98,9 +99,9 @@ async function emailNotifications(items: RecordedNotification[]): Promise<void> 
 // Everyone who manages the schedule -- ADMIN and OFFICE -- minus the
 // "Automated sync" system account, which is an ADMIN for permission
 // purposes but isn't a person anyone reads notifications as.
-export async function staffUserIds(): Promise<string[]> {
-  const staff = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "OFFICE"] }, id: { not: SYSTEM_USER_ID } },
+export async function staffUserIds(db: ScopedPrismaClient): Promise<string[]> {
+  const staff = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "OFFICE"] }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
     select: { id: true },
   });
   return staff.map((s) => s.id);

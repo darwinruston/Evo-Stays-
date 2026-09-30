@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { requireStaff, isStaffSession } from "@/lib/authz";
+import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
 import { calendarDayKey, formatScheduledFor, formatScheduledForWithDay } from "@/lib/schedule";
@@ -15,8 +14,9 @@ import { turnoverFor, formatArrival } from "@/lib/turnover";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await isStaffSession())) return { title: "Clean" };
-  const clean = await prisma.clean.findUnique({
+  const db = await staffMetadataDb();
+  if (!db) return { title: "Clean" };
+  const clean = await db.clean.findUnique({
     where: { id },
     select: { property: { select: { nickname: true, name: true, address: true } } },
   });
@@ -33,7 +33,7 @@ export default async function CleanDetailPage({
   // filtered view instead of always resetting to the unfiltered list.
   searchParams: Promise<{ status?: string; propertyId?: string; cleanerId?: string }>;
 }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
   const { status, propertyId, cleanerId } = await searchParams;
 
@@ -44,7 +44,7 @@ export default async function CleanDetailPage({
   const backQuery = backParams.toString();
   const backHref = `/admin/cleans${backQuery ? `?${backQuery}` : ""}`;
 
-  const clean = await prisma.clean.findUnique({
+  const clean = await db.clean.findUnique({
     where: { id },
     include: {
       property: {
@@ -85,7 +85,7 @@ export default async function CleanDetailPage({
   const sameDayOthers =
     clean.assignedToId && clean.scheduledFor
       ? (
-          await prisma.clean.findMany({
+          await db.clean.findMany({
             where: {
               assignedToId: clean.assignedToId,
               id: { not: clean.id },
@@ -99,9 +99,9 @@ export default async function CleanDetailPage({
           })
         ).filter((c) => c.scheduledFor && calendarDayKey(c.scheduledFor) === cleanDay)
       : [];
-  const turnover = isCleanFinished(clean.status) ? null : await turnoverFor(clean);
+  const turnover = isCleanFinished(clean.status) ? null : await turnoverFor(db, clean);
 
-  const activity = await prisma.auditLog.findMany({
+  const activity = await db.auditLog.findMany({
     where: { entityType: "Clean", entityId: clean.id },
     orderBy: { createdAt: "desc" },
     include: { actor: { select: { name: true } } },

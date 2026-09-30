@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { fetchHostifyListings, buildHostifyAddress, type HostifyListing } from "@/lib/hostifyListings";
 import { importHostifyListings } from "../../actions";
@@ -10,10 +9,10 @@ import { card } from "@/lib/ui";
 export const metadata = { title: "Import from Hostify" };
 
 export default async function ImportHostifyListingsPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const { db } = await requireStaff();
   const { id } = await params;
 
-  const client = await prisma.client.findUnique({
+  const client = await db.client.findUnique({
     where: { id },
     select: {
       id: true,

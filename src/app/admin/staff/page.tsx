@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/authz";
-import { SYSTEM_USER_ID } from "@/lib/systemUser";
+import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 import { AddStaffForm } from "@/components/AddStaffForm";
 import { StaffRow } from "@/components/StaffRow";
 import { createStaff, updateStaff, deleteStaff } from "./actions";
@@ -9,10 +8,10 @@ import { createStaff, updateStaff, deleteStaff } from "./actions";
 export const metadata = { title: "Staff logins" };
 
 export default async function StaffPage() {
-  const session = await requireAdmin();
+  const { session, db } = await requireAdmin();
 
-  const staff = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "OFFICE"] }, id: { not: SYSTEM_USER_ID } },
+  const staff = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "OFFICE"] }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: { id: true, name: true, email: true, role: true },
   });
