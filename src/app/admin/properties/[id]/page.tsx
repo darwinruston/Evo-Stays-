@@ -8,7 +8,8 @@ import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
-import { bandFromDb, STOCK_BANDS, STOCK_BAND_LABELS } from "@/lib/stock";
+import { bandFromDb } from "@/lib/stock";
+import { AddStockLevelForm } from "@/components/AddStockLevelForm";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
@@ -357,45 +358,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         )}
 
         {availableItems.length > 0 ? (
-          <details className="group w-fit">
-            <summary
-              className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
-            >
-              + Add stock item
-            </summary>
-            <form
-              action={addPropertyStockLevel.bind(null, property.id)}
-              className={card("mt-3 flex flex-wrap items-end gap-3 p-4")}
-            >
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="stockItemId" className="text-sm font-medium">
-                  Item
-                </label>
-                <select id="stockItemId" name="stockItemId" required className={inputCompact}>
-                  {availableItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="band" className="text-sm font-medium">
-                  Level right now
-                </label>
-                <select id="band" name="band" defaultValue="high" className={inputCompact}>
-                  {STOCK_BANDS.map((b) => (
-                    <option key={b} value={b}>
-                      {STOCK_BAND_LABELS[b]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button type="submit" className={button("primary", "sm")}>
-                Add
-              </button>
-            </form>
-          </details>
+          <AddStockLevelForm action={addPropertyStockLevel.bind(null, property.id)} items={availableItems} />
         ) : (
           <p className="text-sm text-zinc-500">
             {property.stockLevels.length === 0 ? (
