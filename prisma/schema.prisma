@@ -9,7 +9,18 @@ datasource db {
   // policies applied separately as raw SQL). Local dev runs against a
   // Postgres container -- see README.
   provider = "postgresql"
+  // The app's own runtime role -- deliberately NOT the table owner and
+  // NOT a superuser. Postgres silently bypasses RLS (even FORCE ROW LEVEL
+  // SECURITY) for a superuser or any role with BYPASSRLS, so if this were
+  // ever a superuser connection, every RLS policy in the RLS migration
+  // would do nothing and nobody would notice until it mattered.
   url      = env("DATABASE_URL")
+  // A separate, privileged connection used only by `prisma migrate` (DDL:
+  // creating tables, adding columns, the RLS policies themselves) -- the
+  // restricted runtime role above can't do any of that by design. Prisma
+  // picks this one automatically for migrate/db-push commands and `url`
+  // for everything else; see https://pris.ly/d/migrate-shadow.
+  directUrl = env("MIGRATE_DATABASE_URL")
 }
 
 // One tenant: a cleaning-management company using the platform. Every other
