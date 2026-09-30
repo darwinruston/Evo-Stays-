@@ -5,20 +5,36 @@ import { scopedDb, type ScopedPrismaClient } from "@/lib/prisma";
 const STAFF_ROLES = ["ADMIN", "OFFICE"];
 const CLEANER_ROLES = ["ADMIN", "CLEANER"];
 
-// Gates the one screen that legitimately spans every organization (see
-// src/app/admin/organizations). A simple env-var email check rather than a
-// new role or schema concept -- this will only ever be one person for the
-// foreseeable future.
+// Whether a session belongs to the platform owner -- a simple env-var email
+// check rather than a new role or schema concept, since this will only ever
+// be one person for the foreseeable future. Deliberately not role-based: the
+// owner's own User row still needs *some* role to satisfy the schema, but
+// that role has no bearing on whether they're the owner.
+function isPlatformOwner(email: string | null | undefined): boolean {
+  const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
+  return !!ownerEmail && email === ownerEmail;
+}
+
+// Gates the whole /owner area -- the platform owner's own space for managing
+// every organization on the platform (who exists, how many properties
+// they're running, trial vs paid). The owner isn't a customer using Evo
+// Stays as a service the way every other account is, so this is kept
+// entirely separate from /admin and /cleaner, not a page tucked inside
+// either -- see the redirect in requireStaff/requireCleaner below for the
+// other half of that separation.
 export async function requirePlatformOwner() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
-  if (!ownerEmail || session.user.email !== ownerEmail) redirect("/");
+  if (!isPlatformOwner(session.user.email)) redirect("/");
   return session;
 }
 
 // Office/admin staff manage clients, properties, cleaners, cleans and the
-// stock catalogue. Cleaners are redirected away.
+// stock catalogue. Cleaners are redirected away -- and so is the platform
+// owner, straight to their own /owner area: that account manages the
+// platform, it doesn't run a cleaning business inside it, so there's
+// nothing for it to do here even though its User row technically carries a
+// staff role to satisfy the schema.
 //
 // Returns the scoped Prisma client alongside the session, not just the
 // session -- every query a staff page or action runs should go through this
@@ -27,6 +43,7 @@ export async function requirePlatformOwner() {
 export async function requireStaff() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (isPlatformOwner(session.user.email)) redirect("/owner");
   if (!STAFF_ROLES.includes(session.user.role)) redirect("/");
   return { session, db: scopedDb(session.user.organizationId) };
 }
@@ -36,6 +53,7 @@ export async function requireStaff() {
 export async function requireAdmin() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (isPlatformOwner(session.user.email)) redirect("/owner");
   if (session.user.role === "OFFICE") redirect("/admin");
   if (session.user.role !== "ADMIN") redirect("/");
   return { session, db: scopedDb(session.user.organizationId) };
@@ -49,7 +67,7 @@ export async function requireAdmin() {
 // generic title.
 export async function isStaffSession(): Promise<boolean> {
   const session = await auth();
-  return !!session?.user && STAFF_ROLES.includes(session.user.role);
+  return !!session?.user && !isPlatformOwner(session.user.email) && STAFF_ROLES.includes(session.user.role);
 }
 
 // Same use case as isStaffSession (generateMetadata can't call requireStaff,
@@ -58,16 +76,20 @@ export async function isStaffSession(): Promise<boolean> {
 // null when there's no staff session to scope into.
 export async function staffMetadataDb(): Promise<ScopedPrismaClient | null> {
   const session = await auth();
-  if (!session?.user || !STAFF_ROLES.includes(session.user.role)) return null;
+  if (!session?.user || isPlatformOwner(session.user.email) || !STAFF_ROLES.includes(session.user.role)) {
+    return null;
+  }
   return scopedDb(session.user.organizationId);
 }
 
 // Cleaners work their own schedule on site. Admins can also reach this area
-// (support/testing); office staff cannot. Same { session, db } shape as
+// (support/testing); office staff and the platform owner cannot -- same
+// reasoning as requireStaff above. Same { session, db } shape as
 // requireStaff, for the same reason.
 export async function requireCleaner() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (isPlatformOwner(session.user.email)) redirect("/owner");
   if (!CLEANER_ROLES.includes(session.user.role)) redirect("/");
   return { session, db: scopedDb(session.user.organizationId) };
 }

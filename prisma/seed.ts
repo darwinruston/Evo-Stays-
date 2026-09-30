@@ -3,10 +3,37 @@ import bcrypt from "bcryptjs";
 import { prisma, scopedDb } from "@/lib/prisma";
 
 async function main() {
+  // The platform owner's own account -- deliberately a separate login under
+  // its own organization, not the Demo Cleaning Co admin below. That
+  // account is a customer using Evo Stays as a service, same as any other
+  // organization; this one is the platform owner managing the platform
+  // itself (see requirePlatformOwner in src/lib/authz.ts and the /owner
+  // area), and the two should never be the same login. The organization
+  // this account technically belongs to is just satisfying the schema's
+  // FK (every User needs one) -- the owner never sees it, since /owner
+  // never scopes into its own organization the way /admin does.
+  const platformOrg = await prisma.organization.upsert({
+    where: { id: "seed-org-platform" },
+    update: {},
+    create: { id: "seed-org-platform", name: "Platform Administration" },
+  });
+  await scopedDb(platformOrg.id).user.upsert({
+    where: { email: "owner@evostays.test" },
+    update: {},
+    create: {
+      organizationId: platformOrg.id,
+      name: "Platform Owner",
+      email: "owner@evostays.test",
+      passwordHash: await bcrypt.hash("password123", 10),
+      role: Role.ADMIN,
+    },
+  });
+
   // Everything below belongs to one demo organization -- a fresh install's
-  // very first tenant. Organization itself carries no RLS (see
-  // UNSCOPED_MODELS in src/lib/prisma.ts), so this upsert uses the raw
-  // client directly; everything else goes through the scoped `db` built
+  // very first real customer (the JFMS-equivalent -- see the createStaff
+  // comment on PLATFORM_OWNER_EMAIL in .env). Organization itself carries no
+  // RLS (see UNSCOPED_MODELS in src/lib/prisma.ts), so this upsert uses the
+  // raw client directly; everything else goes through the scoped `db` built
   // from it, since RLS would otherwise reject every insert below (its WITH
   // CHECK has nothing to compare against without app.current_organization_id
   // set).
@@ -217,6 +244,7 @@ async function main() {
     });
   }
 
+  console.log("Seeded platform owner login: owner@evostays.test / password123");
   console.log(
     "Seeded logins:",
     staff.map((u) => `${u.email} / password123`).join(", "),

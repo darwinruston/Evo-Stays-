@@ -91,6 +91,11 @@ const INCLUDED = [
 export default async function Home() {
   const session = await auth();
   if (session?.user) {
+    // The platform owner has their own area entirely (see requirePlatformOwner
+    // in src/lib/authz.ts) -- checked ahead of the role-based split below,
+    // since that account still carries a staff role to satisfy the schema
+    // even though it isn't a customer running cleaning operations.
+    if (session.user.email === process.env.PLATFORM_OWNER_EMAIL) redirect("/owner");
     redirect(session.user.role === "CLEANER" ? "/cleaner" : "/admin");
   }
 

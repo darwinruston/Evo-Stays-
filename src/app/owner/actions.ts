@@ -54,8 +54,8 @@ export async function createOrganization(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/organizations");
-  redirect("/admin/organizations");
+  revalidatePath("/owner");
+  redirect("/owner");
 }
 
 // The commercial state shown on the Organizations page -- Trial or Paid,
@@ -92,5 +92,5 @@ export async function updateOrganizationPlan(organizationId: string, formData: F
     },
   });
 
-  revalidatePath("/admin/organizations");
+  revalidatePath("/owner");
 }

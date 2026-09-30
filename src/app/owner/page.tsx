@@ -9,10 +9,10 @@ import { createOrganization, updateOrganizationPlan } from "./actions";
 export const metadata = { title: "Organizations" };
 
 // The one screen that legitimately spans every tenant -- gated by
-// requirePlatformOwner, not requireStaff, and reads the organization list
-// itself through the unscoped `prisma` client on purpose (see
-// UNSCOPED_MODELS in src/lib/prisma.ts): there's no single organization to
-// scope a "every organization" list into.
+// requirePlatformOwner (via the /owner layout), not requireStaff, and reads
+// the organization list itself through the unscoped `prisma` client on
+// purpose (see UNSCOPED_MODELS in src/lib/prisma.ts): there's no single
+// organization to scope a "every organization" list into.
 //
 // The per-organization counts below can't just be `include: { _count }` on
 // that same unscoped query, though: User and Property both carry RLS, and
