@@ -260,57 +260,66 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </ul>
         )}
 
-        <form
-          action={addPropertyChecklistItem.bind(null, property.id)}
-          className={card("flex flex-wrap items-end gap-3 p-4")}
-        >
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="checklistRoom" className="text-sm font-medium">
-              Room
-            </label>
-            <input
-              id="checklistRoom"
-              name="room"
-              required
-              maxLength={CHECKLIST_ROOM_MAX}
-              list="checklistRooms"
-              placeholder="e.g. Kitchen, Hot tub"
-              className={`${inputCompact} w-44`}
-            />
-            {/* Suggests the standard rooms plus any this property already
-                uses, so additions land in an existing card by default. */}
-            <datalist id="checklistRooms">
-              {[...new Set([...STANDARD_ROOMS, ...property.checklistItems.map((i) => i.room)])].map((room) => (
-                <option key={room} value={room} />
-              ))}
-            </datalist>
-          </div>
-          <div className="flex min-w-48 flex-1 flex-col gap-1.5">
-            <label htmlFor="checklistText" className="text-sm font-medium">
-              What needs doing
-            </label>
-            <input
-              id="checklistText"
-              name="text"
-              required
-              maxLength={CHECKLIST_TEXT_MAX}
-              placeholder="e.g. Check hot tub chemicals, cover back on"
-              className={inputCompact}
-            />
-          </div>
-          <button type="submit" className={button("primary", "sm")}>
-            Add
-          </button>
-        </form>
+        <div className="flex flex-wrap items-center gap-4">
+          <details className="group">
+            <summary
+              className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
+            >
+              + Add item
+            </summary>
+            <form
+              action={addPropertyChecklistItem.bind(null, property.id)}
+              className={card("mt-3 flex flex-wrap items-end gap-3 p-4")}
+            >
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="checklistRoom" className="text-sm font-medium">
+                  Room
+                </label>
+                <input
+                  id="checklistRoom"
+                  name="room"
+                  required
+                  maxLength={CHECKLIST_ROOM_MAX}
+                  list="checklistRooms"
+                  placeholder="e.g. Kitchen, Hot tub"
+                  className={`${inputCompact} w-44`}
+                />
+                {/* Suggests the standard rooms plus any this property already
+                    uses, so additions land in an existing card by default. */}
+                <datalist id="checklistRooms">
+                  {[...new Set([...STANDARD_ROOMS, ...property.checklistItems.map((i) => i.room)])].map((room) => (
+                    <option key={room} value={room} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="flex min-w-48 flex-1 flex-col gap-1.5">
+                <label htmlFor="checklistText" className="text-sm font-medium">
+                  What needs doing
+                </label>
+                <input
+                  id="checklistText"
+                  name="text"
+                  required
+                  maxLength={CHECKLIST_TEXT_MAX}
+                  placeholder="e.g. Check hot tub chemicals, cover back on"
+                  className={inputCompact}
+                />
+              </div>
+              <button type="submit" className={button("primary", "sm")}>
+                Add
+              </button>
+            </form>
+          </details>
 
-        <details className="w-fit">
-          <summary className="cursor-pointer text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700">
-            Preview what cleaners see
-          </summary>
-          <div className="mt-2 max-w-md">
-            <CleaningChecklist extras={property.checklistItems} />
-          </div>
-        </details>
+          <details className="w-fit">
+            <summary className="cursor-pointer text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700">
+              Preview what cleaners see
+            </summary>
+            <div className="mt-2 max-w-md">
+              <CleaningChecklist extras={property.checklistItems} />
+            </div>
+          </details>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -348,38 +357,45 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         )}
 
         {availableItems.length > 0 ? (
-          <form
-            action={addPropertyStockLevel.bind(null, property.id)}
-            className={card("flex flex-wrap items-end gap-3 p-4")}
-          >
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="stockItemId" className="text-sm font-medium">
-                Item
-              </label>
-              <select id="stockItemId" name="stockItemId" required className={inputCompact}>
-                {availableItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="band" className="text-sm font-medium">
-                Level right now
-              </label>
-              <select id="band" name="band" defaultValue="high" className={inputCompact}>
-                {STOCK_BANDS.map((b) => (
-                  <option key={b} value={b}>
-                    {STOCK_BAND_LABELS[b]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button type="submit" className={button("primary", "sm")}>
-              Add
-            </button>
-          </form>
+          <details className="group w-fit">
+            <summary
+              className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
+            >
+              + Add stock item
+            </summary>
+            <form
+              action={addPropertyStockLevel.bind(null, property.id)}
+              className={card("mt-3 flex flex-wrap items-end gap-3 p-4")}
+            >
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="stockItemId" className="text-sm font-medium">
+                  Item
+                </label>
+                <select id="stockItemId" name="stockItemId" required className={inputCompact}>
+                  {availableItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="band" className="text-sm font-medium">
+                  Level right now
+                </label>
+                <select id="band" name="band" defaultValue="high" className={inputCompact}>
+                  {STOCK_BANDS.map((b) => (
+                    <option key={b} value={b}>
+                      {STOCK_BAND_LABELS[b]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="submit" className={button("primary", "sm")}>
+                Add
+              </button>
+            </form>
+          </details>
         ) : (
           <p className="text-sm text-zinc-500">
             {property.stockLevels.length === 0 ? (
@@ -572,40 +588,47 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               Hostify is connected, this form is the one part of Calendars
               that's fully hidden, not just discouraged. */}
           {!hasHostifyListing && (
-            <form
-              action={addPropertyCalendarFeed.bind(null, property.id)}
-              className={card("flex flex-wrap items-end gap-3 p-4")}
-            >
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="label" className="text-sm font-medium">
-                  Platform
-                </label>
-                <input
-                  id="label"
-                  name="label"
-                  type="text"
-                  required
-                  placeholder="e.g. Airbnb"
-                  className={`${inputCompact} w-32`}
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1.5">
-                <label htmlFor="url" className="text-sm font-medium">
-                  Calendar URL
-                </label>
-                <input
-                  id="url"
-                  name="url"
-                  type="url"
-                  required
-                  placeholder="https://www.airbnb.co.uk/calendar/ical/....ics"
-                  className={`${inputCompact} w-full`}
-                />
-              </div>
-              <button type="submit" className={button("primary", "sm")}>
-                Add
-              </button>
-            </form>
+            <details className="w-fit">
+              <summary
+                className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
+              >
+                + Add calendar
+              </summary>
+              <form
+                action={addPropertyCalendarFeed.bind(null, property.id)}
+                className={card("mt-3 flex flex-wrap items-end gap-3 p-4")}
+              >
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="label" className="text-sm font-medium">
+                    Platform
+                  </label>
+                  <input
+                    id="label"
+                    name="label"
+                    type="text"
+                    required
+                    placeholder="e.g. Airbnb"
+                    className={`${inputCompact} w-32`}
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <label htmlFor="url" className="text-sm font-medium">
+                    Calendar URL
+                  </label>
+                  <input
+                    id="url"
+                    name="url"
+                    type="url"
+                    required
+                    placeholder="https://www.airbnb.co.uk/calendar/ical/....ics"
+                    className={`${inputCompact} w-full`}
+                  />
+                </div>
+                <button type="submit" className={button("primary", "sm")}>
+                  Add
+                </button>
+              </form>
+            </details>
           )}
         </section>
       )}
@@ -787,28 +810,35 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </ul>
         )}
 
-        <form
-          action={addPropertyPhotos.bind(null, property.id)}
-          className={card("flex max-w-lg flex-col gap-3 p-4")}
-        >
-          <label htmlFor="photos" className="text-sm font-medium">
-            Add photos
-          </label>
-          <input
-            id="photos"
-            name="photos"
-            type="file"
-            accept="image/*"
-            multiple
-            required
-            className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-          />
-          <div>
-            <button type="submit" className={button("primary", "sm")}>
-              Upload
-            </button>
-          </div>
-        </form>
+        <details className="w-fit">
+          <summary
+            className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
+          >
+            + Add photos
+          </summary>
+          <form
+            action={addPropertyPhotos.bind(null, property.id)}
+            className={card("mt-3 flex max-w-lg flex-col gap-3 p-4")}
+          >
+            <label htmlFor="photos" className="text-sm font-medium">
+              Choose photos
+            </label>
+            <input
+              id="photos"
+              name="photos"
+              type="file"
+              accept="image/*"
+              multiple
+              required
+              className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
+            />
+            <div>
+              <button type="submit" className={button("primary", "sm")}>
+                Upload
+              </button>
+            </div>
+          </form>
+        </details>
       </section>
     </div>
   );
