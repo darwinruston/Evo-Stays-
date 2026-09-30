@@ -71,6 +71,23 @@ const USPS = [
   "Invoices generated from real check-in/check-out times",
 ];
 
+// What's actually in the package, as a flat checklist rather than the
+// feature cards' prose -- for someone skimming to answer "does this cover
+// what we need" in one glance, each line traceable to the same real
+// behaviour FEATURES describes above.
+const INCLUDED = [
+  "Turnover scheduling with familiarity-based auto-assignment",
+  "Guided cleaner workflow: check-in, before/after photos, notes",
+  "Per-property stock level tracking, tapped not typed",
+  "Issue reporting with automatic urgency triage",
+  "In-app and email notifications for every schedule change",
+  "Cleaner invoicing from real check-in/check-out times",
+  "Laundry drop-off tracking, door to door",
+  "Role-scoped access — cleaners see only their own assigned properties",
+  "Calendar sync (iCal and Hostify) that turns bookings into scheduled cleans",
+  "One dashboard for the whole portfolio",
+];
+
 export default async function Home() {
   const session = await auth();
   if (session?.user) {
@@ -121,6 +138,35 @@ export default async function Home() {
                     <path d="M4 10.5 8 14l8-8" />
                   </svg>
                   {usp}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="px-4 pb-16 sm:px-6 lg:px-10">
+          <div className={`mx-auto max-w-3xl ${card("p-6 sm:p-10")}`}>
+            <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">What&apos;s included</h2>
+            <p className="mt-1.5 text-sm text-zinc-500">
+              Everything below is in the package from day one — no add-ons, no separate tier to
+              unlock it.
+            </p>
+            <ul className="mt-6 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+              {INCLUDED.map((item) => (
+                <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-zinc-900"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 10.5 8 14l8-8" />
+                  </svg>
+                  {item}
                 </li>
               ))}
             </ul>
