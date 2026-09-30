@@ -43,6 +43,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const rightItems = [
     { href: "/admin/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" },
     ...PROFILE_NAV,
+    // Only the platform owner sees this -- everyone else's requirePlatformOwner
+    // check would just redirect them away from it anyway, but there's no reason
+    // to show a link that leads nowhere.
+    ...(session.user.email === process.env.PLATFORM_OWNER_EMAIL
+      ? [{ href: "/admin/organizations", label: "Organizations" }]
+      : []),
   ];
 
   return (
