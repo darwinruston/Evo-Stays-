@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 import { Prisma, PropertyType } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
-import { savePropertyPhotos, saveHostifyCoverPhoto } from "@/lib/uploads";
+import { savePropertyPhotos, savePmsCoverPhoto } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { syncCalendarFeed } from "@/lib/icalSync";
-import { syncHostifyListing } from "@/lib/hostifySync";
-import { fetchHostifyCoverPhotoUrl } from "@/lib/hostifyListings";
+import { syncPmsListing } from "@/lib/pms/sync";
+import { getPmsAdapter } from "@/lib/pms/registry";
+import { decryptPmsCredentials } from "@/lib/pms/credentials";
 import { propertyDisplayName } from "@/lib/address";
 import { logAudit } from "@/lib/audit";
 import { CHECKLIST_ROOM_MAX, CHECKLIST_TEXT_MAX, normaliseRoom } from "@/lib/cleaningChecklist";
@@ -194,37 +195,40 @@ export async function addPropertyPhotos(id: string, formData: FormData) {
   revalidatePath(`/admin/properties/${id}`);
 }
 
-// Pulls this property's cover photo from Hostify on demand -- for a
-// property whose import silently failed to grab one (fetchHostifyCoverPhotoUrl
-// swallows any failure with no trace of why), or one never run through the
-// import flow at all (linked to a listing by hand, e.g. from before the
-// import feature existed). Adds the photo without forcing it to be the
-// cover if one's already set -- ensurePrimary only promotes it when the
-// property has none, so this can't silently replace a photo staff already
-// chose.
-export async function fetchPropertyCoverPhoto(id: string) {
+// Pulls this property's cover photo from its connected PMS on demand -- for
+// a property whose import silently failed to grab one
+// (PmsAdapter.fetchCoverPhotoUrl swallows any failure with no trace of why),
+// or one never run through the import flow at all (linked to a listing by
+// hand, e.g. from before the import feature existed). Adds the photo
+// without forcing it to be the cover if one's already set -- ensurePrimary
+// only promotes it when the property has none, so this can't silently
+// replace a photo staff already chose.
+export async function fetchPropertyPmsCoverPhoto(id: string) {
   const { session, db } = await requireStaff();
 
   const property = await db.property.findUniqueOrThrow({
     where: { id },
-    select: { hostifyListingId: true, client: { select: { hostifyApiKey: true } } },
+    select: { pmsListingId: true, client: { select: { pmsProvider: true, pmsCredentials: true } } },
   });
-  if (!property.hostifyListingId) {
-    throw new Error("This property isn't linked to a Hostify listing.");
+  if (!property.pmsListingId) {
+    throw new Error("This property isn't linked to a PMS listing.");
   }
-  if (!property.client.hostifyApiKey) {
-    throw new Error("No Hostify API key configured on this client.");
+  if (!property.client.pmsProvider || !property.client.pmsCredentials) {
+    throw new Error("No PMS connected on this client.");
   }
 
-  const photoUrl = await fetchHostifyCoverPhotoUrl(
-    property.client.hostifyApiKey,
-    Number(property.hostifyListingId),
-  );
+  const adapter = getPmsAdapter(property.client.pmsProvider);
+  if (!adapter.fetchCoverPhotoUrl) {
+    throw new Error(`${adapter.displayName} doesn't support fetching a cover photo yet.`);
+  }
+
+  const credentials = decryptPmsCredentials(property.client.pmsCredentials);
+  const photoUrl = await adapter.fetchCoverPhotoUrl(credentials, property.pmsListingId);
   if (!photoUrl) {
-    throw new Error("Hostify doesn't have a cover photo for this listing.");
+    throw new Error(`${adapter.displayName} doesn't have a cover photo for this listing.`);
   }
 
-  const photoPath = await saveHostifyCoverPhoto(id, photoUrl);
+  const photoPath = await savePmsCoverPhoto(id, photoUrl);
   await db.propertyImage.create({
     data: { organizationId: session.user.organizationId, propertyId: id, path: photoPath, isPrimary: false },
   });
@@ -426,27 +430,41 @@ export async function syncPropertyCalendarFeed(propertyId: string, feedId: strin
   revalidatePath("/cleaner");
 }
 
-// The Hostify listing toggle: blank clears it, same "blank field is the
-// toggle" convention as updatePropertySyncHorizon/updatePropertyMinBillableHours.
-// A listing already aggregates every channel for one physical unit, so
-// unlike calendar feeds this is a single field, not a one-to-many list --
-// see hostifyListingId's @unique in schema.db.
-export async function updatePropertyHostifyListingId(propertyId: string, formData: FormData) {
+// The PMS listing toggle: blank clears it, same "blank field is the toggle"
+// convention as updatePropertySyncHorizon/updatePropertyMinBillableHours. A
+// listing already aggregates every channel for one physical unit, so unlike
+// calendar feeds this is a single field, not a one-to-many list -- see
+// pmsListingId's @unique in schema.prisma. pmsProvider is stamped here too
+// (denormalized from the property's own client), not left for the client's
+// value to be joined through on every later read -- see the comment on
+// Property.pmsProvider in schema.prisma for why that denormalization is
+// load-bearing, not just a convenience.
+export async function updatePropertyPmsListingId(propertyId: string, formData: FormData) {
   const { session, db } = await requireStaff();
 
-  const hostifyListingId = str(formData, "hostifyListingId");
+  const pmsListingId = str(formData, "pmsListingId");
+
+  const property = await db.property.findUniqueOrThrow({
+    where: { id: propertyId },
+    select: { client: { select: { pmsProvider: true } } },
+  });
+  if (pmsListingId !== null && !property.client.pmsProvider) {
+    throw new Error("Connect a PMS on this property's client before linking a listing.");
+  }
+
   try {
     await db.property.update({
       where: { id: propertyId },
-      // str(), not int() -- real Hostify listing ids run well past what a
-      // JS number (or a 32-bit column) can hold without rounding, so this
-      // is stored and handled as an opaque string throughout, never parsed
-      // as a number. See hostifyListingId's comment in schema.db.
-      data: { hostifyListingId },
+      // str(), not int() -- real listing ids from several of these
+      // providers run well past what a JS number (or a 32-bit column) can
+      // hold without rounding, so this is stored and handled as an opaque
+      // string throughout, never parsed as a number. See pmsListingId's
+      // comment in schema.prisma.
+      data: { pmsListingId, pmsProvider: pmsListingId === null ? null : property.client.pmsProvider },
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new Error("That Hostify listing is already linked to another property");
+      throw new Error("That listing is already linked to another property");
     }
     throw err;
   }
@@ -455,44 +473,44 @@ export async function updatePropertyHostifyListingId(propertyId: string, formDat
     actorId: session.user.id,
     entityType: "Property",
     entityId: propertyId,
-    summary: `Hostify listing linked (#${hostifyListingId})`,
+    summary: pmsListingId ? `PMS listing linked (#${pmsListingId})` : "PMS listing unlinked",
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
-export async function removePropertyHostifyListing(propertyId: string) {
+export async function removePropertyPmsListing(propertyId: string) {
   const { session, db } = await requireStaff();
 
   await db.property.update({
     where: { id: propertyId },
-    data: { hostifyListingId: null, hostifyLastSyncedAt: null, hostifyLastSyncError: null },
+    data: { pmsProvider: null, pmsListingId: null, pmsLastSyncedAt: null, pmsLastSyncError: null },
   });
 
   await logAudit(db, {
     actorId: session.user.id,
     entityType: "Property",
     entityId: propertyId,
-    summary: "Hostify listing unlinked",
+    summary: "PMS listing unlinked",
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
-// "Sync now" -- see src/lib/hostifySync.ts. Never throws; a failure is
-// recorded on the property itself (hostifyLastSyncError) for the page to
-// show, so there's nothing here to catch.
-export async function syncPropertyHostifyListing(propertyId: string) {
+// "Sync now" -- see src/lib/pms/sync.ts. Never throws; a failure is
+// recorded on the property itself (pmsLastSyncError) for the page to show,
+// so there's nothing here to catch.
+export async function syncPropertyPmsListing(propertyId: string) {
   const { session, db } = await requireStaff();
 
   const property = await db.property.findFirst({
     where: { id: propertyId },
-    select: { id: true, hostifyListingId: true },
+    select: { id: true, pmsListingId: true },
   });
   if (!property) throw new Error("Property not found");
-  if (property.hostifyListingId === null) throw new Error("No Hostify listing configured for this property");
+  if (property.pmsListingId === null) throw new Error("No PMS listing configured for this property");
 
-  await syncHostifyListing(db, propertyId, session.user.id);
+  await syncPmsListing(db, propertyId, session.user.id);
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/cleans");

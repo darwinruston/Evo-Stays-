@@ -1,11 +1,11 @@
 import { prisma, scopedDb } from "@/lib/prisma";
 import { syncCalendarFeed } from "@/lib/icalSync";
-import { syncHostifyListing } from "@/lib/hostifySync";
+import { syncPmsListing } from "@/lib/pms/sync";
 import { ensureSystemSyncUser } from "@/lib/systemUser";
 
 // Shared by the in-process scheduler (src/lib/syncScheduler.ts) and the
 // externally-triggerable POST /api/sync route -- every organization, and
-// within each, every iCal feed and every Hostify-linked property, one after
+// within each, every iCal feed and every PMS-linked property, one after
 // another. The outer loop over Organization is the one place this uses the
 // raw, unscoped `prisma` -- there's no organization to scope into yet until
 // it's picked one. Everything inside the loop runs against that
@@ -13,8 +13,13 @@ import { ensureSystemSyncUser } from "@/lib/systemUser";
 //
 // Sequential rather than concurrent: both sync functions never throw (a bad
 // feed/listing just records its own error and the loop moves on), and at the
-// property counts this app runs at, sequential stays trivially inside
-// Hostify's 1000 req/min rate limit without needing to think about it.
+// property counts this app runs at, sequential stays trivially inside every
+// connected provider's rate limit without needing to think about it -- with
+// one exception worth knowing about: OwnerRez rate-limits personal access
+// tokens by server IP (2 distinct OwnerRez accounts per IP per 24h), which
+// this loop's single egress IP will hit once a 3rd organization connects
+// OwnerRez, regardless of how sequential/concurrent this is. See
+// src/lib/pms/ownerrez.ts once that adapter exists.
 export async function runAllSyncs(): Promise<{ feedsSynced: number; listingsSynced: number }> {
   const organizations = await prisma.organization.findMany({ select: { id: true } });
 
@@ -32,11 +37,11 @@ export async function runAllSyncs(): Promise<{ feedsSynced: number; listingsSync
     feedsSynced += feeds.length;
 
     const properties = await db.property.findMany({
-      where: { hostifyListingId: { not: null } },
+      where: { pmsListingId: { not: null } },
       select: { id: true },
     });
     for (const property of properties) {
-      await syncHostifyListing(db, property.id, systemUserId);
+      await syncPmsListing(db, property.id, systemUserId);
     }
     listingsSynced += properties.length;
   }

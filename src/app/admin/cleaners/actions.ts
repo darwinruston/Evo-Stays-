@@ -46,7 +46,7 @@ export async function createCleaner(formData: FormData) {
 
 // Name, email, and (optionally) password -- the details set once at
 // creation but otherwise had no edit path at all. Password is the same
-// "blank means leave it alone" convention as Client.hostifyApiKey: a
+// "blank means leave it alone" convention as Client.pmsCredentials: a
 // secret field defaults to no change rather than clearing it, and it's
 // never read back into the form to prefill (a decrypted secret showing up
 // in page source is bad practice regardless of how it got there).

@@ -6,7 +6,7 @@ import { button, card, input } from "@/lib/ui";
 // Same reveal-on-click shape as the rest of this page -- name/email/
 // password sat with no edit path at all before this, only ever set once at
 // creation. Password is optional and never prefilled: leaving it blank
-// keeps the current one, same convention as Client.hostifyApiKey.
+// keeps the current one, same convention as Client.pmsCredentials.
 export function EditCleanerDetailsForm({
   action,
   name,

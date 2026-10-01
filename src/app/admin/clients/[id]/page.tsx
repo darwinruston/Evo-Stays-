@@ -5,6 +5,7 @@ import { Avatar } from "@/components/Avatar";
 import { propertyDisplayName } from "@/lib/address";
 import { button, card } from "@/lib/ui";
 import { InfoTooltip } from "@/components/InfoTooltip";
+import { getPmsAdapter } from "@/lib/pms/registry";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -98,9 +99,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             Portfolio ({client.properties.length})
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            {client.hostifyApiKey && (
+            {client.pmsProvider && client.pmsCredentials && (
               <Link href={`/admin/clients/${client.id}/import`} className={button("secondary", "sm")}>
-                Import from Hostify
+                Import from {getPmsAdapter(client.pmsProvider).displayName}
               </Link>
             )}
             <Link

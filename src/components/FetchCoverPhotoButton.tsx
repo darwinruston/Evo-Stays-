@@ -4,10 +4,16 @@ import { useState, useTransition } from "react";
 import { button } from "@/lib/ui";
 
 // A plain submit button would crash to the generic error screen on
-// failure (this app has no error boundary) -- e.g. Hostify genuinely has
+// failure (this app has no error boundary) -- e.g. the PMS genuinely has
 // no photo for this listing, or the fetch just hiccups. Caught here and
 // shown inline instead, same reasoning as useRevealForm.
-export function FetchCoverPhotoButton({ action }: { action: () => Promise<void> }) {
+export function FetchCoverPhotoButton({
+  action,
+  providerName,
+}: {
+  action: () => Promise<void>;
+  providerName: string;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -28,7 +34,7 @@ export function FetchCoverPhotoButton({ action }: { action: () => Promise<void> 
         }}
         className={button("secondary", "sm")}
       >
-        {pending ? "Fetching…" : "Fetch photo from Hostify"}
+        {pending ? "Fetching…" : `Fetch photo from ${providerName}`}
       </button>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>

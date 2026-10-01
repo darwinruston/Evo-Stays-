@@ -6,7 +6,7 @@ import { notify, staffUserIds, type NotificationInput } from "@/lib/notify";
 // What's known about the NEXT guests after a clean -- the thing that turns
 // "a clean on Friday" into "a clean on Friday that must be done by 3pm
 // because people are walking in". Derived from the synced bookings already
-// on file (iCal events and Hostify reservations) rather than stored on the
+// on file (iCal events and PMS reservations) rather than stored on the
 // Clean, so a booking that moves or cancels is reflected the next time any
 // page asks, with no second copy to keep in step.
 export type Turnover = {
@@ -71,10 +71,18 @@ export async function turnoversFor(
       where: { cancelled: false, checkIn: { gte: lowerBound }, feed: { propertyId: { in: propertyIds } } },
       select: { checkIn: true, feed: { select: { propertyId: true } } },
     }),
-    // Only confirmed reservations -- the same "accepted" test hostifySync
-    // uses before it will create a clean. A pending request may never turn
-    // into guests, and shouldn't put a deadline on anyone.
-    db.syncedHostifyReservation.findMany({
+    // Only confirmed reservations -- the same "accepted" test
+    // src/lib/pms/hostify.ts uses before it will create a clean. A pending
+    // request may never turn into guests, and shouldn't put a deadline on
+    // anyone. NOTE: "accepted" is Hostify's own confirmed-status string --
+    // each adapter's outcome classification (src/lib/pms/types.ts's
+    // PmsReservationOutcome) isn't persisted on SyncedPmsReservation, only
+    // the raw provider status is, so this check needs generalizing (e.g. a
+    // per-provider "confirmed status strings" list, or persisting outcome
+    // itself) once a second provider with a different vocabulary is
+    // connected by a real org -- harmless today since Hostify is still the
+    // only registered adapter.
+    db.syncedPmsReservation.findMany({
       where: { cancelled: false, status: "accepted", checkIn: { gte: lowerBound }, propertyId: { in: propertyIds } },
       select: { checkIn: true, propertyId: true },
     }),

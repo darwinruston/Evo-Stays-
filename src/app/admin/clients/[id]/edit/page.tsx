@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
 import { ClientForm } from "../../ClientForm";
-import { updateClient, deleteClient, removeClientHostifyApiKey } from "../../actions";
+import { updateClient, deleteClient, removeClientPmsCredentials } from "../../actions";
+import { getPmsAdapter } from "@/lib/pms/registry";
 import { button } from "@/lib/ui";
 
 export const metadata = { title: "Edit client" };
@@ -28,19 +29,19 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
 
       <ClientForm
         action={updateClient.bind(null, client.id)}
-        client={{ ...client, hasHostifyApiKey: client.hostifyApiKey !== null }}
+        client={{ ...client, hasPmsCredentials: client.pmsCredentials !== null }}
         submitLabel="Save changes"
       />
 
-      {client.hostifyApiKey !== null && (
+      {client.pmsProvider !== null && client.pmsCredentials !== null && (
         <section className="flex flex-col items-start gap-2 border-t border-black/5 pt-6">
-          <h2 className="text-sm font-medium text-zinc-500">Hostify</h2>
+          <h2 className="text-sm font-medium text-zinc-500">{getPmsAdapter(client.pmsProvider).displayName}</h2>
           <p className="text-sm text-zinc-600">
-            Properties linked to a Hostify listing will stop syncing until a new key is added.
+            Properties linked to a listing will stop syncing until it&apos;s reconnected.
           </p>
-          <form action={removeClientHostifyApiKey.bind(null, client.id)}>
+          <form action={removeClientPmsCredentials.bind(null, client.id)}>
             <button type="submit" className={button("danger", "sm")}>
-              Remove Hostify key
+              Remove {getPmsAdapter(client.pmsProvider).displayName} credentials
             </button>
           </form>
         </section>

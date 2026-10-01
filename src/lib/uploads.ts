@@ -47,14 +47,15 @@ export async function savePropertyPhotos(propertyId: string, files: File[]): Pro
   return paths;
 }
 
-// Downloads a property's cover photo straight from Hostify at import time
-// (see fetchHostifyCoverPhotoUrl / importHostifyListings), rather than
-// staff having to save it from Hostify and re-upload it by hand. A basic
-// content-type check guards against silently saving an error page as a
-// ".jpg" if the CDN URL ever 404s or redirects somewhere unexpected --
-// otherwise the same disk layout as savePropertyPhotos, just fed from a
-// fetch() response instead of a browser File.
-export async function saveHostifyCoverPhoto(propertyId: string, photoUrl: string): Promise<string> {
+// Downloads a property's cover photo straight from its connected PMS at
+// import time (see PmsAdapter.fetchCoverPhotoUrl / importPmsListings in
+// src/app/admin/clients/actions.ts), rather than staff having to save it
+// from the PMS and re-upload it by hand. A basic content-type check guards
+// against silently saving an error page as a ".jpg" if the CDN URL ever
+// 404s or redirects somewhere unexpected -- otherwise the same disk layout
+// as savePropertyPhotos, just fed from a fetch() response instead of a
+// browser File.
+export async function savePmsCoverPhoto(propertyId: string, photoUrl: string): Promise<string> {
   const res = await fetch(photoUrl);
   const contentType = res.headers.get("content-type") ?? "";
   if (!res.ok || !contentType.startsWith("image/")) {

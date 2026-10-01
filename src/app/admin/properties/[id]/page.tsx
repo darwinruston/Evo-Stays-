@@ -4,6 +4,7 @@ import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
+import { getPmsAdapter } from "@/lib/pms/registry";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
@@ -24,10 +25,10 @@ import {
   removePropertyCalendarFeed,
   syncPropertyCalendarFeed,
   updatePropertySyncHorizon,
-  updatePropertyHostifyListingId,
-  removePropertyHostifyListing,
-  syncPropertyHostifyListing,
-  fetchPropertyCoverPhoto,
+  updatePropertyPmsListingId,
+  removePropertyPmsListing,
+  syncPropertyPmsListing,
+  fetchPropertyPmsCoverPhoto,
   addPropertyChecklistItem,
   removePropertyChecklistItem,
 } from "../actions";
@@ -55,7 +56,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   const property = await db.property.findUnique({
     where: { id },
     include: {
-      client: { select: { id: true, name: true, hostifyApiKey: true } },
+      client: { select: { id: true, name: true, pmsProvider: true, pmsCredentials: true } },
       images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       stockLevels: { orderBy: { createdAt: "asc" }, include: { stockItem: true } },
       invoices: {
@@ -103,13 +104,14 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
     },
   });
 
-  const hasHostifyListing = property.hostifyListingId !== null;
+  const hasPmsListing = property.pmsListingId !== null;
+  const pmsAdapter = property.client.pmsProvider ? getPmsAdapter(property.client.pmsProvider) : null;
 
-  // Shared by whichever sync source is actually active -- hostifySync
+  // Shared by whichever sync source is actually active -- syncPmsListing
   // respects this cutoff exactly the same way calendar sync does, so it
   // isn't Calendars-specific even though it originally lived there. Lives
-  // under Calendars while that's the active source, and under Hostify once
-  // a listing's linked (see the placement below).
+  // under Calendars while that's the active source, and under the PMS
+  // section once a listing's linked (see the placement below).
   const syncHorizonControl = (
     <details className="w-fit">
       <summary className="cursor-pointer list-none text-xs text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700 [&::-webkit-details-marker]:hidden">
@@ -496,27 +498,28 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         )}
       </section>
 
-      {/* Fully hidden once Hostify is linked and there's nothing left to
-          clean up -- Hostify already aggregates every channel, so running
-          both at once only risks a duplicate clean for the same booking.
-          Stays visible (trimmed to just the warning + feed list + Remove,
-          no add-form, no horizon control -- that's moved to Hostify below)
-          as long as old feeds are still actually there, so staff have
-          somewhere to go clear the conflict rather than it silently
-          vanishing while still synced in the background. */}
-      {(!hasHostifyListing || property.calendarFeeds.length > 0) && (
+      {/* Fully hidden once a PMS listing is linked and there's nothing left
+          to clean up -- a PMS listing already aggregates every channel, so
+          running both at once only risks a duplicate clean for the same
+          booking. Stays visible (trimmed to just the warning + feed list +
+          Remove, no add-form, no horizon control -- that's moved to the PMS
+          section below) as long as old feeds are still actually there, so
+          staff have somewhere to go clear the conflict rather than it
+          silently vanishing while still synced in the background. */}
+      {(!hasPmsListing || property.calendarFeeds.length > 0) && (
         <section className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Calendars <span className="text-sm font-normal text-zinc-500">({property.calendarFeeds.length})</span>
             <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing — add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
           </h2>
 
-          {!hasHostifyListing && syncHorizonControl}
+          {!hasPmsListing && syncHorizonControl}
 
-          {hasHostifyListing && property.calendarFeeds.length > 0 && (
+          {hasPmsListing && property.calendarFeeds.length > 0 && (
             <p className="text-xs font-medium text-zinc-600">
-              This property syncs via Hostify now — these calendar feeds are still active too and
-              could create a duplicate clean for the same booking. Remove them below.
+              This property syncs via {pmsAdapter?.displayName ?? "its PMS"} now — these calendar
+              feeds are still active too and could create a duplicate clean for the same booking.
+              Remove them below.
             </p>
           )}
 
@@ -553,11 +556,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             </ul>
           )}
 
-          {/* Adding a new iCal feed alongside an active Hostify listing is
-              exactly the double-sync risk warned about above -- once
-              Hostify is connected, this form is the one part of Calendars
-              that's fully hidden, not just discouraged. */}
-          {!hasHostifyListing && (
+          {/* Adding a new iCal feed alongside an active PMS listing is
+              exactly the double-sync risk warned about above -- once a PMS
+              is connected, this form is the one part of Calendars that's
+              fully hidden, not just discouraged. */}
+          {!hasPmsListing && (
             <details className="w-fit">
               <summary
                 className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
@@ -605,15 +608,15 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
 
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
-          Hostify
-          <InfoTooltip text="A Hostify listing already aggregates every channel (Airbnb, Vrbo, ...) into one reservation feed, so this is one listing per property rather than the several feeds Calendars needs. Syncing also runs automatically in the background every so often, not just on click." />
+          {pmsAdapter?.displayName ?? "PMS"}
+          <InfoTooltip text="A PMS listing already aggregates every channel (Airbnb, Vrbo, ...) into one reservation feed, so this is one listing per property rather than the several feeds Calendars needs. Syncing also runs automatically in the background every so often, not just on click." />
         </h2>
 
-        {hasHostifyListing && syncHorizonControl}
+        {hasPmsListing && syncHorizonControl}
 
-        {!property.client.hostifyApiKey ? (
+        {!pmsAdapter ? (
           <p className={card("p-4 text-sm text-zinc-500")}>
-            No Hostify API key configured on{" "}
+            No PMS connected on{" "}
             <Link
               href={`/admin/clients/${property.client.id}/edit`}
               className="underline underline-offset-2"
@@ -622,25 +625,22 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             </Link>{" "}
             yet.
           </p>
-        ) : property.hostifyListingId === null ? (
+        ) : property.pmsListingId === null ? (
           <form
-            action={updatePropertyHostifyListingId.bind(null, property.id)}
+            action={updatePropertyPmsListingId.bind(null, property.id)}
             className={card("flex flex-wrap items-end gap-3 p-4")}
           >
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="hostifyListingId" className="text-sm font-medium">
-                Hostify listing ID
+              <label htmlFor="pmsListingId" className="text-sm font-medium">
+                {pmsAdapter.displayName} listing ID
               </label>
-              {/* text, not number -- real Hostify listing ids run well past
-                  what a number input reliably handles at that many digits,
-                  and this is an opaque id, never arithmetic. inputMode still
-                  gets a numeric keyboard on mobile. */}
+              {/* Plain text, not number or a digits-only pattern -- some
+                  providers' listing ids aren't purely numeric, and this is
+                  an opaque id throughout, never arithmetic. */}
               <input
-                id="hostifyListingId"
-                name="hostifyListingId"
+                id="pmsListingId"
+                name="pmsListingId"
                 type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
                 required
                 placeholder="e.g. 12345"
                 className={`${inputCompact} w-40`}
@@ -654,30 +654,30 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <div className={card("flex flex-col gap-2 p-4")}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-medium">Listing #{property.hostifyListingId}</p>
+                <p className="font-medium">Listing #{property.pmsListingId}</p>
                 <p className="text-sm text-zinc-500">
-                  {property.hostifyLastSyncError
-                    ? `Last sync failed: ${property.hostifyLastSyncError}`
-                    : property.hostifyLastSyncedAt
-                      ? `Synced ${formatScheduledFor(property.hostifyLastSyncedAt)}`
+                  {property.pmsLastSyncError
+                    ? `Last sync failed: ${property.pmsLastSyncError}`
+                    : property.pmsLastSyncedAt
+                      ? `Synced ${formatScheduledFor(property.pmsLastSyncedAt)}`
                       : "Never synced"}
                 </p>
-                {property.hostifyLastSyncError && (
+                {property.pmsLastSyncError && (
                   <Link
                     href={`/admin/clients/${property.client.id}/edit`}
                     className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-900"
                   >
-                    Check the Hostify API key on {property.client.name}
+                    Check the {pmsAdapter.displayName} credentials on {property.client.name}
                   </Link>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <form action={syncPropertyHostifyListing.bind(null, property.id)}>
+                <form action={syncPropertyPmsListing.bind(null, property.id)}>
                   <button type="submit" className={button("secondary", "sm")}>
                     Sync now
                   </button>
                 </form>
-                <form action={removePropertyHostifyListing.bind(null, property.id)}>
+                <form action={removePropertyPmsListing.bind(null, property.id)}>
                   <button type="submit" className="text-xs text-red-600 hover:underline">
                     Remove
                   </button>
@@ -744,8 +744,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <h2 className="text-lg font-semibold text-zinc-900">
             Photos <span className="text-sm font-normal text-zinc-500">({property.images.length})</span>
           </h2>
-          {hasHostifyListing && (
-            <FetchCoverPhotoButton action={fetchPropertyCoverPhoto.bind(null, property.id)} />
+          {hasPmsListing && pmsAdapter?.fetchCoverPhotoUrl && (
+            <FetchCoverPhotoButton
+              action={fetchPropertyPmsCoverPhoto.bind(null, property.id)}
+              providerName={pmsAdapter.displayName}
+            />
           )}
         </div>
 
