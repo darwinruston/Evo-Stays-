@@ -28,9 +28,9 @@ const SHOWCASES = [
   {
     eyebrow: "Scheduling",
     title: "Assigned to whoever already knows the property",
-    body: "Every checkout becomes a scheduled clean on its own, matched to a cleaner who's already worked that property and has room in their day — not just whoever's next in a queue. Same-day turnovers jump ahead automatically, with a finish-by time nobody has to calculate by hand.",
+    body: "Every checkout becomes a scheduled clean on its own, matched to a cleaner who's already worked that property and has room in their day — not just whoever's next in a queue. Same-day turnovers jump ahead automatically, with a finish-by time nobody has to calculate by hand, and if the same cleaner ends up booked twice in one day, it's flagged right there on the schedule — not discovered when they don't show.",
     image: "/marketing/cleans-schedule.jpg",
-    alt: "Evo Stays cleans schedule, grouped into Today, Tomorrow, This week and Later",
+    alt: "Evo Stays cleans schedule for today, showing two cleans flagged \"Cleaner User has 2 cleans this day\"",
   },
   {
     eyebrow: "Cleaner workflow",
