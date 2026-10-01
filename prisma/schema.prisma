@@ -269,6 +269,10 @@ enum PmsProvider {
   HOSTAWAY
   LODGIFY
   OWNERREZ
+  HOSPITABLE
+  SMOOBU
+  HOSTFULLY
+  BEDS24
 }
 
 // The property owner/management client an Evo Stays portfolio belongs to.
