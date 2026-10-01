@@ -1,11 +1,13 @@
 import type { PmsProvider } from "@prisma/client";
 import type { PmsAdapter } from "@/lib/pms/types";
 import { hostifyAdapter } from "@/lib/pms/hostify";
+import { hostawayAdapter } from "@/lib/pms/hostaway";
+import { guestyAdapter } from "@/lib/pms/guesty";
 
-// One entry per provider with a built adapter -- Guesty, Hostaway, Lodgify
-// and OwnerRez join this in later stages. Order here is also the order the
-// provider <select> in PmsCredentialFields.tsx shows them in.
-const ADAPTERS: PmsAdapter[] = [hostifyAdapter];
+// One entry per provider with a built adapter -- Lodgify and OwnerRez join
+// this in a later stage. Order here is also the order the provider <select>
+// in PmsCredentialFields.tsx shows them in.
+const ADAPTERS: PmsAdapter[] = [hostifyAdapter, guestyAdapter, hostawayAdapter];
 
 const BY_PROVIDER = new Map<PmsProvider, PmsAdapter>(ADAPTERS.map((a) => [a.provider, a]));
 
