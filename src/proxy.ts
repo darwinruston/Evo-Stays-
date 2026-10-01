@@ -4,22 +4,34 @@ import { NextResponse } from "next/server";
 // Authenticated-or-not only. Which role may see which area is decided by the
 // requireStaff/requireCleaner guards in src/lib/authz.ts, called from each
 // area's layout and again in its pages and actions.
+//
+// "/" is the public landing page for a signed-out visitor (see
+// src/app/page.tsx) -- it redirects a signed-in one straight to their own
+// area itself, so this just needs to let it through rather than bouncing to
+// /login the way every other route does. /signup, /forgot-password and
+// /reset-password/[token] are the same kind of exception, for the same
+// reason: a signed-out visitor has to be able to reach them at all.
+const PUBLIC_PATHS = new Set(["/", "/signup", "/forgot-password"]);
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/reset-password/");
+}
+
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isLoginPage = req.nextUrl.pathname === "/login";
-  // "/" is the public landing page for a signed-out visitor (see
-  // src/app/page.tsx) -- it redirects a signed-in one straight to their own
-  // area itself, so this middleware just needs to let it through rather
-  // than bouncing to /login the way every other route does.
-  const isPublicLandingPage = req.nextUrl.pathname === "/";
+  const isPublic = isPublicPath(req.nextUrl.pathname);
 
-  if (!isLoggedIn && !isLoginPage && !isPublicLandingPage) {
+  if (!isLoggedIn && !isLoginPage && !isPublic) {
     const loginUrl = new URL("/login", req.nextUrl);
     loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isLoggedIn && isLoginPage) {
+  // Already signed in: none of these pages (sign in itself, or any of the
+  // "get back into an account" flows) make sense to look at -- bounced to
+  // "/" itself, which sends a signed-in visitor on to their own area.
+  if (isLoggedIn && (isLoginPage || req.nextUrl.pathname === "/signup" || req.nextUrl.pathname === "/forgot-password")) {
     return NextResponse.redirect(new URL("/", req.nextUrl));
   }
 });

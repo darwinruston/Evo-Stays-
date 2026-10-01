@@ -144,10 +144,38 @@ model User {
   designatedProperties PropertyCleaner[]
   unavailability CleanerUnavailability[]
   auditLogs      AuditLog[]
+  passwordResetTokens PasswordResetToken[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([organizationId])
+}
+
+// A "forgot password" request, from the generic form at /forgot-password
+// through to the single-use link it emails out. Carries no RLS (see
+// UNSCOPED_MODELS in src/lib/prisma.ts): this isn't tenant business data,
+// it's security plumbing, and -- same reasoning as the login lookup itself
+// -- the whole point of a reset link is that it has to work with no
+// organization known yet (a signed-out visitor who's lost their password
+// has no session to scope from). Its own randomness is the access control,
+// not which organization asks for it.
+//
+// tokenHash, never the raw token: the emailed link carries the real token,
+// only its SHA-256 hash is ever stored, so a database read alone (a backup,
+// a leaked dump) can't be turned into a working reset link. expiresAt and
+// usedAt (nullable, same "doubles as the toggle and the record of when"
+// convention as Organization.suspendedAt) make a token single-use and
+// short-lived.
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // A permanent record of who changed what, for the handful of entities where

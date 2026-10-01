@@ -8,9 +8,9 @@ export const metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; reset?: string }>;
 }) {
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, reset } = await searchParams;
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -23,6 +23,11 @@ export default async function LoginPage({
         <div className={card("p-6 sm:p-8")}>
           <h1 className="mb-1 text-xl font-semibold tracking-tight">Sign in</h1>
           <p className="mb-6 text-sm text-zinc-500">Evo Stays</p>
+          {reset === "success" && (
+            <p className="mb-4 rounded-md bg-black/[0.03] px-3 py-2 text-sm text-zinc-700">
+              Password updated — sign in with your new one.
+            </p>
+          )}
           <LoginForm callbackUrl={callbackUrl ?? "/"} />
         </div>
       </div>

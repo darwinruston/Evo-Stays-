@@ -104,9 +104,14 @@ export default async function Home() {
       <header className="border-b border-black/5 px-4 py-4 sm:px-6 lg:px-10">
         <div className="flex items-center justify-between">
           <EvoTick className="h-7 w-auto" />
-          <Link href="/login" className={button("secondary", "sm")}>
-            Sign in
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className={button("ghost", "sm")}>
+              Sign in
+            </Link>
+            <Link href="/signup" className={button("primary", "sm")}>
+              Start free trial
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -121,11 +126,15 @@ export default async function Home() {
               from — scheduling turnovers, tracking stock and laundry, and paying cleaners, all
               in one place instead of a spreadsheet and a group chat.
             </p>
-            <div className="mt-8 flex justify-center">
-              <Link href="/login" className={button("primary", "lg")}>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/signup" className={button("primary", "lg")}>
+                Start free trial
+              </Link>
+              <Link href="/login" className={button("secondary", "lg")}>
                 Sign in
               </Link>
             </div>
+            <p className="mt-3 text-sm text-zinc-500">14 days, full access, no card required.</p>
 
             <ul className="mx-auto mt-10 flex max-w-2xl flex-col gap-2.5 text-left sm:flex-row sm:justify-center sm:gap-6 sm:text-center">
               {USPS.map((usp) => (
