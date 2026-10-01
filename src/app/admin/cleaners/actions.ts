@@ -213,7 +213,7 @@ export async function updateCleanerPropertyFee(cleanerId: string, propertyId: st
     summary:
       flatFee !== null
         ? `Flat fee for ${designation.property.name || designation.property.address} set to ${formatCurrency(flatFee)} per clean`
-        : `Flat fee for ${designation.property.name || designation.property.address} cleared — paid by the hour`,
+        : `Flat fee for ${designation.property.name || designation.property.address} cleared, paid by the hour`,
   });
 
   revalidatePath(`/admin/cleaners/${cleanerId}`);
@@ -409,7 +409,7 @@ export async function deleteCleaner(id: string) {
     actorId: session.user.id,
     entityType: "Cleaner",
     entityId: id,
-    summary: `Removed — ${cleaner.name}`,
+    summary: `Removed: ${cleaner.name}`,
   });
 
   revalidatePath("/admin/cleaners");

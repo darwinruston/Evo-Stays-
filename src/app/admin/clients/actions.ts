@@ -233,7 +233,7 @@ export async function importPmsListings(clientId: string, formData: FormData) {
       actorId: session.user.id,
       entityType: "Property",
       entityId: property.id,
-      summary: `Imported from ${adapter.displayName} — listing #${listing.externalId}`,
+      summary: `Imported from ${adapter.displayName}: listing #${listing.externalId}`,
     });
 
     // Best-effort cover photo -- only the main one, not the full gallery
@@ -280,7 +280,7 @@ export async function deleteClient(id: string) {
     actorId: session.user.id,
     entityType: "Client",
     entityId: id,
-    summary: `Deleted — ${client.name}`,
+    summary: `Deleted: ${client.name}`,
   });
 
   revalidatePath("/admin/clients");

@@ -12,7 +12,7 @@ export default function AdminNotFound() {
     <div className="flex flex-col items-start gap-3">
       <h1 className="text-2xl font-semibold tracking-tight">Page not found</h1>
       <p className="max-w-md text-sm text-zinc-600">
-        Whatever this linked to doesn&apos;t exist anymore — it may have been deleted. A link from
+        Whatever this linked to doesn&apos;t exist anymore. It may have been deleted. A link from
         the Activity log, for example, still points at the record it was about even after that
         record&apos;s gone, since the history needs to survive it.
       </p>

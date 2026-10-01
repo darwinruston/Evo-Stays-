@@ -79,7 +79,7 @@ export function PropertyForm({
           placeholder="Riverside Loft"
           className={inputCompact}
         />
-        <p className="text-xs text-zinc-500">Optional — falls back to the address.</p>
+        <p className="text-xs text-zinc-500">Optional, falls back to the address.</p>
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -94,7 +94,7 @@ export function PropertyForm({
           className={inputCompact}
         />
         <p className="text-xs text-zinc-500">
-          Optional — a short internal name for staff and cleaners. Takes over from the listing name
+          Optional: a short internal name for staff and cleaners. Takes over from the listing name
           everywhere it&apos;s shown, including on clean tasks, without changing the listing name
           itself.
         </p>
@@ -187,7 +187,7 @@ export function PropertyForm({
           className={`${inputCompact} max-w-32`}
         />
         <p className="text-xs text-zinc-500">
-          Extra guests the sofa bed itself sleeps — already included in the Sleeps total above. Leave
+          Extra guests the sofa bed itself sleeps, already included in the Sleeps total above. Leave
           blank if there&apos;s no sofa bed. A cleaning task flags the sofa bed for prep whenever a
           booking&apos;s guest count is higher than what the bedrooms alone would sleep.
         </p>
@@ -237,7 +237,7 @@ export function PropertyForm({
           name="accessNotes"
           rows={3}
           defaultValue={property?.accessNotes ?? ""}
-          placeholder="Key safe code, parking, bin day — whatever the cleaner needs on site."
+          placeholder="Key safe code, parking, bin day: whatever the cleaner needs on site."
           className={inputCompact}
         />
       </div>

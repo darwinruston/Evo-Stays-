@@ -186,7 +186,7 @@ export function cleanRescheduledNotice(
   // not news.
   if ((from?.getTime() ?? null) === (clean.scheduledFor?.getTime() ?? null)) return [];
   const body = !clean.scheduledFor
-    ? `Taken off ${when(from)} — not rescheduled yet.`
+    ? `Taken off ${when(from)}, not rescheduled yet.`
     : !from
       ? `Now scheduled for ${formatScheduledFor(clean.scheduledFor)}.`
       : `Moved from ${formatScheduledFor(from)} to ${formatScheduledFor(clean.scheduledFor)}.`;
@@ -213,7 +213,7 @@ export function cleanCancelledNotice(
       userId,
       kind: "CLEAN_CANCELLED",
       title: `Clean cancelled: ${propertyDisplayName(clean.property)}`,
-      body: `${clean.scheduledFor ? `${formatScheduledFor(clean.scheduledFor)} — no need to go.` : "No need to go."}${opts.reason ? ` ${opts.reason}` : ""}`,
+      body: `${clean.scheduledFor ? `${formatScheduledFor(clean.scheduledFor)}. No need to go.` : "No need to go."}${opts.reason ? ` ${opts.reason}` : ""}`,
       href: opts.deleted ? null : `/cleaner/cleans/${clean.id}`,
     },
   ];
@@ -225,7 +225,7 @@ export function cleanNeedsCleanerNotices(staffIds: string[], clean: CleanNoticeR
     userId,
     kind: "CLEAN_NEEDS_CLEANER" as const,
     title: `Needs a cleaner: ${propertyDisplayName(clean.property)}`,
-    body: `${when(clean.scheduledFor)} — no designated cleaner was free, so it's Unassigned.`,
+    body: `${when(clean.scheduledFor)}, no designated cleaner was free, so it's Unassigned.`,
     href: `/admin/cleans/${clean.id}/edit`,
   }));
 }
@@ -315,7 +315,7 @@ export function issueReportedNotices(
       userId,
       kind: "ISSUE_REPORTED" as const,
       title,
-      body: `${ISSUE_SEVERITY_LABELS[issue.severity]}${issue.severityReason ? ` — ${issue.severityReason}` : ""}. “${excerpt(issue.description)}”`,
+      body: `${ISSUE_SEVERITY_LABELS[issue.severity]}${issue.severityReason ? `: ${issue.severityReason}` : ""}. “${excerpt(issue.description)}”`,
       href: `/admin/issues/${issue.id}`,
     }));
 }

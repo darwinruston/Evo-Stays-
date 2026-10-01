@@ -23,7 +23,7 @@ export async function resetPassword(
   // so the raw client reads it directly.
   const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashResetToken(token) } });
   if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
-    return "This reset link is invalid or has expired — request a new one.";
+    return "This reset link is invalid or has expired. Request a new one.";
   }
 
   // authPrisma to find which organization this user belongs to (the same

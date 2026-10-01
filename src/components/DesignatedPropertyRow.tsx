@@ -69,7 +69,7 @@ export function DesignatedPropertyRow({
               ? `Paid £${flatFee.toFixed(2)} per clean, however long it takes`
               : hourlyRate !== null
                 ? `Paid by the hour (£${hourlyRate.toFixed(2)}/hr)`
-                : "Paid by the hour — no hourly rate set"}{" "}
+                : "Paid by the hour, no hourly rate set"}{" "}
             {!fee.open && (
               <button
                 type="button"

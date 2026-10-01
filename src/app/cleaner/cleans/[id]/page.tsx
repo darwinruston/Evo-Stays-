@@ -160,7 +160,7 @@ export default async function CleanerCleanPage({
     ? {
         level: nextUp,
         band: bandFromDb(nextUp.band),
-        reason: "Based on what was last recorded — check the shelf.",
+        reason: "Based on what was last recorded, check the shelf.",
       }
     : null;
 
@@ -250,7 +250,7 @@ export default async function CleanerCleanPage({
           </section>
           <form action={checkInClean.bind(null, clean.id)}>
             <button type="submit" className={`w-full ${button("primary", "lg")}`}>
-              I&apos;ve arrived — check in
+              I&apos;ve arrived, check in
             </button>
           </form>
         </>
@@ -318,7 +318,7 @@ export default async function CleanerCleanPage({
                 <div>
                   <h2 className="text-sm font-medium">Notes</h2>
                   <p className="mt-1 text-sm text-zinc-600">
-                    Last step — only if there&apos;s something worth flagging. Leave it blank otherwise.
+                    Last step: only if there&apos;s something worth flagging. Leave it blank otherwise.
                   </p>
                 </div>
                 <textarea
@@ -364,7 +364,7 @@ export default async function CleanerCleanPage({
                 idPrefix="report"
                 submitLabel="Send report"
                 submitClassName={`w-full ${button("secondary", "lg")}`}
-                sentMessage="Sent — the office has been told. Add another if there's more."
+                sentMessage="Sent. The office has been told. Add another if there's more."
               />
             </div>
           </DetailsCard>
@@ -405,7 +405,7 @@ export default async function CleanerCleanPage({
       )}
 
       {clean.status === "CANCELLED" && (
-        <p className="text-sm text-zinc-600">This clean was cancelled — nothing to do.</p>
+        <p className="text-sm text-zinc-600">This clean was cancelled, nothing to do.</p>
       )}
     </div>
   );

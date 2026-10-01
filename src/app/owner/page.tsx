@@ -90,7 +90,7 @@ export default async function OrganizationsPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-zinc-500">All organizations ({organizations.length})</h2>
         {organizations.length === 0 ? (
-          <p className="text-sm text-zinc-600">None yet — create the first one below.</p>
+          <p className="text-sm text-zinc-600">None yet. Create the first one below.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {organizations.map((org) => {
@@ -196,7 +196,7 @@ export default async function OrganizationsPage() {
       <section className="flex flex-col gap-3 border-t border-black/5 pt-6">
         <h2 className="text-lg font-semibold text-zinc-900">New organization</h2>
         <p className="text-sm text-zinc-600">
-          Creates the company and its first admin login together — that admin can then add their
+          Creates the company and its first admin login together. That admin can then add their
           own staff, clients and properties from here on.
         </p>
         <form action={createOrganization} className="flex max-w-lg flex-col gap-4">

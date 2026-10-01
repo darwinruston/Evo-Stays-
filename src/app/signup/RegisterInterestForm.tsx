@@ -13,7 +13,7 @@ export function RegisterInterestForm() {
   if (state && "success" in state) {
     return (
       <p className="text-sm text-zinc-600">
-        Thanks — we&apos;ve got your details and will be in touch as soon as Evo Stays is ready for a
+        Thanks, we&apos;ve got your details and will be in touch as soon as Evo Stays is ready for a
         demo.
       </p>
     );

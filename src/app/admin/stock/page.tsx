@@ -84,7 +84,7 @@ export default async function StockOverviewPage() {
         </h2>
         {propertyGroups.length === 0 ? (
           <p className="text-sm text-zinc-600">
-            No property has stock levels set up yet — add some from a property&apos;s own page.
+            No property has stock levels set up yet. Add some from a property&apos;s own page.
           </p>
         ) : (
           <div className="flex flex-col gap-6">

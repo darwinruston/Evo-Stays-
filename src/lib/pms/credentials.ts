@@ -13,7 +13,7 @@ export function decryptPmsCredentials(encrypted: string): PmsCredentials {
   try {
     json = decrypt(encrypted);
   } catch {
-    throw new Error("Couldn't decrypt the stored credentials — re-enter them on the client.");
+    throw new Error("Couldn't decrypt the stored credentials. Re-enter them on the client.");
   }
   return JSON.parse(json) as PmsCredentials;
 }

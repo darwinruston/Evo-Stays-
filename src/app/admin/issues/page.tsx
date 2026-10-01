@@ -106,7 +106,7 @@ export default async function IssuesPage({
 
       {ordered.length === 0 ? (
         <p className="text-sm text-zinc-600">
-          {view === "open" ? "Nothing open — no reported problems waiting on anyone." : "No issues here."}
+          {view === "open" ? "Nothing open, no reported problems waiting on anyone." : "No issues here."}
         </p>
       ) : (
         <IssueList

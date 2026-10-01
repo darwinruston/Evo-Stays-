@@ -25,7 +25,7 @@ export default async function CleanerPropertiesPage() {
 
       {properties.length === 0 ? (
         <p className="text-sm text-zinc-600">
-          Nothing yet — properties appear here once you&apos;re assigned a clean at them.
+          Nothing yet. Properties appear here once you&apos;re assigned a clean at them.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

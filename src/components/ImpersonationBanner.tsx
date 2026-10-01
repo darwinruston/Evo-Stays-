@@ -10,7 +10,7 @@ export function ImpersonationBanner({ organizationName }: { organizationName: st
   return (
     <div className="flex items-center justify-between gap-3 bg-zinc-900 px-4 py-2 text-sm text-white sm:px-6 lg:px-10">
       <p>
-        Viewing as <span className="font-medium">{organizationName}</span> — this isn&apos;t your own
+        Viewing as <span className="font-medium">{organizationName}</span>, this isn&apos;t your own
         account.
       </p>
       <form action={stopImpersonating}>

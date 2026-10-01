@@ -42,7 +42,7 @@ export async function NotificationsView({ db, userId }: { db: ScopedPrismaClient
 
       {notifications.length === 0 ? (
         <p className="text-sm text-zinc-600">
-          Nothing yet — you&apos;ll see changes to your cleans here as they happen.
+          Nothing yet. You&apos;ll see changes to your cleans here as they happen.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -89,7 +89,7 @@ export async function NotificationsView({ db, userId }: { db: ScopedPrismaClient
           </label>
           {!emailConfigured() && (
             <p className="text-xs text-zinc-500">
-              Email isn&apos;t set up on this server yet — this takes effect once it is.
+              Email isn&apos;t set up on this server yet. This takes effect once it is.
             </p>
           )}
           <button type="submit" className={`w-fit ${button("secondary", "sm")}`}>

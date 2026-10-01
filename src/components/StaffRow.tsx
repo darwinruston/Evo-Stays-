@@ -125,8 +125,8 @@ export function StaffRow({
               </>
             ) : (
               <select id={`staffRole-${email}`} name="role" defaultValue={role} className={input}>
-                <option value="OFFICE">Office — runs the schedule</option>
-                <option value="ADMIN">Admin — also manages staff logins</option>
+                <option value="OFFICE">Office: runs the schedule</option>
+                <option value="ADMIN">Admin: also manages staff logins</option>
               </select>
             )}
           </div>

@@ -186,7 +186,7 @@ export default async function CleanerCalendarPage({
 
         {selected.length > 0 ? (
           <p className="text-xs text-zinc-500">
-            Can&apos;t block this day — you have {selected.length === 1 ? "a clean" : "cleans"} scheduled.
+            Can&apos;t block this day: you have {selected.length === 1 ? "a clean" : "cleans"} scheduled.
             Ask an admin to reassign {selected.length === 1 ? "it" : "them"} first.
           </p>
         ) : selectedBlocked ? (

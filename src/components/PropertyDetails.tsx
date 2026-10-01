@@ -32,9 +32,9 @@ export function PropertyDetails({ property }: { property: PropertyLike }) {
       <div className={card("divide-y divide-black/5 px-4 py-1")}>
         <Row label="Address" value={property.address} />
         <Row label="Type" value={PROPERTY_TYPE_LABELS[property.type] ?? property.type} />
-        <Row label="Bedrooms" value={property.bedrooms ?? "—"} />
-        <Row label="Bathrooms" value={property.bathrooms ?? "—"} />
-        <Row label="Sleeps" value={property.maxOccupancy ?? "—"} />
+        <Row label="Bedrooms" value={property.bedrooms ?? "–"} />
+        <Row label="Bathrooms" value={property.bathrooms ?? "–"} />
+        <Row label="Sleeps" value={property.maxOccupancy ?? "–"} />
       </div>
 
       <div className="flex flex-col gap-2">

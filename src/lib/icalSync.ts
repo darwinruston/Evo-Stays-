@@ -142,7 +142,7 @@ export async function syncCalendarFeed(
           actorId: triggeredById,
           entityType: "Clean",
           entityId: event.clean.id,
-          summary: `Cancelled — booking no longer on the ${feed.label} calendar`,
+          summary: `Cancelled: booking no longer on the ${feed.label} calendar`,
         });
         if (event.clean.assignedToId) {
           notices.push(

@@ -93,7 +93,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
               {/* Full-size in a new tab -- damage evidence is worth zooming into. */}
               <a href={`/api/photos/${p.path}`} target="_blank" rel="noreferrer">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/photos/${p.path}`} alt={`${title} — reported problem`} className="h-40 w-full object-cover" />
+                <img src={`/api/photos/${p.path}`} alt={`${title}: reported problem`} className="h-40 w-full object-cover" />
               </a>
             </li>
           ))}
@@ -209,7 +209,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
                 {entry.summary}
                 <span className="text-zinc-400">
                   {" "}
-                  — {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
+                  · {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
                 </span>
               </li>
             ))}

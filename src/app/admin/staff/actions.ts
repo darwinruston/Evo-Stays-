@@ -61,7 +61,7 @@ export async function createStaff(formData: FormData) {
     actorId: session.user.id,
     entityType: "Staff",
     entityId: created.id,
-    summary: `Added ${ROLE_LABELS[role]} login — ${name} (${email})`,
+    summary: `Added ${ROLE_LABELS[role]} login: ${name} (${email})`,
   });
 
   revalidatePath("/admin/staff");
@@ -147,7 +147,7 @@ export async function deleteStaff(id: string) {
   const createdCleans = await db.clean.count({ where: { createdById: id } });
   if (createdCleans > 0) {
     throw new Error(
-      `${target.name} has scheduled ${createdCleans} ${createdCleans === 1 ? "clean" : "cleans"}, so their login can't be removed without erasing that history. Edit it instead — change the name, email and password.`,
+      `${target.name} has scheduled ${createdCleans} ${createdCleans === 1 ? "clean" : "cleans"}, so their login can't be removed without erasing that history. Edit it instead: change the name, email and password.`,
     );
   }
 
@@ -155,7 +155,7 @@ export async function deleteStaff(id: string) {
     await db.user.delete({ where: { id } });
   } catch {
     throw new Error(
-      `${target.name}'s login is linked to records that need it, so it can't be removed. Edit it instead — change the name, email and password.`,
+      `${target.name}'s login is linked to records that need it, so it can't be removed. Edit it instead: change the name, email and password.`,
     );
   }
 
@@ -163,7 +163,7 @@ export async function deleteStaff(id: string) {
     actorId: session.user.id,
     entityType: "Staff",
     entityId: id,
-    summary: `Removed ${ROLE_LABELS[target.role]} login — ${target.name} (${target.email})`,
+    summary: `Removed ${ROLE_LABELS[target.role]} login: ${target.name} (${target.email})`,
   });
 
   revalidatePath("/admin/staff");

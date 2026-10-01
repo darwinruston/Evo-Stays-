@@ -84,13 +84,13 @@ export default async function InvoicesPage({
         <div className={card("p-4 text-sm")}>
           <p>
             {created === "0"
-              ? "No new invoices — nothing unbilled in that period."
+              ? "No new invoices, nothing unbilled in that period."
               : `Generated ${created} ${created === "1" ? "invoice" : "invoices"}.`}
           </p>
           {skipped && (
             <p className="mt-1 text-zinc-600">
               Skipped (no hourly rate set): {skipped}. Set a rate on their cleaner page and
-              generate again — already-billed visits won&apos;t be duplicated.
+              generate again; already-billed visits won&apos;t be duplicated.
             </p>
           )}
         </div>
@@ -154,7 +154,7 @@ export default async function InvoicesPage({
           </button>
           <p className="w-full text-xs text-zinc-500">
             Both dates are included in full. Only picks up completed cleans not already on an
-            invoice — safe to run again over an overlapping period.
+            invoice, safe to run again over an overlapping period.
           </p>
         </form>
       </section>

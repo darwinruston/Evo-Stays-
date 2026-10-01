@@ -16,7 +16,7 @@ export default function Error({ error, retry }: { error: Error & { digest?: stri
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Something went wrong</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            That didn&apos;t go through. Check what you entered and try again — if it keeps happening,
+            That didn&apos;t go through. Check what you entered and try again. If it keeps happening,
             let the office know
             {error.digest ? (
               <>

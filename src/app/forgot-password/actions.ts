@@ -53,7 +53,7 @@ export async function requestPasswordReset(
           "",
           link,
           "",
-          "If you didn't ask for this, you can ignore this email — your password hasn't changed.",
+          "If you didn't ask for this, you can ignore this email. Your password hasn't changed.",
         ].join("\n"),
       });
     } else {

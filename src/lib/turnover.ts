@@ -221,8 +221,8 @@ export function atRiskNotices(
     kind: "TURNOVER_AT_RISK" as const,
     title: passed ? `Guests due, clean not finished: ${where}` : `At risk: ${where}`,
     body: passed
-      ? `Guests were due ${at} — the clean is ${state}${who}.`
-      : `Guests arrive ${at} — the clean is ${state}${who}.`,
+      ? `Guests were due ${at}. The clean is ${state}${who}.`
+      : `Guests arrive ${at}. The clean is ${state}${who}.`,
     href: `/admin/cleans/${clean.id}`,
   }));
   if (recipients.cleaner && clean.assignedToId) {
@@ -231,8 +231,8 @@ export function atRiskNotices(
       kind: "TURNOVER_AT_RISK",
       title: passed ? `Guests already due: ${where}` : `Guests arriving soon: ${where}`,
       body: passed
-        ? `Next guests were due ${at} — finish as soon as you can and let the office know.`
-        : `Next guests arrive ${at} — make sure it's finished before then.`,
+        ? `Next guests were due ${at}. Finish as soon as you can and let the office know.`
+        : `Next guests arrive ${at}. Make sure it's finished before then.`,
       href: `/cleaner/cleans/${clean.id}`,
     });
   }

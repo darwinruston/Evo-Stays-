@@ -55,7 +55,7 @@ export function parseIssueForm(formData: FormData): {
   const rejected = photos.find((f) => !isAllowedImageType(f.type));
   if (rejected) {
     throw new IssueFormError(
-      `"${rejected.name}" isn't a supported photo (JPEG, PNG, WebP or HEIC) — pick your photos again.`,
+      `"${rejected.name}" isn't a supported photo (JPEG, PNG, WebP or HEIC). Pick your photos again.`,
     );
   }
   return { category, description, photos };
@@ -128,7 +128,7 @@ export async function createIssueRecord(
     actorId: input.reportedById,
     entityType: "Issue",
     entityId: issue.id,
-    summary: `Reported — ${ISSUE_CATEGORY_LABELS[category]} at ${propertyDisplayName(issue.property)}; assessed as "${ISSUE_SEVERITY_LABELS[severity]}"`,
+    summary: `Reported: ${ISSUE_CATEGORY_LABELS[category]} at ${propertyDisplayName(issue.property)}; assessed as "${ISSUE_SEVERITY_LABELS[severity]}"`,
   });
 
   await notify(db, issueReportedNotices(await staffUserIds(db), issue, input.reportedById));

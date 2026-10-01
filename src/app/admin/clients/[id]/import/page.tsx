@@ -57,7 +57,7 @@ export default async function ImportPmsListingsPage({ params }: { params: Promis
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Import from {adapter.displayName}</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Pulls this client&apos;s listings straight from {adapter.displayName} — address, bed/bath
+          Pulls this client&apos;s listings straight from {adapter.displayName}: address, bed/bath
           counts, and the listing ID all filled in automatically, and each imported property starts
           syncing reservations into cleans right away.
         </p>
@@ -100,7 +100,7 @@ export default async function ImportPmsListingsPage({ params }: { params: Promis
           </div>
           <p className="text-xs text-zinc-500">
             Each property pulls its details, cover photo, and reservations from {adapter.displayName} in
-            turn — this can take a while for more than a couple of properties.
+            turn, which can take a while for more than a couple of properties.
           </p>
         </form>
       )}

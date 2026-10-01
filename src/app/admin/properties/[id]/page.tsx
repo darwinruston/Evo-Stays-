@@ -180,7 +180,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Cleaners{" "}
           <span className="text-sm font-normal text-zinc-500">({property.designatedCleaners.length})</span>
-          <InfoTooltip text="Cleaners designated as the regular/preferred worker for this property — a new clean here is offered to this pool first, before falling back to auto-assign's wider scoring." />
+          <InfoTooltip text="Cleaners designated as the regular/preferred worker for this property. A new clean here is offered to this pool first, before falling back to auto-assign's wider scoring." />
         </h2>
         {property.designatedCleaners.length > 0 ? (
           // Compact pills, same treatment as Access above -- a name is all
@@ -199,7 +199,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </div>
         ) : (
           <p className="text-sm text-zinc-500">
-            No cleaner designated yet — set one from the{" "}
+            No cleaner designated yet, set one from the{" "}
             <Link href="/admin/cleaners" className="underline underline-offset-2">
               Cleaners
             </Link>{" "}
@@ -214,7 +214,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Open issues <span className="text-sm font-normal text-zinc-500">({openIssues.length})</span>
-            <InfoTooltip text="Problems reported here and not yet resolved — damage, repairs, missing items, lost property. Cleaners report them from the clean they're on; staff can log one too." />
+            <InfoTooltip text="Problems reported here and not yet resolved: damage, repairs, missing items, lost property. Cleaners report them from the clean they're on; staff can log one too." />
           </h2>
           <div className="flex items-center gap-3">
             {issueCount > openIssues.length && (
@@ -246,7 +246,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <span className="text-sm font-normal text-zinc-500">
             ({property.checklistItems.length} extra {property.checklistItems.length === 1 ? "item" : "items"})
           </span>
-          <InfoTooltip text="Every property gets the standard turnover checklist. Add anything particular to this one — a hot tub, a garden, a quirk of the boiler — and cleaners see it marked on their checklist here. Use a standard room (Kitchen, Bathroom…) to add to that card, or any other name for a card of its own." />
+          <InfoTooltip text="Every property gets the standard turnover checklist. Add anything particular to this one (a hot tub, a garden, a quirk of the boiler) and cleaners see it marked on their checklist here. Use a standard room (Kitchen, Bathroom…) to add to that card, or any other name for a card of its own." />
         </h2>
 
         {property.checklistItems.length > 0 && (
@@ -335,7 +335,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Stock <span className="text-sm font-normal text-zinc-500">({property.stockLevels.length})</span>
-          <InfoTooltip text="Nobody counts bin bags exactly — just the item, and what you'd call the amount there right now. Set the level the same way a cleaner records it." />
+          <InfoTooltip text="Nobody counts bin bags exactly, just the item, and what you'd call the amount there right now. Set the level the same way a cleaner records it." />
         </h2>
 
         {property.stockLevels.length > 0 && (
@@ -372,7 +372,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <p className="text-sm text-zinc-500">
             {property.stockLevels.length === 0 ? (
               <>
-                No stock items exist yet —{" "}
+                No stock items exist yet,{" "}
                 <a href="/admin/stock-items/new" className="underline underline-offset-2">
                   create one
                 </a>
@@ -388,7 +388,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Billing
-          <InfoTooltip text="Optional floor on billed hours per visit, so a cleaner who finishes quickly because the property was left in good condition isn't penalised for it — invoices bill whichever is higher, actual time or this minimum. Leave blank to bill actual time only." />
+          <InfoTooltip text="Optional floor on billed hours per visit, so a cleaner who finishes quickly because the property was left in good condition isn't penalised for it. Invoices bill whichever is higher, actual time or this minimum. Leave blank to bill actual time only." />
         </h2>
         {property.minBillableHours !== null ? (
           <div className={card("flex flex-col gap-3 p-4")}>
@@ -458,7 +458,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Cleaning costs <span className="text-sm font-normal text-zinc-500">({property.invoices.length})</span>
-          <InfoTooltip text="Every invoice generated for this property, one per cleaner per billing period — this client's cleaning spend, on its own, separate from every other property." />
+          <InfoTooltip text="Every invoice generated for this property, one per cleaner per billing period: this client's cleaning spend, on its own, separate from every other property." />
         </h2>
 
         {property.invoices.length > 0 ? (
@@ -489,7 +489,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </ul>
         ) : (
           <p className="text-sm text-zinc-500">
-            No invoices generated yet — see{" "}
+            No invoices generated yet, see{" "}
             <Link href={`/admin/invoices?propertyId=${property.id}`} className="underline underline-offset-2">
               Invoices
             </Link>
@@ -510,14 +510,14 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <section className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Calendars <span className="text-sm font-normal text-zinc-500">({property.calendarFeeds.length})</span>
-            <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing — add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
+            <InfoTooltip text="Airbnb, Vrbo, and Booking.com each publish their own iCal link for a listing: add one row per platform. Sync now pulls in new bookings as scheduled cleans and cancels any whose booking has disappeared, as long as that clean hasn't started yet." />
           </h2>
 
           {!hasPmsListing && syncHorizonControl}
 
           {hasPmsListing && property.calendarFeeds.length > 0 && (
             <p className="text-xs font-medium text-zinc-600">
-              This property syncs via {pmsAdapter?.displayName ?? "its PMS"} now — these calendar
+              This property syncs via {pmsAdapter?.displayName ?? "its PMS"} now. These calendar
               feeds are still active too and could create a duplicate clean for the same booking.
               Remove them below.
             </p>
@@ -693,7 +693,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Out for laundry{" "}
             <span className="text-sm font-normal text-zinc-500">({laundryOut.length})</span>
-            <InfoTooltip text="Linen from this property that's out with the laundry company. Mark it returned once it's back — it then drops off this list on its own, so this only ever shows what's actually still out." />
+            <InfoTooltip text="Linen from this property that's out with the laundry company. Mark it returned once it's back and it drops off this list on its own, so this only ever shows what's actually still out." />
           </h2>
           <ul className="flex flex-col gap-2">
             {laundryOut.map((load) => {

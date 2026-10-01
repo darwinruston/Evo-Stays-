@@ -45,14 +45,14 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
             className={inputCompact}
           />
           <p className="text-xs text-zinc-500">
-            Optional — shown next to the count, e.g. &quot;6 rolls&quot;. Describes what&apos;s
+            Optional: shown next to the count, e.g. &quot;6 rolls&quot;. Describes what&apos;s
             being counted, not a number itself.
           </p>
         </div>
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={item.active} />
-          Active — shows up when adding it to a property
+          Active: shows up when adding it to a property
         </label>
 
         <div>
@@ -67,7 +67,7 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
         {item._count.usage > 0 ? (
           <p className="text-sm text-zinc-600">
             This item has recorded usage on {item._count.usage}{" "}
-            {item._count.usage === 1 ? "clean" : "cleans"}, so it can&apos;t be deleted — turn off
+            {item._count.usage === 1 ? "clean" : "cleans"}, so it can&apos;t be deleted. Turn off
             &quot;Active&quot; above instead.
           </p>
         ) : (

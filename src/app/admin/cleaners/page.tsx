@@ -60,7 +60,7 @@ export default async function CleanersPage() {
       )}
 
       <p className="text-sm text-zinc-600">
-        A cleaner sees only the properties they&apos;re assigned a clean at — access notes carry
+        A cleaner sees only the properties they&apos;re assigned a clean at. Access notes carry
         key safe codes, so the estate isn&apos;t browsable.
       </p>
 

@@ -230,7 +230,7 @@ export default async function CleanDetailPage({
                 {entry.summary}
                 <span className="text-zinc-400">
                   {" "}
-                  — {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
+                  · {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
                 </span>
               </li>
             ))}

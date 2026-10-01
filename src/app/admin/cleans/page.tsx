@@ -96,7 +96,7 @@ export default async function CleansPage({
       <CleanFilters
         properties={properties.map((p) => ({
           id: p.id,
-          label: `${p.client.name} — ${propertyDisplayName(p)}`,
+          label: `${p.client.name} · ${propertyDisplayName(p)}`,
         }))}
         cleaners={cleaners}
       />

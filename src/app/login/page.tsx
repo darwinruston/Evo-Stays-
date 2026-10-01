@@ -25,7 +25,7 @@ export default async function LoginPage({
           <p className="mb-6 text-sm text-zinc-500">Evo Stays</p>
           {reset === "success" && (
             <p className="mb-4 rounded-md bg-black/[0.03] px-3 py-2 text-sm text-zinc-700">
-              Password updated — sign in with your new one.
+              Password updated. Sign in with your new one.
             </p>
           )}
           <LoginForm callbackUrl={callbackUrl ?? "/"} />

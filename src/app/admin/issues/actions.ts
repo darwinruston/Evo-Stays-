@@ -129,7 +129,7 @@ export async function updateIssue(id: string, formData: FormData) {
       entityType: "Issue",
       entityId: id,
       summary: `Status changed from ${ISSUE_STATUS_LABELS[before.status]} to ${ISSUE_STATUS_LABELS[status]}${
-        nowResolved && resolutionNote ? ` — ${resolutionNote}` : ""
+        nowResolved && resolutionNote ? `: ${resolutionNote}` : ""
       }`,
     });
   } else if ((before.resolutionNote ?? null) !== resolutionNote) {
@@ -139,7 +139,7 @@ export async function updateIssue(id: string, formData: FormData) {
       actorId: session.user.id,
       entityType: "Issue",
       entityId: id,
-      summary: resolutionNote ? `Note updated — ${resolutionNote}` : "Note cleared",
+      summary: resolutionNote ? `Note updated: ${resolutionNote}` : "Note cleared",
     });
   }
 
@@ -167,7 +167,7 @@ export async function deleteIssue(id: string) {
     actorId: session.user.id,
     entityType: "Issue",
     entityId: id,
-    summary: `Deleted — ${ISSUE_CATEGORY_LABELS[issue.category]} at ${propertyDisplayName(issue.property)}`,
+    summary: `Deleted: ${ISSUE_CATEGORY_LABELS[issue.category]} at ${propertyDisplayName(issue.property)}`,
   });
 
   revalidateIssueViews(undefined, issue.propertyId, issue.cleanId);

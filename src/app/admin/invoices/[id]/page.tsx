@@ -122,7 +122,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                   </span>
                   <span className="shrink-0 text-sm text-zinc-500">
                     {isFlat ? `Flat fee (${formatHours(actualHours)} on site)` : formatHours(line.hours)}
-                    {line.adjusted && ` (adjusted — actual visit ${formatHours(actualHours)})`}
+                    {line.adjusted && ` (adjusted, actual visit ${formatHours(actualHours)})`}
                     {toppedUp && ` (${formatHours(actualHours)} actual, topped up to minimum)`}
                     {" · "}
                     {formatCurrency(line.amount)}
@@ -130,7 +130,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 </div>
                 {suspiciouslyShort && (
                   <p className="text-xs text-red-600">
-                    Only {formatHours(actualHours)} on site — worth checking before this gets paid.
+                    Only {formatHours(actualHours)} on site, worth checking before this gets paid.
                   </p>
                 )}
                 {!invoice.paidAt && !isFlat && (
@@ -180,7 +180,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 {entry.summary}
                 <span className="text-zinc-400">
                   {" "}
-                  — {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
+                  · {formatScheduledFor(entry.createdAt)} · {entry.actor?.name ?? "Unknown"}
                 </span>
               </li>
             ))}

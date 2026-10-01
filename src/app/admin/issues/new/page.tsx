@@ -32,7 +32,7 @@ export default async function NewIssuePage({
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Log an issue</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          For a problem reported some other way — a guest complaint, an inspection. Cleaners report
+          For a problem reported some other way: a guest complaint, an inspection. Cleaners report
           their own from the clean they&apos;re on.
         </p>
       </div>
@@ -42,7 +42,7 @@ export default async function NewIssuePage({
           action={createIssue}
           submitLabel="Log issue"
           submitClassName={`w-fit ${button("primary", "md")}`}
-          properties={properties.map((p) => ({ id: p.id, label: `${p.client.name} — ${propertyDisplayName(p)}` }))}
+          properties={properties.map((p) => ({ id: p.id, label: `${p.client.name} · ${propertyDisplayName(p)}` }))}
           defaultPropertyId={propertyId}
         />
       </div>

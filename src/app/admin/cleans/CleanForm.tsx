@@ -82,7 +82,7 @@ export function CleanForm({
             </option>
             {properties.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.client.name} — {propertyDisplayName(p)}
+                {p.client.name} · {propertyDisplayName(p)}
               </option>
             ))}
           </select>
@@ -126,7 +126,7 @@ export function CleanForm({
         <p className="text-xs text-zinc-500">Leave blank to schedule it later.</p>
         {isUnavailable && (
           <p className="text-xs font-medium text-zinc-600">
-            {selectedCleaner!.name} has marked this day unavailable. You can still assign them —
+            {selectedCleaner!.name} has marked this day unavailable. You can still assign them,
             just worth checking first.
           </p>
         )}
@@ -146,7 +146,7 @@ export function CleanForm({
           className={`${inputCompact} w-24`}
         />
         <p className="text-xs text-zinc-500">
-          Optional. Feeds the stock estimate a cleaner sees on site — leave blank and it falls
+          Optional. Feeds the stock estimate a cleaner sees on site; leave blank and it falls
           back to the property&apos;s max occupancy.
         </p>
       </div>
@@ -160,7 +160,7 @@ export function CleanForm({
           name="instructions"
           rows={3}
           defaultValue={clean?.instructions ?? ""}
-          placeholder="Anything specific for this turnover — extra linen, guest left a note, deep clean the oven."
+          placeholder="Anything specific for this turnover: extra linen, guest left a note, deep clean the oven."
           className={inputCompact}
         />
       </div>
@@ -180,7 +180,7 @@ export function CleanForm({
           </select>
           <p className="text-xs text-zinc-500">
             {clean.status === "IN_PROGRESS"
-              ? "A cleaner has checked in. Cancel it if the visit won't be finished — e.g. they got called away — rather than leaving it stuck in progress."
+              ? "A cleaner has checked in. Cancel it if the visit won't be finished (e.g. they got called away) rather than leaving it stuck in progress."
               : "In progress and completed are set by the cleaner on site."}
           </p>
         </div>

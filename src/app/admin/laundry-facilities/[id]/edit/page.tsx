@@ -35,7 +35,7 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={facility.active} />
-          Active — offered when logging a new laundry drop-off
+          Active: offered when logging a new laundry drop-off
         </label>
 
         <div>
@@ -50,7 +50,7 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
         {facility._count.loads > 0 ? (
           <p className="text-sm text-zinc-600">
             This facility has {facility._count.loads} {facility._count.loads === 1 ? "load" : "loads"}{" "}
-            logged against it, so it can&apos;t be deleted — turn off &quot;Active&quot; above instead.
+            logged against it, so it can&apos;t be deleted. Turn off &quot;Active&quot; above instead.
           </p>
         ) : (
           <>

@@ -28,21 +28,21 @@ const SHOWCASES = [
   {
     eyebrow: "Scheduling",
     title: "Assigned to whoever already knows the property",
-    body: "Every checkout becomes a scheduled clean on its own, matched to a cleaner who's already worked that property and has room in their day — not just whoever's next in a queue. Same-day turnovers jump ahead automatically, with a finish-by time nobody has to calculate by hand, and if the same cleaner ends up booked twice in one day, it's flagged right there on the schedule — not discovered when they don't show.",
+    body: "Every checkout becomes a scheduled clean on its own, matched to a cleaner who's already worked that property and has room in their day, not just whoever's next in a queue. Same-day turnovers jump ahead automatically, with a finish-by time nobody has to calculate by hand, and if the same cleaner ends up booked twice in one day, it's flagged right there on the schedule instead of being discovered when they don't show.",
     image: "/marketing/cleans-schedule.jpg",
     alt: "Evo Stays cleans schedule for today, showing two cleans flagged \"Cleaner User has 2 cleans this day\"",
   },
   {
     eyebrow: "Cleaner workflow",
     title: "A checklist cleaners actually follow",
-    body: "Access notes, key safe codes, and a room-by-room checklist, right there on the clean itself — check in, work the list, photograph before and after, flag anything wrong. A step can't be faked from the browser: it's gated server-side, not just a UI that trusts whatever the phone sends back.",
+    body: "Access notes, key safe codes, and a room-by-room checklist, right there on the clean itself: check in, work the list, photograph before and after, flag anything wrong. A step can't be faked from the browser, it's gated server-side, not just a UI that trusts whatever the phone sends back.",
     image: "/marketing/cleaner-checklist.jpg",
     alt: "A cleaner's guided checklist for a property, broken into Kitchen, Bathroom and Bedrooms",
   },
   {
     eyebrow: "Stock",
     title: "Stock levels, updated in one tap",
-    body: "Set a par level once per property — a pack or order size, not a guess — and a cleaner confirms High, Medium, Low or None with a tap on their way out, no typing a count off a shelf. Anything running low shows up before a guest notices, not after.",
+    body: "Set a par level once per property (a pack or order size, not a guess) and a cleaner confirms High, Medium, Low or None with a tap on their way out, no typing a count off a shelf. Anything running low shows up before a guest notices, not after.",
     image: "/marketing/stock-levels.jpg",
     alt: "Per-property stock levels for toilet roll, bin bags and hand soap, each set with a High/Medium/Low/None toggle",
   },
@@ -52,17 +52,17 @@ const STEPS = [
   {
     icon: BellIcon,
     title: "A booking comes in",
-    body: "Connect a calendar feed or Hostify and every new checkout turns into a scheduled clean on its own — nobody has to notice a booking and add it by hand.",
+    body: "Connect a calendar feed or Hostify and every new checkout turns into a scheduled clean on its own. Nobody has to notice a booking and add it by hand.",
   },
   {
     icon: ChecklistIcon,
     title: "A cleaner works the checklist",
-    body: "Check in, work room by room, before and after photos, notes — the same guided flow every time, on whatever phone they already carry.",
+    body: "Check in, work room by room, before and after photos, notes: the same guided flow every time, on whatever phone they already carry.",
   },
   {
     icon: GridIcon,
     title: "The admin side takes care of itself",
-    body: "Stock levels update in a tap, invoices generate from real check-in/check-out times, and staff are told the moment a plan changes — not left to find out in a group chat.",
+    body: "Stock levels update in a tap, invoices generate from real check-in/check-out times, and staff are told the moment a plan changes, not left to find out in a group chat.",
   },
 ];
 
@@ -71,7 +71,7 @@ const STEPS = [
 // than generic marketing language.
 const USPS = [
   "Auto-assigned by familiarity, not just availability",
-  "Workflow gated server-side — a step can't be faked from the browser",
+  "Workflow gated server-side: a step can't be faked from the browser",
   "Invoices generated from real check-in/check-out times",
 ];
 
@@ -80,32 +80,32 @@ const FEATURES = [
   {
     icon: AlertIcon,
     title: "Problems caught before guests find them",
-    body: "Cleaners report what they find mid-clean — no hot water, a leak, guest damage — with photos as evidence. The system works out how urgent it is from what's wrong and when the next guests arrive, and staff track each one through to resolved.",
+    body: "Cleaners report what they find mid-clean (no hot water, a leak, guest damage) with photos as evidence. The system works out how urgent it is from what's wrong and when the next guests arrive, and staff track each one through to resolved.",
   },
   {
     icon: BellIcon,
     title: "Everyone told the moment plans change",
-    body: "A new booking, a cancellation, a reassignment — the cleaner affected is notified in the app and by email, and staff get a heads-up when a same-day turnover is running out of time.",
+    body: "A new booking, a cancellation, a reassignment: the cleaner affected is notified in the app and by email, and staff get a heads-up when a same-day turnover is running out of time.",
   },
   {
     icon: ReceiptIcon,
     title: "Cleaner pay, generated in one click",
-    body: "Set an hourly rate once, then generate invoices straight from real check-in/check-out times — grouped per property, since each one belongs to a different client who needs their own cleaning cost visible on its own, not lumped in with the rest of the portfolio.",
+    body: "Set an hourly rate once, then generate invoices straight from real check-in/check-out times, grouped per property, since each one belongs to a different client who needs their own cleaning cost visible on its own, not lumped in with the rest of the portfolio.",
   },
   {
     icon: WashingMachineIcon,
     title: "Laundry, tracked door to door",
-    body: "Which visits' linen went out and which laundry company is handling it — covering however many visits went together in one trip. A property's own page shows exactly what's still out, and it clears itself once it's back.",
+    body: "Which visits' linen went out and which laundry company is handling it, covering however many visits went together in one trip. A property's own page shows exactly what's still out, and it clears itself once it's back.",
   },
   {
     icon: BoxIcon,
     title: "Nine PMSs, one connection",
-    body: "Hostify, Guesty, Hostaway, Lodgify, OwnerRez, Hospitable, Smoobu, Hostfully, Beds24 — connect the one your portfolio already runs on and reservations start turning into scheduled cleans straight away, no spreadsheet exports.",
+    body: "Hostify, Guesty, Hostaway, Lodgify, OwnerRez, Hospitable, Smoobu, Hostfully, Beds24: connect the one your portfolio already runs on and reservations start turning into scheduled cleans straight away, no spreadsheet exports.",
   },
   {
     icon: ShieldIcon,
     title: "Access scoped to the job",
-    body: "A cleaner only ever sees a property they're actually assigned to — including the access notes and key safe codes — so onboarding someone new never means handing over the whole portfolio.",
+    body: "A cleaner only ever sees a property they're actually assigned to, including the access notes and key safe codes, so onboarding someone new never means handing over the whole portfolio.",
   },
 ];
 
@@ -121,7 +121,7 @@ const INCLUDED = [
   "In-app and email notifications for every schedule change",
   "Cleaner invoicing from real check-in/check-out times",
   "Laundry drop-off tracking, door to door",
-  "Role-scoped access — cleaners see only their own assigned properties",
+  "Role-scoped access: cleaners see only their own assigned properties",
   "Self-service sync with 9 major PMSs, plus generic iCal",
   "One dashboard for the whole portfolio",
 ];
@@ -190,7 +190,7 @@ export default async function Home() {
             </h1>
             <p className="mt-5 text-lg text-zinc-600">
               Evo Stays is the operations hub a short-let management company runs its own team
-              from — scheduling turnovers, tracking stock and laundry, and paying cleaners, all
+              from: scheduling turnovers, tracking stock and laundry, and paying cleaners, all
               in one place instead of a spreadsheet and a group chat.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -202,14 +202,14 @@ export default async function Home() {
               </Link>
             </div>
             <p className="mt-3 text-sm text-zinc-500">
-              Not live yet — leave your details and we&apos;ll be in touch for a demo.
+              Not live yet. Leave your details and we&apos;ll be in touch for a demo.
             </p>
           </div>
 
           <ProductShot
             src="/marketing/dashboard.jpg"
             alt="Evo Stays dashboard overview, showing clients, properties, cleans outstanding, and this week's schedule"
-            className="mx-auto mt-14 max-w-5xl"
+            className="mx-auto mt-14 max-w-2xl"
           />
 
           <ul className="mx-auto mt-10 flex max-w-3xl flex-col gap-3 divide-y divide-black/5 sm:flex-row sm:gap-0 sm:divide-x sm:divide-y-0">
@@ -300,7 +300,7 @@ export default async function Home() {
           <div className={`mx-auto max-w-3xl ${card("p-6 sm:p-10")}`}>
             <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">What&apos;s included</h2>
             <p className="mt-1.5 text-sm text-zinc-500">
-              Everything below is in the package from day one — no add-ons, no separate tier to
+              Everything below is in the package from day one: no add-ons, no separate tier to
               unlock it.
             </p>
             <ul className="mt-6 grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -332,7 +332,7 @@ export default async function Home() {
             </span>
             <h2 className="mt-4 text-2xl font-semibold tracking-tight">Built for the team, not the guest</h2>
             <p className="mt-3 text-zinc-600">
-              There&apos;s no guest-facing side and no client login by design — this is a tool
+              There&apos;s no guest-facing side and no client login by design. This is a tool
               for a management company&apos;s own admin, office staff, and cleaners to run
               day-to-day operations, not something property owners sign into.
             </p>

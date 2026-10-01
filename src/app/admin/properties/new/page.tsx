@@ -34,7 +34,7 @@ export default async function NewPropertyPage({
           <Link href="/admin/clients/new" className="underline underline-offset-2">
             client
           </Link>{" "}
-          first — every property belongs to one.
+          first, every property belongs to one.
         </p>
       ) : (
         <PropertyForm

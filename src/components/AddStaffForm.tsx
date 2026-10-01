@@ -36,8 +36,8 @@ export function AddStaffForm({ action }: { action: (formData: FormData) => Promi
           Access
         </label>
         <select id="newStaffRole" name="role" defaultValue="OFFICE" className={input}>
-          <option value="OFFICE">Office — runs the schedule</option>
-          <option value="ADMIN">Admin — also manages staff logins</option>
+          <option value="OFFICE">Office: runs the schedule</option>
+          <option value="ADMIN">Admin: also manages staff logins</option>
         </select>
       </div>
       <div className="flex flex-col gap-1.5">

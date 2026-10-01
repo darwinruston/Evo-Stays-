@@ -27,10 +27,10 @@ const LOOKBACK_DAYS = 7;
 // something that tells staff what to actually do about it.
 function describeSyncError(err: unknown, adapter: PmsAdapter): string {
   if (err instanceof PmsAuthError) {
-    return `${adapter.displayName} rejected the credentials (${err.message}) — check them on the client.`;
+    return `${adapter.displayName} rejected the credentials (${err.message}). Check them on the client.`;
   }
   if (err instanceof TypeError && err.message === "fetch failed") {
-    return `Couldn't reach ${adapter.displayName} — check your connection and try again shortly.`;
+    return `Couldn't reach ${adapter.displayName}. Check your connection and try again shortly.`;
   }
   return err instanceof Error ? err.message : `Couldn't reach ${adapter.displayName}`;
 }
@@ -192,7 +192,7 @@ export async function syncPmsListing(
             actorId: triggeredById,
             entityType: "Clean",
             entityId: existing.clean.id,
-            summary: `Cancelled — ${adapter.displayName} reservation status changed to "${reservation.status}"`,
+            summary: `Cancelled: ${adapter.displayName} reservation status changed to "${reservation.status}"`,
           });
           if (existing.clean.assignedToId) {
             notices.push(

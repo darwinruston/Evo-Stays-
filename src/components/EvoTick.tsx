@@ -1,8 +1,8 @@
 // The Evo tick mark. className controls the rendered size (e.g. "h-7 w-auto").
 //
 // Plain <img>, not next/image: Next's on-the-fly optimizer route 400s on
-// these files even though they're valid PNGs (sharp decodes them fine) —
-// looks like a framework quirk with this Next.js version, not a file
+// these files even though they're valid PNGs (sharp decodes them fine).
+// Looks like a framework quirk with this Next.js version, not a file
 // problem.
 export function EvoTick({ className }: { className?: string }) {
   return (
