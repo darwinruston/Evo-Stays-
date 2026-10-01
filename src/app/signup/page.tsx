@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { SignUpForm } from "./SignUpForm";
+import { RegisterInterestForm } from "./RegisterInterestForm";
 import { EvoTick } from "@/components/EvoTick";
 import { card } from "@/lib/ui";
 
-export const metadata = { title: "Start your free trial" };
+export const metadata = { title: "Register interest" };
 
 export default function SignUpPage() {
   return (
@@ -15,12 +15,12 @@ export default function SignUpPage() {
           </Link>
         </div>
         <div className={card("p-6 sm:p-8")}>
-          <h1 className="mb-1 text-xl font-semibold tracking-tight">Start your free trial</h1>
+          <h1 className="mb-1 text-xl font-semibold tracking-tight">Register your interest</h1>
           <p className="mb-6 text-sm text-zinc-500">
-            14 days, full access, no card required. You&apos;re the first admin login — add your
-            own staff, clients and properties once you&apos;re in.
+            Evo Stays isn&apos;t open for sign-ups just yet. Leave your details and we&apos;ll reach out
+            to set up a demo as soon as it&apos;s ready.
           </p>
-          <SignUpForm />
+          <RegisterInterestForm />
           <p className="mt-6 text-center text-sm text-zinc-500">
             Already have an account?{" "}
             <Link href="/login" className="underline underline-offset-2 hover:text-zinc-900">

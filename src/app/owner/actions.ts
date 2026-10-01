@@ -131,3 +131,15 @@ export async function setOrganizationSuspended(organizationId: string, suspended
 
   revalidatePath("/owner");
 }
+
+// For clearing out test submissions or a lead that's been dealt with some
+// other way -- see src/app/owner/interest/page.tsx. InterestRegistration
+// carries no RLS (see UNSCOPED_MODELS in src/lib/prisma.ts), so this goes
+// through the unscoped client directly, same as every other action here.
+export async function deleteInterestRegistration(id: string) {
+  await requirePlatformOwner();
+
+  await prisma.interestRegistration.delete({ where: { id } });
+
+  revalidatePath("/owner/interest");
+}

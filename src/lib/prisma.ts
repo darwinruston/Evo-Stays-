@@ -87,15 +87,15 @@ function withOrganizationId(data: unknown, organizationId: string): unknown {
   return result;
 }
 
-// Every table this can be called for has an organizationId column, with two
-// exceptions: Organization itself, never created through a scoped client
-// anyway (there's no organization to scope into yet when one is being
-// created), and PasswordResetToken, which carries no RLS at all (see the
-// comment on that model in schema.prisma) -- it's never written or read
-// through a scoped client in the first place, but listed here too so
-// nothing ever tries to stamp an organizationId onto it that it doesn't
-// have.
-const UNSCOPED_MODELS = new Set(["Organization", "PasswordResetToken"]);
+// Every table this can be called for has an organizationId column, with
+// three exceptions: Organization itself, never created through a scoped
+// client anyway (there's no organization to scope into yet when one is
+// being created); PasswordResetToken; and InterestRegistration -- the
+// latter two carry no RLS at all (see the comment on each model in
+// schema.prisma) -- neither is ever written or read through a scoped
+// client in the first place, but listed here too so nothing ever tries to
+// stamp an organizationId onto either that it doesn't have.
+const UNSCOPED_MODELS = new Set(["Organization", "PasswordResetToken", "InterestRegistration"]);
 
 export type ScopedPrismaClient = ReturnType<typeof scopedDb>;
 

@@ -99,6 +99,26 @@ model Organization {
   checklistItems            PropertyChecklistItem[]
 }
 
+// A lead from the public "Register interest" page (src/app/signup/) --
+// someone who wants a demo once the platform is live, not a real account.
+// Carries no organizationId and no RLS, same reasoning as Organization
+// itself (see UNSCOPED_MODELS in src/lib/prisma.ts): there's no tenant to
+// scope this into, since submitting it is how a prospective tenant first
+// appears at all.
+model InterestRegistration {
+  id          String   @id @default(cuid())
+  name        String
+  // Globally unique, not per-organization -- there's no organization yet
+  // at this point, and re-submitting the same email should update the
+  // existing lead rather than create a duplicate (see registerInterest in
+  // src/app/signup/actions.ts).
+  email       String   @unique
+  companyName String
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum Role {
   ADMIN
   OFFICE

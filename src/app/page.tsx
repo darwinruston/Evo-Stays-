@@ -109,7 +109,7 @@ export default async function Home() {
               Sign in
             </Link>
             <Link href="/signup" className={button("primary", "sm")}>
-              Start free trial
+              Register interest
             </Link>
           </div>
         </div>
@@ -128,13 +128,15 @@ export default async function Home() {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link href="/signup" className={button("primary", "lg")}>
-                Start free trial
+                Register interest
               </Link>
               <Link href="/login" className={button("secondary", "lg")}>
                 Sign in
               </Link>
             </div>
-            <p className="mt-3 text-sm text-zinc-500">14 days, full access, no card required.</p>
+            <p className="mt-3 text-sm text-zinc-500">
+              Not live yet — leave your details and we&apos;ll be in touch for a demo.
+            </p>
 
             <ul className="mx-auto mt-10 flex max-w-2xl flex-col gap-2.5 text-left sm:flex-row sm:justify-center sm:gap-6 sm:text-center">
               {USPS.map((usp) => (
