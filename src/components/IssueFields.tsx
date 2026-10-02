@@ -6,6 +6,7 @@ import {
 } from "@/lib/issues";
 import { ACCEPTED_IMAGE_TYPES } from "@/lib/imageTypes";
 import { inputCompact } from "@/lib/ui";
+import { PhotoPicker } from "@/components/PhotoPicker";
 
 // The inputs shared by the cleaner's mid-clean report and staff's "Log an
 // issue" form -- see IssueForm, which wraps these with the action, error
@@ -73,14 +74,7 @@ export function IssueFields({
         <label htmlFor={`${idPrefix}-photos`} className="text-sm font-medium">
           Photos <span className="font-normal text-zinc-500">(optional, but they help)</span>
         </label>
-        <input
-          id={`${idPrefix}-photos`}
-          name="photos"
-          type="file"
-          accept={ACCEPTED_IMAGE_TYPES}
-          multiple
-          className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-        />
+        <PhotoPicker id={`${idPrefix}-photos`} accept={ACCEPTED_IMAGE_TYPES} />
       </div>
     </>
   );

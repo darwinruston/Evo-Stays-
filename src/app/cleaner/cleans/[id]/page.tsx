@@ -15,6 +15,7 @@ import { DetailsCard } from "@/components/DetailsCard";
 import { bandFromDb } from "@/lib/stock";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { SubmitButton } from "@/components/SubmitButton";
+import { PhotoPicker } from "@/components/PhotoPicker";
 import { IssueForm } from "@/components/IssueForm";
 import { IssueList, toIssueRow } from "@/components/IssueList";
 import { sortIssuesByUrgency } from "@/lib/issues";
@@ -63,19 +64,7 @@ function PhotoUploadStep({
         <h2 className="text-sm font-medium">{heading}</h2>
         <p className="mt-1 text-sm text-zinc-600">{hint}</p>
       </div>
-      {/* No `capture` attribute -- with it set, most mobile browsers open the
-          camera directly and drop straight back out after one shot, so
-          `multiple` never actually gets a chance to apply. Without it, the
-          OS's own picker offers both camera and gallery, and multi-select
-          works from either. */}
-      <input
-        name="photos"
-        type="file"
-        accept="image/*"
-        multiple
-        required
-        className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-      />
+      <PhotoPicker required />
       <SubmitButton pendingLabel={pendingLabel} size="lg" fullWidth>
         {submitLabel}
       </SubmitButton>
