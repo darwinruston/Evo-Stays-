@@ -99,7 +99,11 @@ export async function updateStaff(id: string, formData: FormData) {
       name,
       email,
       role,
-      ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}),
+      // A new password also bumps sessionVersion, which signs this person
+      // out everywhere they're logged in (see the jwt callback in src/auth.ts).
+      ...(password
+        ? { passwordHash: await bcrypt.hash(password, 10), sessionVersion: { increment: 1 } }
+        : {}),
     },
   });
 
