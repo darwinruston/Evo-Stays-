@@ -8,6 +8,7 @@ import { createCleanRecord, CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { propertyDisplayName } from "@/lib/address";
 import { formatScheduledFor, isDateOnly, sameCalendarDay } from "@/lib/schedule";
 import { logAudit } from "@/lib/audit";
+import type { ActionResult } from "@/lib/actionResult";
 import { notify, newCleanNotices, cleanEditNotices, cleanCancelledNotice } from "@/lib/notify";
 import { turnoverFor, isAtRisk, atRiskNotices } from "@/lib/turnover";
 
@@ -166,11 +167,11 @@ export async function updateClean(id: string, formData: FormData) {
 // The time of day is kept where the clean has one; a date-only clean (as
 // booking syncs create) stays date-only. The booking syncs only re-apply a
 // booking's date when that booking itself changes, so this sticks until then.
-export async function rescheduleClean(id: string, formData: FormData) {
+export async function rescheduleClean(id: string, formData: FormData): Promise<ActionResult> {
   const session = await requireStaff();
 
   const day = str(formData, "date");
-  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("Choose a date");
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return { error: "Choose a date" };
 
   const before = await prisma.clean.findUniqueOrThrow({
     where: { id },
@@ -179,7 +180,7 @@ export async function rescheduleClean(id: string, formData: FormData) {
       property: { select: { nickname: true, name: true, address: true } },
     },
   });
-  if (before.status !== "PENDING") throw new Error("Only a clean that hasn't started can be moved");
+  if (before.status !== "PENDING") return { error: "Only a clean that hasn't started can be moved" };
 
   const [y, m, d] = day.split("-").map(Number);
   const scheduledFor =

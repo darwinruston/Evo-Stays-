@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { SYSTEM_USER_ID } from "@/lib/systemUser";
+import type { ActionResult } from "@/lib/actionResult";
 
 const STAFF_ROLES: Role[] = ["ADMIN", "OFFICE"];
 const ROLE_LABELS: Record<string, string> = { ADMIN: "Admin", OFFICE: "Office" };
@@ -18,10 +19,10 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-function staffRole(formData: FormData): Role {
+// Null when the form didn't pick one of the two staff roles.
+function staffRole(formData: FormData): Role | null {
   const role = str(formData, "role");
-  if (role !== "ADMIN" && role !== "OFFICE") throw new Error("Choose Admin or Office");
-  return role;
+  return role === "ADMIN" || role === "OFFICE" ? role : null;
 }
 
 // Admins other than this one and the "Automated sync" system account, which
@@ -33,18 +34,19 @@ async function otherAdminCount(excludingId: string): Promise<number> {
   });
 }
 
-export async function createStaff(formData: FormData) {
+export async function createStaff(formData: FormData): Promise<ActionResult> {
   const session = await requireAdmin();
 
   const name = str(formData, "name");
   const email = str(formData, "email");
   const password = str(formData, "password");
   const role = staffRole(formData);
-  if (!name || !email || !password) throw new Error("Name, email and password are all required");
-  if (password.length < 8) throw new Error("Password must be at least 8 characters");
+  if (!role) return { error: "Choose Admin or Office" };
+  if (!name || !email || !password) return { error: "Name, email and password are all required" };
+  if (password.length < 8) return { error: "Password must be at least 8 characters" };
 
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  if (existing) throw new Error("That email address already has a login");
+  if (existing) return { error: "That email address already has a login" };
 
   const created = await prisma.user.create({
     data: { name, email, passwordHash: await bcrypt.hash(password, 10), role },
@@ -65,31 +67,32 @@ export async function createStaff(formData: FormData) {
 // leave it alone -- same convention as updateCleaner. This is also how the
 // demo logins a fresh install starts with get turned into real ones,
 // without having to delete them.
-export async function updateStaff(id: string, formData: FormData) {
+export async function updateStaff(id: string, formData: FormData): Promise<ActionResult> {
   const session = await requireAdmin();
-  if (id === SYSTEM_USER_ID) throw new Error("That account can't be edited");
+  if (id === SYSTEM_USER_ID) return { error: "That account can't be edited" };
 
   const name = str(formData, "name");
   const email = str(formData, "email");
   const role = staffRole(formData);
-  if (!name || !email) throw new Error("Name and email are both required");
+  if (!role) return { error: "Choose Admin or Office" };
+  if (!name || !email) return { error: "Name and email are both required" };
 
   const password = str(formData, "password");
-  if (password !== null && password.length < 8) throw new Error("Password must be at least 8 characters");
+  if (password !== null && password.length < 8) return { error: "Password must be at least 8 characters" };
 
   const emailOwner = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  if (emailOwner && emailOwner.id !== id) throw new Error("That email address already has a login");
+  if (emailOwner && emailOwner.id !== id) return { error: "That email address already has a login" };
 
   const before = await prisma.user.findFirst({
     where: { id, role: { in: STAFF_ROLES } },
     select: { name: true, email: true, role: true },
   });
-  if (!before) throw new Error("That staff login no longer exists");
+  if (!before) return { error: "That staff login no longer exists" };
 
   if (before.role !== role) {
-    if (id === session.user.id) throw new Error("You can't change your own role");
+    if (id === session.user.id) return { error: "You can't change your own role" };
     if (before.role === "ADMIN" && (await otherAdminCount(id)) === 0) {
-      throw new Error("There must always be at least one Admin");
+      return { error: "There must always be at least one Admin" };
     }
   }
 
@@ -124,19 +127,19 @@ export async function updateStaff(id: string, formData: FormData) {
   revalidatePath("/admin/staff");
 }
 
-export async function deleteStaff(id: string) {
+export async function deleteStaff(id: string): Promise<ActionResult> {
   const session = await requireAdmin();
-  if (id === SYSTEM_USER_ID) throw new Error("That account can't be removed");
-  if (id === session.user.id) throw new Error("You can't remove your own login");
+  if (id === SYSTEM_USER_ID) return { error: "That account can't be removed" };
+  if (id === session.user.id) return { error: "You can't remove your own login" };
 
   const target = await prisma.user.findFirst({
     where: { id, role: { in: STAFF_ROLES } },
     select: { name: true, email: true, role: true },
   });
-  if (!target) throw new Error("That staff login no longer exists");
+  if (!target) return { error: "That staff login no longer exists" };
 
   if (target.role === "ADMIN" && (await otherAdminCount(id)) === 0) {
-    throw new Error("There must always be at least one Admin");
+    return { error: "There must always be at least one Admin" };
   }
 
   // Every clean records who created it, and history isn't rewritten -- so a
@@ -144,17 +147,17 @@ export async function deleteStaff(id: string) {
   // way round it (repurpose the login) rather than leaving a raw database error.
   const createdCleans = await prisma.clean.count({ where: { createdById: id } });
   if (createdCleans > 0) {
-    throw new Error(
-      `${target.name} has scheduled ${createdCleans} ${createdCleans === 1 ? "clean" : "cleans"}, so their login can't be removed without erasing that history. Edit it instead — change the name, email and password.`,
-    );
+    return {
+      error: `${target.name} has scheduled ${createdCleans} ${createdCleans === 1 ? "clean" : "cleans"}, so their login can't be removed without erasing that history. Edit it instead — change the name, email and password.`,
+    };
   }
 
   try {
     await prisma.user.delete({ where: { id } });
   } catch {
-    throw new Error(
-      `${target.name}'s login is linked to records that need it, so it can't be removed. Edit it instead — change the name, email and password.`,
-    );
+    return {
+      error: `${target.name}'s login is linked to records that need it, so it can't be removed. Edit it instead — change the name, email and password.`,
+    };
   }
 
   await logAudit({

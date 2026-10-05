@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { STOCK_BANDS, STOCK_BAND_LABELS } from "@/lib/stock";
 import { button, card, inputCompact } from "@/lib/ui";
 
@@ -13,7 +14,7 @@ export function AddStockLevelForm({
   action,
   items,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   items: { id: string; name: string }[];
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(action);

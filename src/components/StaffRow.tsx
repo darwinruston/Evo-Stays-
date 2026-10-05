@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { badge, button, card, input } from "@/lib/ui";
 
 // One staff login: name/email/role, with reveal-on-click edit and a
@@ -19,8 +20,8 @@ export function StaffRow({
   email: string;
   role: "ADMIN" | "OFFICE";
   isSelf: boolean;
-  updateAction: (formData: FormData) => Promise<void>;
-  removeAction: () => Promise<void>;
+  updateAction: (formData: FormData) => Promise<ActionResult>;
+  removeAction: () => Promise<ActionResult>;
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(updateAction);
   const [confirming, setConfirming] = useState(false);
@@ -31,9 +32,13 @@ export function StaffRow({
     setRemoveError(null);
     startRemove(async () => {
       try {
-        await removeAction();
-      } catch (err) {
-        setRemoveError(err instanceof Error ? err.message : "Something went wrong.");
+        const result = await removeAction();
+        if (result) {
+          setRemoveError(result.error);
+          setConfirming(false);
+        }
+      } catch {
+        setRemoveError("Something went wrong.");
         setConfirming(false);
       }
     });

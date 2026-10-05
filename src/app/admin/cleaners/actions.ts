@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { formatCurrency } from "@/lib/invoices";
 import { logAudit } from "@/lib/audit";
+import type { ActionResult } from "@/lib/actionResult";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
 import { notify, cleanAssignedNotice, cleanUnassignedNotice } from "@/lib/notify";
 
@@ -49,18 +50,18 @@ export async function createCleaner(formData: FormData) {
 // secret field defaults to no change rather than clearing it, and it's
 // never read back into the form to prefill (a decrypted secret showing up
 // in page source is bad practice regardless of how it got there).
-export async function updateCleaner(id: string, formData: FormData) {
+export async function updateCleaner(id: string, formData: FormData): Promise<ActionResult> {
   const session = await requireStaff();
 
   const name = str(formData, "name");
   const email = str(formData, "email");
-  if (!name || !email) throw new Error("Name and email are both required");
+  if (!name || !email) return { error: "Name and email are both required" };
 
   const emailOwner = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  if (emailOwner && emailOwner.id !== id) throw new Error("That email address already has a login");
+  if (emailOwner && emailOwner.id !== id) return { error: "That email address already has a login" };
 
   const password = str(formData, "password");
-  if (password !== null && password.length < 8) throw new Error("Password must be at least 8 characters");
+  if (password !== null && password.length < 8) return { error: "Password must be at least 8 characters" };
 
   const before = await prisma.user.findUniqueOrThrow({
     where: { id, role: "CLEANER" },
@@ -160,11 +161,11 @@ export async function updateCleanerScheduleHorizon(id: string, formData: FormDat
 // can still be picked instead (by load/familiarity), or assigned by hand
 // regardless. A property with no designation at all is left Unassigned for
 // an admin to direct, rather than auto-assign guessing at random.
-export async function assignCleanerProperty(cleanerId: string, formData: FormData) {
+export async function assignCleanerProperty(cleanerId: string, formData: FormData): Promise<ActionResult> {
   const session = await requireStaff();
 
   const propertyId = str(formData, "propertyId");
-  if (!propertyId) throw new Error("Choose a property");
+  if (!propertyId) return { error: "Choose a property" };
 
   try {
     await prisma.propertyCleaner.create({ data: { cleanerId, propertyId } });
@@ -189,18 +190,22 @@ export async function assignCleanerProperty(cleanerId: string, formData: FormDat
 // The flat fee agreed for this cleaner at this property -- blank clears it
 // and they go back to being paid by the hour there. Only affects invoices
 // generated afterwards; each invoice line keeps the fee it was billed at.
-export async function updateCleanerPropertyFee(cleanerId: string, propertyId: string, formData: FormData) {
+export async function updateCleanerPropertyFee(
+  cleanerId: string,
+  propertyId: string,
+  formData: FormData,
+): Promise<ActionResult> {
   const session = await requireStaff();
 
   const flatFee = rate(formData, "flatFee");
   const raw = str(formData, "flatFee");
-  if (raw !== null && flatFee === null) throw new Error("Enter an amount of 0 or more, like 80 or 80.00");
+  if (raw !== null && flatFee === null) return { error: "Enter an amount of 0 or more, like 80 or 80.00" };
 
   const designation = await prisma.propertyCleaner.findUnique({
     where: { propertyId_cleanerId: { propertyId, cleanerId } },
     select: { property: { select: { nickname: true, name: true, address: true } } },
   });
-  if (!designation) throw new Error("That property isn't designated to this cleaner any more");
+  if (!designation) return { error: "That property isn't designated to this cleaner any more" };
 
   await prisma.propertyCleaner.update({
     where: { propertyId_cleanerId: { propertyId, cleanerId } },
@@ -234,12 +239,12 @@ export async function removeCleanerProperty(cleanerId: string, propertyId: strin
 // anything already in progress or completed reflects real work already
 // underway or done, same guard icalSync/hostifySync already use before ever
 // touching a clean's date or assignee.
-export async function reassignUpcomingCleans(cleanerId: string, formData: FormData) {
+export async function reassignUpcomingCleans(cleanerId: string, formData: FormData): Promise<ActionResult> {
   const session = await requireStaff();
 
   const targetCleanerId = str(formData, "targetCleanerId");
-  if (!targetCleanerId) throw new Error("Choose who to reassign to");
-  if (targetCleanerId === cleanerId) throw new Error("Choose a different cleaner to reassign to");
+  if (!targetCleanerId) return { error: "Choose who to reassign to" };
+  if (targetCleanerId === cleanerId) return { error: "Choose a different cleaner to reassign to" };
 
   const fromRaw = str(formData, "fromDate");
   const toRaw = str(formData, "toDate");
@@ -269,7 +274,7 @@ export async function reassignUpcomingCleans(cleanerId: string, formData: FormDa
     select: { id: true, scheduledFor: true, property: { select: { nickname: true, name: true, address: true } } },
   });
   if (affected.length === 0) {
-    throw new Error("No upcoming cleans to reassign in that range");
+    return { error: "No upcoming cleans to reassign in that range" };
   }
 
   const ids = affected.map((c) => c.id);
@@ -370,7 +375,7 @@ export async function reassignPropertyCleansToCleaner(
   propertyId: string,
   cleanerId: string,
   formData: FormData,
-) {
+): Promise<ActionResult> {
   const session = await requireStaff();
 
   const fromRaw = str(formData, "fromDate");
@@ -379,7 +384,7 @@ export async function reassignPropertyCleansToCleaner(
     fromDate: fromRaw ? parseIsoDate(fromRaw) : null,
     toDate: toRaw ? parseIsoDate(toRaw) : null,
   });
-  if (moved === 0) throw new Error("No upcoming cleans to move in that range");
+  if (moved === 0) return { error: "No upcoming cleans to move in that range" };
 }
 
 export async function deleteCleaner(id: string) {

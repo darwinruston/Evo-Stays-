@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ActionResult } from "@/lib/actionResult";
 
 // Shared by every reveal-on-click edit form on the admin pages (hourly
 // rate, schedule horizon, add/move/reassign, cleaner details, ...): starts
@@ -9,12 +10,12 @@ import { useState, useTransition } from "react";
 // Cancel. A value that's just been saved should look saved, not sit open
 // looking identical to one still being edited.
 //
-// Errors the action throws (e.g. "That email address already has a login")
-// are caught and returned to show inline, rather than left to propagate --
-// this app has no error boundary, so an uncaught throw from a plain
-// <form action> crashes to the generic "couldn't load" screen instead of
-// telling anyone what went wrong.
-export function useRevealForm(action: (formData: FormData) => Promise<void>) {
+// A reason the action turns the save down (e.g. "That email address already
+// has a login") comes back as its return value -- see ActionResult -- and
+// shows inline with the form still open. Anything the action throws is a
+// failure it didn't expect, and production hides a thrown error's message,
+// so that only gets a generic line here rather than the app's error screen.
+export function useRevealForm(action: (formData: FormData) => Promise<ActionResult>) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,10 +24,14 @@ export function useRevealForm(action: (formData: FormData) => Promise<void>) {
     setError(null);
     startTransition(async () => {
       try {
-        await action(formData);
+        const result = await action(formData);
+        if (result) {
+          setError(result.error);
+          return;
+        }
         setOpen(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong.");
+      } catch {
+        setError("Something went wrong.");
       }
     });
   }

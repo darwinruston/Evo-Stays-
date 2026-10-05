@@ -1,6 +1,7 @@
 "use client";
 
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { button, card, inputCompact } from "@/lib/ui";
 
 // Same reveal-on-click shape as EditableNumberField -- a dropdown sitting
@@ -12,7 +13,7 @@ export function AddPropertyForm({
   options,
   cleanerName,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   options: { id: string; label: string }[];
   cleanerName: string;
 }) {
