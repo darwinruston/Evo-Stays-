@@ -1,6 +1,7 @@
 "use client";
 
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { button, card, input } from "@/lib/ui";
 
 // Same reveal-on-click shape as the rest of this page -- name/email/
@@ -12,7 +13,7 @@ export function EditCleanerDetailsForm({
   name,
   email,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   name: string;
   email: string;
 }) {

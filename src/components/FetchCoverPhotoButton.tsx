@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { button } from "@/lib/ui";
+import type { ActionResult } from "@/lib/actionResult";
 
-// A plain submit button would crash to the generic error screen on
-// failure (this app has no error boundary) -- e.g. Hostify genuinely has
-// no photo for this listing, or the fetch just hiccups. Caught here and
-// shown inline instead, same reasoning as useRevealForm.
-export function FetchCoverPhotoButton({ action }: { action: () => Promise<void> }) {
+// A plain submit button would drop to the generic error screen on failure
+// -- e.g. Hostify genuinely has no photo for this listing, or the download
+// just hiccups. The action returns the reason instead (see ActionResult),
+// shown inline here, same reasoning as useRevealForm.
+export function FetchCoverPhotoButton({ action }: { action: () => Promise<ActionResult> }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -20,9 +21,10 @@ export function FetchCoverPhotoButton({ action }: { action: () => Promise<void> 
           setError(null);
           startTransition(async () => {
             try {
-              await action();
-            } catch (err) {
-              setError(err instanceof Error ? err.message : "Something went wrong.");
+              const result = await action();
+              if (result) setError(result.error);
+            } catch {
+              setError("Something went wrong.");
             }
           });
         }}

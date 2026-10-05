@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Prisma, PropertyType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import type { ActionResult } from "@/lib/actionResult";
 import { savePropertyPhotos, saveHostifyCoverPhoto } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { syncCalendarFeed } from "@/lib/icalSync";
@@ -197,7 +198,7 @@ export async function addPropertyPhotos(id: string, formData: FormData) {
 // cover if one's already set -- ensurePrimary only promotes it when the
 // property has none, so this can't silently replace a photo staff already
 // chose.
-export async function fetchPropertyCoverPhoto(id: string) {
+export async function fetchPropertyCoverPhoto(id: string): Promise<ActionResult> {
   await requireStaff();
 
   const property = await prisma.property.findUniqueOrThrow({
@@ -205,10 +206,10 @@ export async function fetchPropertyCoverPhoto(id: string) {
     select: { hostifyListingId: true, client: { select: { hostifyApiKey: true } } },
   });
   if (!property.hostifyListingId) {
-    throw new Error("This property isn't linked to a Hostify listing.");
+    return { error: "This property isn't linked to a Hostify listing." };
   }
   if (!property.client.hostifyApiKey) {
-    throw new Error("No Hostify API key configured on this client.");
+    return { error: "No Hostify API key configured on this client." };
   }
 
   const photoUrl = await fetchHostifyCoverPhotoUrl(
@@ -216,10 +217,19 @@ export async function fetchPropertyCoverPhoto(id: string) {
     Number(property.hostifyListingId),
   );
   if (!photoUrl) {
-    throw new Error("Hostify doesn't have a cover photo for this listing.");
+    return { error: "Hostify doesn't have a cover photo for this listing." };
   }
 
-  const photoPath = await saveHostifyCoverPhoto(id, photoUrl);
+  // The download is the one step here that can fail for reasons outside the
+  // app (Hostify's image host, the network). The detail goes to the server
+  // log; the person gets something they can act on.
+  let photoPath: string;
+  try {
+    photoPath = await saveHostifyCoverPhoto(id, photoUrl);
+  } catch (err) {
+    console.error("[fetchPropertyCoverPhoto] download failed:", err);
+    return { error: "Couldn't download the photo from Hostify. Try again shortly." };
+  }
   await prisma.propertyImage.create({ data: { propertyId: id, path: photoPath, isPrimary: false } });
   await ensurePrimary(id);
 
@@ -266,18 +276,18 @@ export async function deletePropertyPhoto(propertyId: string, imageId: string) {
 // Adds an item to this property's stock list with a starting level -- no
 // par, no count, just what's on the shelf right now as best guessed (staff
 // can correct it immediately with the same toggle used everywhere else).
-export async function addPropertyStockLevel(propertyId: string, formData: FormData) {
+export async function addPropertyStockLevel(propertyId: string, formData: FormData): Promise<ActionResult> {
   await requireStaff();
 
   const stockItemId = str(formData, "stockItemId");
   const band = formData.get("band");
-  if (!stockItemId) throw new Error("Pick an item");
-  if (typeof band !== "string" || !isStockLevelBand(band)) throw new Error("Pick a level");
+  if (!stockItemId) return { error: "Pick an item" };
+  if (typeof band !== "string" || !isStockLevelBand(band)) return { error: "Pick a level" };
 
   const existing = await prisma.propertyStockLevel.findUnique({
     where: { propertyId_stockItemId: { propertyId, stockItemId } },
   });
-  if (existing) throw new Error("That item is already configured on this property");
+  if (existing) return { error: "That item is already configured on this property" };
 
   await prisma.propertyStockLevel.create({
     data: { propertyId, stockItemId, band: bandToDb(band) },
