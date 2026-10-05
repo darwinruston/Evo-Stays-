@@ -38,6 +38,11 @@ model User {
   // of always appearing in the app. Only has any effect once SMTP is
   // configured -- see src/lib/email.ts.
   emailNotifications Boolean   @default(true)
+  // Stamped into the login session (see src/auth.ts) and re-checked on every
+  // request. Bumped whenever the password changes, which signs that person
+  // out everywhere -- otherwise a reset would leave an old session working
+  // until it expired on its own.
+  sessionVersion Int           @default(0)
   notifications  Notification[]
   reportedIssues Issue[]       @relation("IssueReporter")
   resolvedIssues Issue[]       @relation("IssueResolver")
