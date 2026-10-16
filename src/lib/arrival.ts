@@ -48,8 +48,11 @@ export function arrivalLabel(clean: {
   assignedToId: string | null;
   scheduledFor: Date | null;
   plannedArrivalAt: Date | null;
-}): string | null {
+}, now = new Date()): string | null {
   if (clean.status !== "PENDING" || !clean.assignedToId || !clean.scheduledFor) return null;
+  // A date that's already gone has nothing left to confirm.
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (clean.scheduledFor < startOfToday) return null;
   return clean.plannedArrivalAt
     ? `Arriving ${formatTimeOfDay(clean.plannedArrivalAt)}`
     : "Arrival not confirmed";
