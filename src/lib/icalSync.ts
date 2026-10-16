@@ -2,6 +2,7 @@ import * as ical from "node-ical";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { createCleanRecord } from "@/lib/cleans";
 import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
+import { RESET_ARRIVAL } from "@/lib/arrival";
 import { logAudit } from "@/lib/audit";
 import {
   notify,
@@ -100,6 +101,7 @@ export async function syncCalendarFeed(
           // sent for the old one (see checkAtRiskTurnovers).
           data: {
             scheduledFor: checkOut,
+            ...RESET_ARRIVAL,
             ...(sameCalendarDay(existing.clean.scheduledFor, checkOut) ? {} : { atRiskNotifiedAt: null }),
           },
         });

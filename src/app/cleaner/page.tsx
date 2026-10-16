@@ -1,3 +1,4 @@
+import { arrivalLabel } from "@/lib/arrival";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
@@ -48,6 +49,7 @@ export default async function CleanerHomePage() {
     scheduledFor: c.scheduledFor,
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
     turnover: turnovers.get(c.id) ?? null,
+    arrival: arrivalLabel(c),
   }));
 
   // Only worth a query when a horizon is actually set -- tells the cleaner

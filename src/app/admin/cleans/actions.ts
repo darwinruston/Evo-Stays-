@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/authz";
 import { createCleanRecord, CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { propertyDisplayName } from "@/lib/address";
 import { formatScheduledFor, isDateOnly, sameCalendarDay } from "@/lib/schedule";
+import { RESET_ARRIVAL } from "@/lib/arrival";
 import { logAudit } from "@/lib/audit";
 import { notify, newCleanNotices, cleanEditNotices, cleanCancelledNotice } from "@/lib/notify";
 import { turnoverFor, isAtRisk, atRiskNotices } from "@/lib/turnover";
@@ -92,15 +93,19 @@ export async function updateClean(id: string, formData: FormData) {
     (status === "CANCELLED" && before.status !== "COMPLETED") ||
     (status === "PENDING" && (before.status === "PENDING" || before.status === "CANCELLED"));
 
+  const assignedToId = str(formData, "assignedToId");
   const after = await db.clean.update({
     where: { id },
     data: {
-      assignedToId: str(formData, "assignedToId"),
+      assignedToId,
       scheduledFor,
       guestCount: int(formData, "guestCount"),
       instructions: str(formData, "instructions"),
       ...(allowedStatusChange ? { status } : {}),
       ...(newDay ? { atRiskNotifiedAt: null } : {}),
+      ...(scheduledFor?.getTime() !== before.scheduledFor?.getTime() || assignedToId !== before.assignedToId
+        ? RESET_ARRIVAL
+        : {}),
     },
     include: {
       assignedTo: { select: { name: true } },
@@ -191,7 +196,7 @@ export async function rescheduleClean(id: string, formData: FormData) {
   // old one is cleared (see checkAtRiskTurnovers).
   const after = await db.clean.update({
     where: { id },
-    data: { scheduledFor, atRiskNotifiedAt: null },
+    data: { scheduledFor, atRiskNotifiedAt: null, ...RESET_ARRIVAL },
     include: {
       assignedTo: { select: { name: true } },
       property: { select: { nickname: true, name: true, address: true } },

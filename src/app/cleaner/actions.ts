@@ -7,6 +7,7 @@ import { requireCleaner } from "@/lib/authz";
 import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
+import { plannedArrivalFor } from "@/lib/arrival";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 import {
   createIssueRecord,
@@ -35,6 +36,28 @@ async function ownCleanOrThrow(db: ScopedPrismaClient, cleanId: string, userId: 
   });
   if (!clean) throw new Error("Clean not found");
   return clean;
+}
+
+// The cleaner saying what time they'll get there. The time is on the clean's
+// own day: they pick an hour and minute, not a date. Can be changed any
+// number of times until they check in.
+export async function confirmArrival(cleanId: string, formData: FormData) {
+  const { session, db } = await requireCleaner();
+  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+
+  if (clean.status !== "PENDING") throw new Error("This clean has already been started.");
+  if (!clean.scheduledFor) throw new Error("This clean doesn't have a date yet.");
+
+  const plannedArrivalAt = plannedArrivalFor(clean.scheduledFor, str(formData, "arrivalTime") ?? "");
+  if (!plannedArrivalAt) throw new Error("Enter the time you'll arrive.");
+
+  await db.clean.update({ where: { id: cleanId }, data: { plannedArrivalAt } });
+
+  revalidatePath("/cleaner");
+  revalidatePath(`/cleaner/cleans/${cleanId}`);
+  revalidatePath(`/admin/cleans/${cleanId}`);
+  revalidatePath("/admin/cleans");
+  revalidatePath("/admin");
 }
 
 // Arriving on site. Creates the visit record straight away rather than at

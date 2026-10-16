@@ -1,3 +1,4 @@
+import { arrivalLabel } from "@/lib/arrival";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
@@ -85,6 +86,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
     clash: clashes.has(c.id) ? sameDayLabel(cleaner.name, clashes.get(c.id)!) : null,
     turnover: turnovers.get(c.id) ?? null,
+    arrival: arrivalLabel(c),
   }));
 
   const designatedPropertyIds = new Set(cleaner.designatedProperties.map((d) => d.propertyId));

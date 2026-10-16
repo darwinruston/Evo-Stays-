@@ -5,6 +5,7 @@ import { PmsAuthError } from "@/lib/pms/errors";
 import type { PmsAdapter } from "@/lib/pms/types";
 import { createCleanRecord } from "@/lib/cleans";
 import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
+import { RESET_ARRIVAL } from "@/lib/arrival";
 import { logAudit } from "@/lib/audit";
 import {
   notify,
@@ -212,6 +213,7 @@ export async function syncPmsListing(
             where: { id: existing.clean.id },
             data: {
               scheduledFor: checkOut,
+              ...RESET_ARRIVAL,
               ...(sameCalendarDay(existing.clean.scheduledFor, checkOut) ? {} : { atRiskNotifiedAt: null }),
             },
           });

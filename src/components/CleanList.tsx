@@ -34,6 +34,9 @@ export type CleanRow = {
   // (see sameDayCounts in src/lib/cleans.ts) -- staff-facing, so a double
   // booking is seen before anyone's told to do two places at once.
   clash?: string | null;
+  // "Arriving 10:30" or "Arrival not confirmed" for a clean still to be done
+  // (see arrivalLabel in src/lib/arrival.ts).
+  arrival?: string | null;
 };
 
 function CleanRows({ rows }: { rows: CleanRow[] }) {
@@ -56,6 +59,12 @@ function CleanRows({ rows }: { rows: CleanRow[] }) {
                 {c.subtitle && <p className="truncate text-xs text-zinc-400">{c.subtitle}</p>}
                 {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
                 {c.clash && <span className={`mt-1.5 mr-1.5 ${badge("outline")}`}>{c.clash}</span>}
+                {c.arrival &&
+                  (c.arrival === "Arrival not confirmed" ? (
+                    <span className={`mt-1.5 mr-1.5 ${badge("outline")}`}>{c.arrival}</span>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-zinc-500">{c.arrival}</p>
+                  ))}
                 {label &&
                   (label.urgent ? (
                     <span className={`mt-1.5 ${badge("solid")}`}>{label.text}</span>

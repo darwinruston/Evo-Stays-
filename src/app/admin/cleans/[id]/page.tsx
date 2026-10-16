@@ -1,3 +1,4 @@
+import { formatTimeOfDay } from "@/lib/arrival";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
@@ -143,6 +144,18 @@ export default async function CleanDetailPage({
           <span className="text-zinc-500">Scheduled</span>
           <span>{clean.scheduledFor ? formatScheduledForWithDay(clean.scheduledFor) : "Not scheduled"}</span>
         </div>
+        {clean.status === "PENDING" && clean.assignedTo && clean.scheduledFor && (
+          <div className="flex justify-between gap-6 py-2 text-sm">
+            <span className="text-zinc-500">Cleaner arrival</span>
+            {clean.plannedArrivalAt ? (
+              <span>Confirmed for {formatTimeOfDay(clean.plannedArrivalAt)}</span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <span className={badge("outline")}>Not confirmed</span>
+              </span>
+            )}
+          </div>
+        )}
         {turnover && (
           <div className="flex justify-between gap-6 py-2 text-sm">
             <span className="text-zinc-500">Next guests</span>

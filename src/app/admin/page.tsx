@@ -1,3 +1,4 @@
+import { arrivalLabel } from "@/lib/arrival";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
@@ -82,6 +83,7 @@ export default async function AdminHomePage() {
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
     turnover: turnovers.get(c.id) ?? null,
     clash: clashes.has(c.id) ? sameDayLabel(c.assignedTo?.name, clashes.get(c.id)!) : null,
+    arrival: arrivalLabel(c),
   }));
 
   return (

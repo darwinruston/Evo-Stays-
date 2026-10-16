@@ -246,6 +246,9 @@ enum NotificationKind {
   // To staff and the assigned cleaner: a same-day turnover isn't finished
   // and the next guests are due soon.
   TURNOVER_AT_RISK
+  // To staff: the assigned cleaner hasn't confirmed what time they'll arrive
+  // and the clean is now close (see checkUnconfirmedArrivals).
+  ARRIVAL_UNCONFIRMED
 }
 
 // One thing a specific person should know about, shown in their in-app
@@ -504,6 +507,16 @@ model Clean {
   // pass. Cleared whenever the clean is rescheduled -- a new date is a new
   // deadline, worth its own alert.
   atRiskNotifiedAt DateTime?
+  // The time the cleaner has said they'll arrive, on the clean's own day.
+  // Null means not confirmed yet. Cleared whenever the clean is moved or
+  // handed to someone else -- a new slot or a new person needs a fresh
+  // confirmation. Separate from arrivedAt, which is when they actually
+  // checked in.
+  plannedArrivalAt DateTime?
+  // Set once staff have been told the arrival is still unconfirmed, so the
+  // scheduler doesn't re-alert on every pass. Cleared alongside
+  // plannedArrivalAt.
+  arrivalReminderNotifiedAt DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 

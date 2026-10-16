@@ -21,7 +21,15 @@ import { IssueList, toIssueRow } from "@/components/IssueList";
 import { sortIssuesByUrgency } from "@/lib/issues";
 import { turnoverFor } from "@/lib/turnover";
 import { TurnoverNotice } from "@/components/TurnoverNotice";
-import { checkInClean, uploadCleanPhotos, recordStockLevel, completeClean, reportIssue } from "../../actions";
+import {
+  checkInClean,
+  confirmArrival,
+  uploadCleanPhotos,
+  recordStockLevel,
+  completeClean,
+  reportIssue,
+} from "../../actions";
+import { defaultArrivalTime, formatTimeOfDay } from "@/lib/arrival";
 
 export const metadata = { title: "Clean" };
 
@@ -218,6 +226,38 @@ export default async function CleanerCleanPage({
           screen before check-in, so they lead. */}
       {clean.status === "PENDING" && (
         <>
+          {clean.scheduledFor && (
+            <form action={confirmArrival.bind(null, clean.id)} className={card("flex flex-col gap-3 p-4")}>
+              <div>
+                <h2 className="text-sm font-medium">
+                  {clean.plannedArrivalAt ? "Arrival time confirmed" : "Confirm your arrival time"}
+                </h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  {clean.plannedArrivalAt
+                    ? `The office can see you're arriving at ${formatTimeOfDay(clean.plannedArrivalAt)}. Change it if your plans move.`
+                    : "Tell the office what time you'll get there."}
+                </p>
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="arrivalTime" className="text-xs text-zinc-500">
+                    Arrival time
+                  </label>
+                  <input
+                    id="arrivalTime"
+                    name="arrivalTime"
+                    type="time"
+                    required
+                    defaultValue={defaultArrivalTime(clean)}
+                    className={`${inputCompact} w-32`}
+                  />
+                </div>
+                <button type="submit" className={button(clean.plannedArrivalAt ? "secondary" : "primary", "md")}>
+                  {clean.plannedArrivalAt ? "Update" : "Confirm"}
+                </button>
+              </div>
+            </form>
+          )}
           <PropertyDetails property={clean.property} />
           {knownIssues.length > 0 && (
             <section className="flex flex-col gap-2">

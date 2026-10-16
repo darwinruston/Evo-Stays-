@@ -1,3 +1,4 @@
+import { arrivalLabel } from "@/lib/arrival";
 import Link from "next/link";
 import type { Prisma, CleanStatus } from "@prisma/client";
 import { requireStaff } from "@/lib/authz";
@@ -82,6 +83,7 @@ export default async function CleansPage({
     prep: isCleanFinished(c.status) ? null : cleanPrep(c.property, c.guestCount),
     clash: clashes.has(c.id) ? sameDayLabel(c.assignedTo?.name, clashes.get(c.id)!) : null,
     turnover: turnovers.get(c.id) ?? null,
+    arrival: arrivalLabel(c),
   }));
 
   return (
