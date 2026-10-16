@@ -121,6 +121,17 @@ export function formatDuration(from: Date, to: Date): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
+// The calendar week (Monday to Sunday) containing `now`: `start` is Monday
+// 00:00 local, `end` is the following Monday 00:00 (exclusive). "This week"
+// means this fixed span, not a rolling seven days from today.
+export function weekBounds(now: Date = new Date()): { start: Date; end: Date } {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return { start, end };
+}
+
 // A small, fixed set of time buckets for a clean list -- deliberately coarse
 // (no per-day breakdown beyond today/tomorrow) so the list reads at a glance
 // instead of as a wall of individual dates.
@@ -129,6 +140,7 @@ export type CleanTimeGroup =
   | "Today"
   | "Tomorrow"
   | "This week"
+  | "Next week"
   | "Later"
   | "Unscheduled"
   | "Past";
@@ -138,6 +150,7 @@ const CLEAN_TIME_GROUP_ORDER: CleanTimeGroup[] = [
   "Today",
   "Tomorrow",
   "This week",
+  "Next week",
   "Later",
   "Unscheduled",
   "Past",
@@ -164,9 +177,12 @@ export function cleanTimeGroup(
   tomorrow.setDate(tomorrow.getDate() + 1);
   if (cleanIso === toIsoDate(tomorrow)) return "Tomorrow";
 
-  const weekCutoff = new Date(now);
-  weekCutoff.setDate(weekCutoff.getDate() + 6);
-  if (cleanIso <= toIsoDate(weekCutoff)) return "This week";
+  // Monday to Sunday, not the next seven days.
+  const { end: nextMonday } = weekBounds(now);
+  if (cleanIso < toIsoDate(nextMonday)) return "This week";
+  const mondayAfter = new Date(nextMonday);
+  mondayAfter.setDate(mondayAfter.getDate() + 7);
+  if (cleanIso < toIsoDate(mondayAfter)) return "Next week";
 
   return "Later";
 }

@@ -7,24 +7,13 @@ import { card } from "@/lib/ui";
 import { isCleanFinished, sameDayCounts, sameDayLabel } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { turnoversFor } from "@/lib/turnover";
-import { toIsoDate } from "@/lib/schedule";
+import { toIsoDate, weekBounds } from "@/lib/schedule";
 
 export const metadata = { title: "Overview" };
 
-// Today through 6 days out -- the same rolling window cleanTimeGroup already
-// buckets as Today/Tomorrow/This week, so filtering to it here just narrows
-// the query rather than introducing a second definition of "this week".
-function weekWindow() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7);
-  return { start, end };
-}
-
 export default async function AdminHomePage() {
   const { session, db } = await requireStaff();
-  const { start, end } = weekWindow();
+  const { start, end } = weekBounds();
 
   const [clients, properties, upcoming, unscheduled, stockLevels, openIssues, thisWeek] = await Promise.all([
     db.client.count(),
@@ -120,7 +109,7 @@ export default async function AdminHomePage() {
             All cleans →
           </Link>
         </div>
-        <CleanList cleans={thisWeekRows} empty="Nothing scheduled in the next 7 days." />
+        <CleanList cleans={thisWeekRows} empty="Nothing scheduled this week (Monday to Sunday)." />
       </section>
     </div>
   );

@@ -2,20 +2,13 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { Avatar } from "@/components/Avatar";
 import { button, card } from "@/lib/ui";
+import { weekBounds } from "@/lib/schedule";
 
 export const metadata = { title: "Cleaners" };
 
-function weekWindow() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7);
-  return { start, end };
-}
-
 export default async function CleanersPage() {
   const { session, db } = await requireStaff();
-  const { start, end } = weekWindow();
+  const { start, end } = weekBounds();
 
   const [cleaners, thisWeekByCleaner] = await Promise.all([
     db.user.findMany({
