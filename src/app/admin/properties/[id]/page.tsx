@@ -382,16 +382,20 @@ export default async function PropertyDetailPage({
         </h2>
 
         {property.checklistItems.length > 0 && (
-          <ul className="flex flex-col gap-2">
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {property.checklistItems.map((item) => (
-              <li key={item.id} className={card("flex items-center justify-between gap-3 p-4")}>
+              <li key={item.id} className={card("flex items-start justify-between gap-2 p-3")}>
                 <div className="min-w-0 [overflow-wrap:anywhere]">
                   <p className="text-xs text-zinc-500">{item.room}</p>
                   <p className="text-sm">{item.text}</p>
                 </div>
                 <form action={removePropertyChecklistItem.bind(null, property.id, item.id)}>
-                  <button type="submit" className="text-xs text-red-600 hover:underline">
-                    Remove
+                  <button
+                    type="submit"
+                    aria-label={`Remove ${item.text}`}
+                    className="text-xs text-zinc-400 hover:text-red-600"
+                  >
+                    ✕
                   </button>
                 </form>
               </li>
@@ -470,21 +474,23 @@ export default async function PropertyDetailPage({
         </h2>
 
         {property.stockLevels.length > 0 && (
-          <ul className="flex flex-col gap-2">
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {property.stockLevels.map((level) => (
-              <li key={level.id} className={card("flex flex-col gap-3 p-4")}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium">
-                      {level.stockItem.name}
-                    </p>
+              <li key={level.id} className={card("flex flex-col gap-2 p-3")}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-medium">{level.stockItem.name}</p>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StockLevelIndicator band={bandFromDb(level.band)} compact />
                     <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
-                      <button type="submit" className="text-xs text-red-600 hover:underline">
-                        Remove
+                      <button
+                        type="submit"
+                        aria-label={`Remove ${level.stockItem.name}`}
+                        className="text-xs text-zinc-400 hover:text-red-600"
+                      >
+                        ✕
                       </button>
                     </form>
                   </div>
-                  <StockLevelIndicator band={bandFromDb(level.band)} />
                 </div>
 
                 <StockLevelToggle
@@ -674,12 +680,12 @@ export default async function PropertyDetailPage({
         </h2>
 
         {property.invoices.length > 0 ? (
-          <ul className="flex flex-col gap-2">
+          <ul className="grid gap-2 sm:grid-cols-2">
             {property.invoices.map((inv) => (
               <li key={inv.id}>
                 <Link
                   href={`/admin/invoices/${inv.id}`}
-                  className={card("flex items-center justify-between gap-4 p-4 transition-colors hover:bg-black/[0.02]")}
+                  className={card("flex items-center justify-between gap-3 p-3 transition-colors hover:bg-black/[0.02]")}
                 >
                   <div className="min-w-0">
                     <p className="font-medium">{inv.cleaner.name}</p>

@@ -19,14 +19,14 @@ export function StockLevelToggle({
   current: StockLevelBand;
 }) {
   return (
-    <form action={action} className="flex flex-wrap gap-1.5">
+    <form action={action} className="grid grid-cols-4 gap-1">
       {BAND_ORDER.map((band) => (
         <button
           key={band}
           type="submit"
           name="band"
           value={band}
-          className={button(band === current ? "primary" : "secondary", "sm")}
+          className={`${button(band === current ? "primary" : "secondary", "sm")} !px-1 !py-1.5 text-xs`}
         >
           {STOCK_BAND_LABELS[band]}
         </button>

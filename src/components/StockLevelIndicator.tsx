@@ -10,7 +10,7 @@ const FILLED_SEGMENTS: Record<StockLevelBand, number> = { high: 3, medium: 2, lo
 // squinted at. "None" still renders three empty dots rather than
 // disappearing, so a glance at the row tells you it was checked and found
 // empty, not that it was never configured.
-export function StockLevelIndicator({ band }: { band: StockLevelBand }) {
+export function StockLevelIndicator({ band, compact = false }: { band: StockLevelBand; compact?: boolean }) {
   const filled = FILLED_SEGMENTS[band];
 
   return (
@@ -19,13 +19,15 @@ export function StockLevelIndicator({ band }: { band: StockLevelBand }) {
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className={`h-3.5 w-3.5 rounded-full ${i < filled ? "bg-zinc-900" : "bg-black/10"}`}
+            className={`${compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} rounded-full ${i < filled ? "bg-zinc-900" : "bg-black/10"}`}
           />
         ))}
       </span>
-      <span className={`text-sm font-semibold ${band === "none" ? "text-zinc-900" : "text-zinc-600"}`}>
-        {STOCK_BAND_LABELS[band]}
-      </span>
+      {!compact && (
+        <span className={`text-sm font-semibold ${band === "none" ? "text-zinc-900" : "text-zinc-600"}`}>
+          {STOCK_BAND_LABELS[band]}
+        </span>
+      )}
     </span>
   );
 }
