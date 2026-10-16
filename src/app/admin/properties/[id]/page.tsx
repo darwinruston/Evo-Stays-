@@ -8,7 +8,8 @@ import { getPmsAdapter } from "@/lib/pms/registry";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
-import { bandFromDb } from "@/lib/stock";
+import { bandFromDb, isRunningLow } from "@/lib/stock";
+import { PropertyCover } from "@/components/PropertyCover";
 import { AddStockLevelForm } from "@/components/AddStockLevelForm";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
@@ -49,9 +50,20 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: property ? propertyDisplayName(property) : "Property" };
 }
 
-export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const TABS = ["overview", "checklist", "photos", "billing", "syncing"] as const;
+type TabKey = (typeof TABS)[number];
+
+export default async function PropertyDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { db } = await requireStaff();
   const { id } = await params;
+  const { tab: tabParam } = await searchParams;
+  const tab: TabKey = TABS.find((t) => t === tabParam) ?? "overview";
 
   const property = await db.property.findUnique({
     where: { id },
@@ -145,20 +157,57 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
     </details>
   );
 
+  const lowStockCount = property.stockLevels.filter((l) => isRunningLow(l)).length;
+  const syncFailing =
+    property.pmsLastSyncError !== null || property.calendarFeeds.some((f) => f.lastSyncError !== null);
+  const coverPath = property.images[0]?.path ?? null;
+
+  const tabs: { key: TabKey; label: string; alert?: number | "dot" }[] = [
+    { key: "overview", label: "Overview", alert: openIssues.length || undefined },
+    { key: "checklist", label: "Checklist & stock", alert: lowStockCount || undefined },
+    { key: "photos", label: "Photos" },
+    { key: "billing", label: "Billing" },
+    { key: "syncing", label: "Syncing", alert: syncFailing ? "dot" : undefined },
+  ];
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div>
         <Link href="/admin/properties" className="text-sm text-zinc-500 hover:text-zinc-900">
           ← Properties
         </Link>
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="min-w-0">
+        <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <PropertyCover path={coverPath} alt={propertyDisplayName(property)} className="h-20 w-32 sm:h-24 sm:w-36" />
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">{propertyDisplayName(property)}</h1>
             <p className="mt-0.5 text-sm text-zinc-500">
               <Link href={`/admin/clients/${property.client.id}`} className="hover:text-zinc-900">
                 {property.client.name}
               </Link>
+              {" · "}
+              {property.bedrooms ?? "?"} bed · {property.bathrooms ?? "?"} bath · sleeps{" "}
+              {property.maxOccupancy ?? "?"}
             </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {openIssues.length > 0 && (
+                <Link href="?tab=overview#issues" className={badge("solid")}>
+                  {openIssues.length} open {openIssues.length === 1 ? "issue" : "issues"}
+                </Link>
+              )}
+              {lowStockCount > 0 && (
+                <Link href="?tab=checklist" className={badge("solid")}>
+                  {lowStockCount} running low
+                </Link>
+              )}
+              {syncFailing && (
+                <Link href="?tab=syncing" className={badge("solid")}>
+                  Sync problem
+                </Link>
+              )}
+              {openIssues.length === 0 && lowStockCount === 0 && !syncFailing && (
+                <span className={badge("neutral")}>All good</span>
+              )}
+            </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link href={`/admin/cleans?propertyId=${property.id}`} className={button("secondary", "sm")}>
@@ -171,6 +220,36 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
+      <nav aria-label="Property sections" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ul className="flex min-w-max gap-1 border-b border-black/10">
+          {tabs.map((t) => {
+            const active = t.key === tab;
+            return (
+              <li key={t.key}>
+                <Link
+                  href={`?tab=${t.key}`}
+                  aria-current={active ? "page" : undefined}
+                  className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                    active
+                      ? "border-zinc-900 text-zinc-900"
+                      : "border-transparent text-zinc-500 hover:text-zinc-900"
+                  }`}
+                >
+                  {t.label}
+                  {t.alert === "dot" ? (
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-900" aria-label="needs attention" />
+                  ) : t.alert ? (
+                    <span className="rounded-full bg-zinc-900 px-1.5 text-xs leading-5 text-white">{t.alert}</span>
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {tab === "overview" && (
+        <div className="flex flex-col gap-8">
       <PropertyDetails property={property} />
 
       {/* Up top, straight after the property itself -- who's actually
@@ -207,10 +286,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </p>
         )}
       </section>
-
       {/* An open problem here (especially one marked "before next guests")
           is the next most important thing worth seeing on arrival. */}
-      <section className="flex flex-col gap-3">
+      <section id="issues" className="flex flex-col gap-3 scroll-mt-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Open issues <span className="text-sm font-normal text-zinc-500">({openIssues.length})</span>
@@ -239,7 +317,61 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <p className="text-sm text-zinc-500">Nothing reported that still needs dealing with.</p>
         )}
       </section>
+      {laundryOut.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+            Out for laundry{" "}
+            <span className="text-sm font-normal text-zinc-500">({laundryOut.length})</span>
+            <InfoTooltip text="Linen from this property that's out with the laundry company. Mark it returned once it's back and it drops off this list on its own, so this only ever shows what's actually still out." />
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {laundryOut.map((load) => {
+              const otherProperties = [
+                ...new Set(
+                  load.logs
+                    .map((l) => l.clean.property)
+                    .filter((p) => p.id !== property.id)
+                    .map((p) => propertyDisplayName(p)),
+                ),
+              ];
+              return (
+                <li key={load.id} className={card("flex items-center gap-4 p-4")}>
+                  <Link href={`/admin/laundry/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                    {load.receiptPath && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/laundry-photos/${load.receiptPath}`}
+                        alt="Laundry ticket"
+                        className="h-14 w-14 shrink-0 rounded-md object-cover"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {load.cost !== null ? `${formatCurrency(load.cost)} · ` : ""}
+                        {load.facility.name}
+                      </p>
+                      <p className="truncate text-sm text-zinc-500">
+                        {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
+                        {otherProperties.length > 0 && ` · also covers ${otherProperties.join(", ")}`}
+                      </p>
+                    </div>
+                  </Link>
+                  <form action={setLaundryLoadCollected.bind(null, load.id, property.id, true)}>
+                    <button type="submit" className={button("secondary", "sm")}>
+                      Mark as returned
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+        </div>
+      )}
 
+      {tab === "checklist" && (
+        <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Cleaning checklist{" "}
@@ -331,7 +463,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </details>
         </div>
       </section>
-
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Stock <span className="text-sm font-normal text-zinc-500">({property.stockLevels.length})</span>
@@ -384,7 +515,90 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </p>
         )}
       </section>
+        </div>
+      )}
 
+      {tab === "photos" && (
+        <div className="flex flex-col gap-8">
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Photos <span className="text-sm font-normal text-zinc-500">({property.images.length})</span>
+          </h2>
+          {hasPmsListing && pmsAdapter?.fetchCoverPhotoUrl && (
+            <FetchCoverPhotoButton
+              action={fetchPropertyPmsCoverPhoto.bind(null, property.id)}
+              providerName={pmsAdapter.displayName}
+            />
+          )}
+        </div>
+
+        {property.images.length > 0 && (
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {property.images.map((img) => (
+              <li key={img.id} className={card("overflow-hidden")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/photos/${img.path}`}
+                  alt={propertyDisplayName(property)}
+                  className="h-32 w-full object-cover"
+                />
+                <div className="flex items-center justify-between gap-2 p-2">
+                  {img.isPrimary ? (
+                    <span className={badge("solid")}>Cover</span>
+                  ) : (
+                    <form action={setPrimaryPhoto.bind(null, property.id, img.id)}>
+                      <button type="submit" className={button("ghost", "sm")}>
+                        Make cover
+                      </button>
+                    </form>
+                  )}
+                  <form action={deletePropertyPhoto.bind(null, property.id, img.id)}>
+                    <button type="submit" className={button("ghost", "sm")} aria-label="Delete photo">
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <details className="w-fit">
+          <summary
+            className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
+          >
+            + Add photos
+          </summary>
+          <form
+            action={addPropertyPhotos.bind(null, property.id)}
+            className={card("mt-3 flex max-w-lg flex-col gap-3 p-4")}
+          >
+            <label htmlFor="photos" className="text-sm font-medium">
+              Choose photos
+            </label>
+            <input
+              id="photos"
+              name="photos"
+              type="file"
+              accept="image/*"
+              multiple
+              required
+              className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
+            />
+            <div>
+              <button type="submit" className={button("primary", "sm")}>
+                Upload
+              </button>
+            </div>
+          </form>
+        </details>
+      </section>
+        </div>
+      )}
+
+      {tab === "billing" && (
+        <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Billing
@@ -454,7 +668,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </form>
         )}
       </section>
-
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Cleaning costs <span className="text-sm font-normal text-zinc-500">({property.invoices.length})</span>
@@ -497,7 +710,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </p>
         )}
       </section>
+        </div>
+      )}
 
+      {tab === "syncing" && (
+        <div className="flex flex-col gap-8">
       {/* Fully hidden once a PMS listing is linked and there's nothing left
           to clean up -- a PMS listing already aggregates every channel, so
           running both at once only risks a duplicate clean for the same
@@ -605,7 +822,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           )}
         </section>
       )}
-
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           {pmsAdapter?.displayName ?? "PMS"}
@@ -687,132 +903,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           </div>
         )}
       </section>
-
-      {laundryOut.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
-            Out for laundry{" "}
-            <span className="text-sm font-normal text-zinc-500">({laundryOut.length})</span>
-            <InfoTooltip text="Linen from this property that's out with the laundry company. Mark it returned once it's back and it drops off this list on its own, so this only ever shows what's actually still out." />
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {laundryOut.map((load) => {
-              const otherProperties = [
-                ...new Set(
-                  load.logs
-                    .map((l) => l.clean.property)
-                    .filter((p) => p.id !== property.id)
-                    .map((p) => propertyDisplayName(p)),
-                ),
-              ];
-              return (
-                <li key={load.id} className={card("flex items-center gap-4 p-4")}>
-                  <Link href={`/admin/laundry/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
-                    {load.receiptPath && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={`/api/laundry-photos/${load.receiptPath}`}
-                        alt="Laundry ticket"
-                        className="h-14 w-14 shrink-0 rounded-md object-cover"
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium">
-                        {load.cost !== null ? `${formatCurrency(load.cost)} · ` : ""}
-                        {load.facility.name}
-                      </p>
-                      <p className="truncate text-sm text-zinc-500">
-                        {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
-                        {otherProperties.length > 0 && ` · also covers ${otherProperties.join(", ")}`}
-                      </p>
-                    </div>
-                  </Link>
-                  <form action={setLaundryLoadCollected.bind(null, load.id, property.id, true)}>
-                    <button type="submit" className={button("secondary", "sm")}>
-                      Mark as returned
-                    </button>
-                  </form>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-zinc-900">
-            Photos <span className="text-sm font-normal text-zinc-500">({property.images.length})</span>
-          </h2>
-          {hasPmsListing && pmsAdapter?.fetchCoverPhotoUrl && (
-            <FetchCoverPhotoButton
-              action={fetchPropertyPmsCoverPhoto.bind(null, property.id)}
-              providerName={pmsAdapter.displayName}
-            />
-          )}
         </div>
-
-        {property.images.length > 0 && (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {property.images.map((img) => (
-              <li key={img.id} className={card("overflow-hidden")}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/photos/${img.path}`}
-                  alt={propertyDisplayName(property)}
-                  className="h-32 w-full object-cover"
-                />
-                <div className="flex items-center justify-between gap-2 p-2">
-                  {img.isPrimary ? (
-                    <span className={badge("solid")}>Cover</span>
-                  ) : (
-                    <form action={setPrimaryPhoto.bind(null, property.id, img.id)}>
-                      <button type="submit" className={button("ghost", "sm")}>
-                        Make cover
-                      </button>
-                    </form>
-                  )}
-                  <form action={deletePropertyPhoto.bind(null, property.id, img.id)}>
-                    <button type="submit" className={button("ghost", "sm")} aria-label="Delete photo">
-                      Delete
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <details className="w-fit">
-          <summary
-            className={`${button("secondary", "sm")} inline-flex w-fit cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden`}
-          >
-            + Add photos
-          </summary>
-          <form
-            action={addPropertyPhotos.bind(null, property.id)}
-            className={card("mt-3 flex max-w-lg flex-col gap-3 p-4")}
-          >
-            <label htmlFor="photos" className="text-sm font-medium">
-              Choose photos
-            </label>
-            <input
-              id="photos"
-              name="photos"
-              type="file"
-              accept="image/*"
-              multiple
-              required
-              className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
-            />
-            <div>
-              <button type="submit" className={button("primary", "sm")}>
-                Upload
-              </button>
-            </div>
-          </form>
-        </details>
-      </section>
+      )}
     </div>
   );
 }
