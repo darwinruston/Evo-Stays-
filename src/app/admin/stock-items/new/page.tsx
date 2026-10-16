@@ -25,17 +25,6 @@ export default async function NewStockItemPage() {
           <input id="name" name="name" required placeholder="Toilet roll" className={inputCompact} />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="unit" className="text-sm font-medium">
-            Unit
-          </label>
-          <input id="unit" name="unit" placeholder="e.g. roll, bottle, pack" className={inputCompact} />
-          <p className="text-xs text-zinc-500">
-            Optional: shown next to the count, e.g. &quot;6 rolls&quot;. Describes what&apos;s
-            being counted, not a number itself.
-          </p>
-        </div>
-
         <div>
           <button type="submit" className={button("primary", "sm")}>
             Create item

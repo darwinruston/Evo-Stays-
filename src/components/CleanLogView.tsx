@@ -7,7 +7,7 @@ type LogPhoto = { id: string; path: string; stage: "BEFORE" | "AFTER" };
 type LogStockUsage = {
   id: string;
   band: PrismaStockLevelBand;
-  stockItem: { name: string; unit: string | null };
+  stockItem: { name: string };
 };
 
 type LogLike = {
@@ -46,7 +46,6 @@ function StockUsageGroup({ usage }: { usage: LogStockUsage[] }) {
           <li key={u.id} className="flex justify-between text-sm">
             <span className="text-zinc-600">
               {u.stockItem.name}
-              {u.stockItem.unit ? ` (${u.stockItem.unit})` : ""}
             </span>
             <span>{STOCK_BAND_LABELS[bandFromDb(u.band)]}</span>
           </li>

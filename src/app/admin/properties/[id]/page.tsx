@@ -477,7 +477,6 @@ export default async function PropertyDetailPage({
                   <div>
                     <p className="font-medium">
                       {level.stockItem.name}
-                      {level.stockItem.unit ? ` (${level.stockItem.unit})` : ""}
                     </p>
                     <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
                       <button type="submit" className="text-xs text-red-600 hover:underline">

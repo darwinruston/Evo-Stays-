@@ -289,7 +289,6 @@ export default async function CleanerCleanPage({
               key={currentStockStep.level.stockItemId}
               action={recordStockLevel.bind(null, clean.id, currentStockStep.level.stockItemId)}
               itemName={currentStockStep.level.stockItem.name}
-              unit={currentStockStep.level.stockItem.unit}
               predicted={currentStockStep.band}
               reason={currentStockStep.reason}
               position={recordedStockItemIds.size + 1}

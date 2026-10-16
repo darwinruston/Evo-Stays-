@@ -43,7 +43,7 @@ export default async function StockItemsPage() {
                 <div>
                   <p className="font-medium">{item.name}</p>
                   <p className="text-sm text-zinc-500">
-                    {item.unit ?? "no unit set"} · configured on {item._count.levels}{" "}
+                    Configured on {item._count.levels}{" "}
                     {item._count.levels === 1 ? "property" : "properties"}
                   </p>
                 </div>

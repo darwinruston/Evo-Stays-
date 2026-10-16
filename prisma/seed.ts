@@ -218,10 +218,10 @@ async function main() {
   // soap seeded as Low, so the "running low" view has something to show
   // without needing a real clean to happen first.
   const stockItemDefs = [
-    { name: "Toilet roll", unit: "roll" },
-    { name: "Bin bags", unit: "bag" },
-    { name: "Hand soap", unit: "bottle" },
-    { name: "Welcome tea/coffee", unit: "sachet" },
+    { name: "Toilet roll" },
+    { name: "Bin bags" },
+    { name: "Hand soap" },
+    { name: "Welcome tea/coffee" },
   ];
   const stockItems = await Promise.all(
     stockItemDefs.map((s) =>

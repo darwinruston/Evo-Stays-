@@ -21,7 +21,6 @@ const BAND_ORDER: StockLevelBand[] = ["high", "medium", "low", "none"];
 export function StockLevelStep({
   action,
   itemName,
-  unit,
   predicted,
   reason,
   position,
@@ -29,7 +28,6 @@ export function StockLevelStep({
 }: {
   action: (formData: FormData) => void;
   itemName: string;
-  unit: string | null;
   predicted: StockLevelBand;
   reason: string;
   position: number;
@@ -46,7 +44,6 @@ export function StockLevelStep({
         </p>
         <h2 className="text-sm font-medium">
           {itemName}
-          {unit ? ` (${unit})` : ""}
         </h2>
         <p className="mt-1 text-sm text-zinc-600">{reason}</p>
       </div>

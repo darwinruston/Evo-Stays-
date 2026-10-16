@@ -14,19 +14,6 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-// Unit is a free label for what's being counted -- "roll", "bottle" -- shown
-// next to a number, never used in arithmetic. A bare number here (someone
-// typing a quantity into the wrong field, e.g. "3") would display as
-// nonsense like "3 3", so it's rejected the same way a required field is.
-function unit(formData: FormData, key: string): string | null {
-  const raw = str(formData, key);
-  if (raw === null) return null;
-  if (/^\d+(\.\d+)?$/.test(raw)) {
-    throw new Error('Unit should describe what’s being counted (e.g. "roll", "bottle"), not a number.');
-  }
-  return raw;
-}
-
 export async function createStockItem(formData: FormData) {
   const { session, db } = await requireStaff();
 
@@ -34,7 +21,7 @@ export async function createStockItem(formData: FormData) {
   if (!name) throw new Error("Name is required");
 
   await db.stockItem.create({
-    data: { organizationId: session.user.organizationId, name, unit: unit(formData, "unit") },
+    data: { organizationId: session.user.organizationId, name },
   });
 
   revalidatePath("/admin/stock-items");
@@ -51,7 +38,6 @@ export async function updateStockItem(id: string, formData: FormData) {
     where: { id },
     data: {
       name,
-      unit: unit(formData, "unit"),
       active: formData.get("active") === "on",
     },
   });
