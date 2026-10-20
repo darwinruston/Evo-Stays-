@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
+import { getOrgModules } from "@/lib/modules";
 import { ClientForm } from "../ClientForm";
 import { createClient } from "../actions";
 
 export const metadata = { title: "New client" };
 
 export default async function NewClientPage() {
-  await requireStaff();
+  const { session } = await requireStaff();
+  const modules = await getOrgModules(session.user.organizationId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,7 +23,7 @@ export default async function NewClientPage() {
         </p>
       </div>
 
-      <ClientForm action={createClient} submitLabel="Create client" />
+      <ClientForm action={createClient} submitLabel="Create client" showPms={modules.sync} />
     </div>
   );
 }

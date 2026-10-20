@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
+import { getOrgModules } from "@/lib/modules";
 import { ClientForm } from "../../ClientForm";
 import { updateClient, deleteClient, removeClientPmsCredentials } from "../../actions";
 import { getPmsAdapter } from "@/lib/pms/registry";
@@ -9,7 +10,8 @@ import { button } from "@/lib/ui";
 export const metadata = { title: "Edit client" };
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
-  const { db } = await requireStaff();
+  const { session, db } = await requireStaff();
+  const modules = await getOrgModules(session.user.organizationId);
   const { id } = await params;
 
   const client = await db.client.findUnique({
@@ -31,6 +33,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
         action={updateClient.bind(null, client.id)}
         client={{ ...client, hasPmsCredentials: client.pmsCredentials !== null }}
         submitLabel="Save changes"
+        showPms={modules.sync || client.pmsProvider !== null}
       />
 
       {client.pmsProvider !== null && client.pmsCredentials !== null && (

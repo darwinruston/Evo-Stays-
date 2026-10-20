@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireCleaner } from "@/lib/authz";
+import { getOrgModules } from "@/lib/modules";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
 import { unreadNotificationCount } from "@/lib/notificationViews";
@@ -16,7 +17,8 @@ const NAV = [
 export default async function CleanerLayout({ children }: { children: React.ReactNode }) {
   const { session, db } = await requireCleaner();
   const unread = await unreadNotificationCount(db, session.user.id);
-  const items = [...NAV, { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }];
+  const modules = await getOrgModules(session.user.organizationId);
+  const items = [...NAV.filter((item) => item.href !== "/cleaner/laundry" || modules.laundry), { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }];
 
   return (
     <div className="min-h-screen">

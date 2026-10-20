@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { InvoiceCadence } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import { assertModule } from "@/lib/modules";
 // prisma (the raw client) is used once below, deliberately -- see the
 // comment on adjustInvoiceLineHours.
 import { generateInvoices, formatHours } from "@/lib/invoices";
@@ -40,6 +41,7 @@ function localDateFromInput(formData: FormData, key: string): Date | null {
 
 export async function updateBillingCadence(formData: FormData) {
   const { session, db } = await requireStaff();
+  await assertModule(session.user.organizationId, "invoicing");
 
   const cadence = str(formData, "cadence");
   const valid: InvoiceCadence[] = ["WEEKLY", "FORTNIGHTLY", "MONTHLY"];
@@ -57,7 +59,8 @@ export async function updateBillingCadence(formData: FormData) {
 }
 
 export async function runInvoiceGeneration(formData: FormData) {
-  const { db } = await requireStaff();
+  const { session, db } = await requireStaff();
+  await assertModule(session.user.organizationId, "invoicing");
 
   const periodStart = localDateFromInput(formData, "periodStart");
   // The form's "To" is the last included day; generateInvoices wants an

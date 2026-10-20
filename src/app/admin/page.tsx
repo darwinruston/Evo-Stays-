@@ -1,6 +1,7 @@
 import { arrivalLabel } from "@/lib/arrival";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
+import { getOrgModules } from "@/lib/modules";
 import { propertyDisplayName } from "@/lib/address";
 import { isRunningLow } from "@/lib/stock";
 import { CleanList, type CleanRow } from "@/components/CleanList";
@@ -14,6 +15,7 @@ export const metadata = { title: "Overview" };
 
 export default async function AdminHomePage() {
   const { session, db } = await requireStaff();
+  const modules = await getOrgModules(session.user.organizationId);
   const { start, end } = weekBounds();
 
   const [clients, properties, upcoming, unscheduled, stockLevels, openIssues, thisWeek] = await Promise.all([
@@ -63,7 +65,7 @@ export default async function AdminHomePage() {
     { href: "/admin/properties", label: "Properties", value: properties },
     { href: "/admin/cleans", label: "Cleans outstanding", value: upcoming },
     { href: "/admin/cleans", label: "Unscheduled cleans", value: unscheduled },
-    { href: "/admin/stock", label: "Properties running low", value: lowProperties },
+    ...(modules.stock ? [{ href: "/admin/stock", label: "Properties running low", value: lowProperties }] : []),
     { href: "/admin/issues", label: "Open issues", value: openIssues },
     // Unfinished cleans today whose next guests also arrive today -- the
     // ones with a hard deadline. Reuses the week's turnovers map, since

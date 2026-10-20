@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import { assertModule } from "@/lib/modules";
 // prisma (the raw client) is used once below, deliberately -- see the
 // comment on deleteStockItem.
 
@@ -16,6 +17,7 @@ function str(formData: FormData, key: string): string | null {
 
 export async function createStockItem(formData: FormData) {
   const { session, db } = await requireStaff();
+  await assertModule(session.user.organizationId, "stock");
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");

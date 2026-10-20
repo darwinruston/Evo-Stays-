@@ -5,6 +5,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
 import { getPmsAdapter } from "@/lib/pms/registry";
+import { getOrgModules } from "@/lib/modules";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { StockLevelToggle } from "@/components/StockLevelToggle";
@@ -60,10 +61,14 @@ export default async function PropertyDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const { db } = await requireStaff();
+  const { session, db } = await requireStaff();
+  const modules = await getOrgModules(session.user.organizationId);
   const { id } = await params;
   const { tab: tabParam } = await searchParams;
-  const tab: TabKey = TABS.find((t) => t === tabParam) ?? "overview";
+  const visibleTabs = TABS.filter(
+    (t) => (t !== "billing" || modules.invoicing) && (t !== "syncing" || modules.sync),
+  );
+  const tab: TabKey = visibleTabs.find((t) => t === tabParam) ?? "overview";
 
   const property = await db.property.findUnique({
     where: { id },
@@ -157,18 +162,24 @@ export default async function PropertyDetailPage({
     </details>
   );
 
-  const lowStockCount = property.stockLevels.filter((l) => isRunningLow(l)).length;
+  const lowStockCount = modules.stock ? property.stockLevels.filter((l) => isRunningLow(l)).length : 0;
   const syncFailing =
-    property.pmsLastSyncError !== null || property.calendarFeeds.some((f) => f.lastSyncError !== null);
+    modules.sync &&
+    (property.pmsLastSyncError !== null || property.calendarFeeds.some((f) => f.lastSyncError !== null));
   const coverPath = property.images[0]?.path ?? null;
 
-  const tabs: { key: TabKey; label: string; alert?: number | "dot" }[] = [
+  const allTabs: { key: TabKey; label: string; alert?: number | "dot" }[] = [
     { key: "overview", label: "Overview", alert: openIssues.length || undefined },
-    { key: "checklist", label: "Checklist & stock", alert: lowStockCount || undefined },
+    {
+      key: "checklist",
+      label: modules.stock ? "Checklist & stock" : "Checklist",
+      alert: lowStockCount || undefined,
+    },
     { key: "photos", label: "Photos" },
     { key: "billing", label: "Billing" },
     { key: "syncing", label: "Syncing", alert: syncFailing ? "dot" : undefined },
   ];
+  const tabs = allTabs.filter((t) => visibleTabs.includes(t.key));
 
   return (
     <div className="flex flex-col gap-6">
@@ -317,7 +328,7 @@ export default async function PropertyDetailPage({
           <p className="text-sm text-zinc-500">Nothing reported that still needs dealing with.</p>
         )}
       </section>
-      {laundryOut.length > 0 && (
+      {modules.laundry && laundryOut.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Out for laundry{" "}
@@ -467,6 +478,7 @@ export default async function PropertyDetailPage({
           </details>
         </div>
       </section>
+      {modules.stock && (
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Stock <span className="text-sm font-normal text-zinc-500">({property.stockLevels.length})</span>
@@ -520,6 +532,7 @@ export default async function PropertyDetailPage({
           </p>
         )}
       </section>
+      )}
         </div>
       )}
 

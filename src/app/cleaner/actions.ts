@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
+import { assertModule, getOrgModules } from "@/lib/modules";
 import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
@@ -160,7 +161,14 @@ export async function uploadCleanPhotos(
 
 // Fetches this property's configured par levels -- what the stock step (and
 // the completeClean guard below) checks the cleaner's counts against.
-async function configuredStockItemIds(db: ScopedPrismaClient, propertyId: string): Promise<string[]> {
+async function configuredStockItemIds(
+  db: ScopedPrismaClient,
+  propertyId: string,
+  organizationId: string,
+): Promise<string[]> {
+  // A company that has switched stock tracking off has no stock step, so
+  // nothing is owed before check-out whatever is still configured.
+  if (!(await getOrgModules(organizationId)).stock) return [];
   const levels = await db.propertyStockLevel.findMany({
     where: { propertyId },
     select: { stockItemId: true },
@@ -182,6 +190,7 @@ async function configuredStockItemIds(db: ScopedPrismaClient, propertyId: string
 // this flow is for avoiding.
 export async function recordStockLevel(cleanId: string, stockItemId: string, formData: FormData) {
   const { session, db } = await requireCleaner();
+  await assertModule(session.user.organizationId, "stock");
   const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
 
   if (clean.status !== "IN_PROGRESS" || !clean.log) {
@@ -230,7 +239,7 @@ export async function completeClean(cleanId: string, formData: FormData) {
     throw new Error("Both before and after photos are needed before checking out.");
   }
 
-  const itemIds = await configuredStockItemIds(db, clean.propertyId);
+  const itemIds = await configuredStockItemIds(db, clean.propertyId, session.user.organizationId);
   const recorded = new Set(clean.log.stockUsage.map((u) => u.stockItemId));
   if (itemIds.some((id) => !recorded.has(id))) {
     throw new Error("Stock counts are needed before checking out.");
@@ -310,6 +319,9 @@ export async function createLaundryLoad(
   formData: FormData,
 ): Promise<LaundryLoadFormState> {
   const { session, db } = await requireCleaner();
+  if (!(await getOrgModules(session.user.organizationId)).laundry) {
+    return { error: "Laundry isn't switched on for your company." };
+  }
 
   const requestedIds = formData
     .getAll("cleanLogIds")

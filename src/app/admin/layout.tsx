@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
+import { getOrgSetup } from "@/lib/modules";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
@@ -29,6 +31,13 @@ const PROFILE_NAV = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { session, db } = await requireStaff();
+  // A brand-new company's admin answers the setup questions before anything
+  // else. Support staff impersonating the company (see impersonation/) and
+  // office users are left alone: it's the admin's decision to make.
+  const { modules, onboardingDone } = await getOrgSetup(session.user.organizationId);
+  if (!onboardingDone && session.user.role === "ADMIN" && !session.user.impersonatedBy) {
+    redirect("/onboarding");
+  }
   // Notifications leads the right-hand group -- it's personal to whoever's
   // signed in, like the directories beside it, rather than a shared work
   // area. Built per request since the count is.
@@ -39,12 +48,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     unreadNotificationCount(db, session.user.id),
     db.issue.count({ where: { status: { not: "RESOLVED" } } }),
   ]);
-  const items = NAV.map((item) =>
-    item.href === "/admin/issues" ? { ...item, count: openIssues, countLabel: "open" } : item,
-  );
+  const items = NAV.filter(
+    (item) =>
+      (item.href !== "/admin/stock" || modules.stock) &&
+      (item.href !== "/admin/invoices" || modules.invoicing) &&
+      (item.href !== "/admin/laundry" || modules.laundry),
+  ).map((item) => (item.href === "/admin/issues" ? { ...item, count: openIssues, countLabel: "open" } : item));
   const rightItems = [
     { href: "/admin/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" },
     ...PROFILE_NAV,
+    ...(session.user.role === "ADMIN" ? [{ href: "/admin/settings", label: "Settings" }] : []),
   ];
 
   // Only fetched when actually impersonating (see impersonateOrganization

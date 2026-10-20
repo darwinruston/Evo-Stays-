@@ -24,10 +24,14 @@ export function ClientForm({
   action,
   client,
   submitLabel,
+  showPms = true,
 }: {
   action: (formData: FormData) => void;
   client?: ClientFields;
   submitLabel: string;
+  // False for a company that doesn't sync bookings (see Settings), unless
+  // this client already has a PMS connected -- that one stays editable.
+  showPms?: boolean;
 }) {
   return (
     <form action={action} className="flex max-w-lg flex-col gap-4">
@@ -94,15 +98,17 @@ export function ClientForm({
         />
       </div>
 
-      <PmsCredentialFields
-        providers={PMS_PROVIDERS.map((a) => ({
-          provider: a.provider,
-          displayName: a.displayName,
-          credentialFields: a.credentialFields,
-        }))}
-        currentProvider={client?.pmsProvider ?? null}
-        hasCredentials={client?.hasPmsCredentials ?? false}
-      />
+      {showPms && (
+        <PmsCredentialFields
+          providers={PMS_PROVIDERS.map((a) => ({
+            provider: a.provider,
+            displayName: a.displayName,
+            credentialFields: a.credentialFields,
+          }))}
+          currentProvider={client?.pmsProvider ?? null}
+          hasCredentials={client?.hasPmsCredentials ?? false}
+        />
+      )}
 
       <div>
         <button type="submit" className={button("primary", "sm")}>

@@ -30,6 +30,7 @@ import {
   reportIssue,
 } from "../../actions";
 import { defaultArrivalTime, formatTimeOfDay } from "@/lib/arrival";
+import { getOrgModules } from "@/lib/modules";
 
 export const metadata = { title: "Clean" };
 
@@ -140,7 +141,8 @@ export default async function CleanerCleanPage({
   // Opt-in per property: a place with nothing configured skips straight past
   // this step, so rolling out stock tracking doesn't hold up every turnover
   // everywhere else.
-  const stockItems = clean.property.stockLevels;
+  const stockModuleOn = (await getOrgModules(session.user.organizationId)).stock;
+  const stockItems = stockModuleOn ? clean.property.stockLevels : [];
   const recordedStockItemIds = new Set((clean.log?.stockUsage ?? []).map((u) => u.stockItemId));
   const stockDone =
     stockItems.length === 0 || stockItems.every((s) => recordedStockItemIds.has(s.stockItemId));

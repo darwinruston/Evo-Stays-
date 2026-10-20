@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import { getOrgModules } from "@/lib/modules";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 
 function str(formData: FormData, key: string): string | null {
@@ -44,6 +45,9 @@ export async function createLaundryLoad(
   formData: FormData,
 ): Promise<LaundryLoadFormState> {
   const { session, db } = await requireStaff();
+  if (!(await getOrgModules(session.user.organizationId)).laundry) {
+    return { error: "Laundry is switched off for your company. You can turn it on in Settings." };
+  }
 
   const requestedIds = selectedCleanLogIds(formData);
   if (requestedIds.length === 0) return { error: "Pick at least one clean." };
