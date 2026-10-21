@@ -2,7 +2,10 @@ import Link from "next/link";
 import { formatClock, type LinenDay } from "@/lib/linenPlan";
 import { formatMinutes } from "@/lib/cleanDuration";
 import { toIsoDate } from "@/lib/schedule";
-import { badge, button, card } from "@/lib/ui";
+import { badge, button, card, inputCompact } from "@/lib/ui";
+import { LinenStopControls } from "@/components/LinenStopControls";
+import { setLinenArrival, clearLinenArrival, flagLinenIssue } from "@/app/linen/actions";
+import { resolveLinenIssue } from "@/app/admin/laundry/actions";
 
 function addDays(date: Date, days: number): Date {
   const next = new Date(date);
@@ -22,21 +25,25 @@ function mapsHref(address: string): string {
 // to arrive within at each property (after the cleaner has got there, so
 // there's dirty linen to take, and before the clean linen is too late to
 // use), and when each cleaner arrives.
-// Shared by the linen company's own page and the staff preview of it, which
-// differ only in where the day links go and whether a stop links on to the
-// clean (staff only).
+// Shared by the linen company's own page ("linen": it can pick its arrival
+// time and flag a problem) and the staff view of the same plan ("staff": it
+// shows what the linen company chose and any problem flagged, with a way to
+// resolve it, and links on to the clean).
 export function LinenScheduleView({
   data,
+  mode,
   hrefForDay,
   hrefForClean,
 }: {
   data: LinenDay;
+  mode: "linen" | "staff";
   hrefForDay: (isoDate: string) => string;
   hrefForClean?: (cleanId: string) => string;
 }) {
   const { plan, notes } = data;
   const today = new Date();
   const isToday = toIsoDate(data.day) === toIsoDate(today);
+  const dayIso = toIsoDate(data.day);
 
   return (
     <div className="flex flex-col gap-5">
@@ -96,13 +103,22 @@ export function LinenScheduleView({
                 </a>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-xs text-zinc-500">Arrive between</p>
-                <p className="text-xl font-semibold tracking-tight">
-                  {formatClock(stop.plannedArrival)}
-                  {stop.latestArrival.getTime() > stop.plannedArrival.getTime()
-                    ? ` to ${formatClock(stop.latestArrival)}`
-                    : ""}
-                </p>
+                {stop.chosen === "set" ? (
+                  <>
+                    <p className="text-xs text-zinc-500">{mode === "linen" ? "You're arriving at" : "Linen arriving at"}</p>
+                    <p className="text-xl font-semibold tracking-tight">{formatClock(stop.plannedArrival)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-zinc-500">Arrive between</p>
+                    <p className="text-xl font-semibold tracking-tight">
+                      {formatClock(stop.plannedArrival)}
+                      {stop.latestArrival.getTime() > stop.plannedArrival.getTime()
+                        ? ` to ${formatClock(stop.latestArrival)}`
+                        : ""}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -138,9 +154,68 @@ export function LinenScheduleView({
 
             {stop.lateByMinutes > 0 && (
               <p role="alert" className={`${badge("solid")} w-fit`}>
-                Can&apos;t arrive before {formatClock(stop.plannedArrival)}, {stop.lateByMinutes} min after the clean
-                linen is needed
+                {stop.chosen === "set"
+                  ? `Can't get here by the time chosen: earliest ${formatClock(stop.plannedArrival)}, after the stop before`
+                  : `Can't arrive before ${formatClock(stop.plannedArrival)}, ${stop.lateByMinutes} min after the clean linen is needed`}
               </p>
+            )}
+
+            {mode === "linen" && (
+              <LinenStopControls
+                windowStart={formatClock(stop.windowStart)}
+                windowEnd={formatClock(stop.windowEnd)}
+                suggested={formatClock(stop.plannedArrival)}
+                chosen={stop.chosen === "set" ? formatClock(stop.plannedArrival) : null}
+                stale={stop.chosen === "stale"}
+                issue={
+                  data.visits[stop.cleanId]?.issueNote
+                    ? {
+                        note: data.visits[stop.cleanId].issueNote!,
+                        resolved: data.visits[stop.cleanId].issueResolvedAt !== null,
+                        resolutionNote: data.visits[stop.cleanId].resolutionNote,
+                      }
+                    : null
+                }
+                setArrival={setLinenArrival.bind(null, stop.cleanId, dayIso)}
+                clearArrival={clearLinenArrival.bind(null, stop.cleanId, dayIso)}
+                flagIssue={flagLinenIssue.bind(null, stop.cleanId, dayIso)}
+              />
+            )}
+
+            {mode === "staff" && stop.chosen === "stale" && (
+              <p className="text-xs text-zinc-500">
+                The linen company had chosen a time, but it no longer fits (the cleaner&apos;s time changed), so the
+                suggested time is shown until they choose again.
+              </p>
+            )}
+
+            {mode === "staff" && data.visits[stop.cleanId]?.issueNote && (
+              <div className="flex flex-col gap-2 rounded-lg bg-black/[0.04] p-3 text-sm">
+                <p className="flex items-center gap-2 font-medium">
+                  Linen company problem
+                  <span className={badge(data.visits[stop.cleanId].issueResolvedAt ? "neutral" : "solid")}>
+                    {data.visits[stop.cleanId].issueResolvedAt ? "Resolved" : "Needs picking up"}
+                  </span>
+                </p>
+                <p className="text-zinc-700">{data.visits[stop.cleanId].issueNote}</p>
+                {data.visits[stop.cleanId].issueResolvedAt ? (
+                  data.visits[stop.cleanId].resolutionNote && (
+                    <p className="text-zinc-600">You replied: {data.visits[stop.cleanId].resolutionNote}</p>
+                  )
+                ) : (
+                  <form action={resolveLinenIssue.bind(null, stop.cleanId)} className="flex flex-wrap items-center gap-2">
+                    <input
+                      name="resolutionNote"
+                      maxLength={300}
+                      placeholder="Optional note back to them"
+                      className={`${inputCompact} max-w-xs flex-1`}
+                    />
+                    <button type="submit" className={button("secondary", "sm")}>
+                      Mark resolved
+                    </button>
+                  </form>
+                )}
+              </div>
             )}
 
             {hrefForClean && (

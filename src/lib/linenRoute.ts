@@ -68,6 +68,10 @@ export type StopInput = {
   cleanMinutes: number;
   cleanEstimateSample: number;
   cleanEstimateLearned: boolean;
+  // A time the linen company picked to arrive. Used (and planned around) only
+  // while it still falls inside the window; if the window has moved since and
+  // it no longer fits, it's ignored and reported as chosenFits: false.
+  chosenArrival: Date | null;
 };
 
 export type PlanSettings = {
@@ -89,9 +93,12 @@ export type PlanSettings = {
 
 export type PlannedStop = StopInput & {
   order: number;
-  // The window the van has to arrive within, from the cleaner's arrival.
+  // The window the van is allowed to arrive within, from the cleaner's arrival.
   windowStart: Date;
   windowEnd: Date;
+  // "set" when the linen company's own chosen time is in use, "stale" when
+  // they chose one but it no longer fits the window, "none" otherwise.
+  chosen: "none" | "set" | "stale";
   // True when the clean is so short that the window had to close before the
   // dirty linen would normally be ready.
   tight: boolean;
@@ -150,13 +157,40 @@ export function handoverMinutesFor(cleanMinutes: number, settings: PlanSettings)
 function windowOf(
   stop: Timed,
   settings: PlanSettings,
-): { start: number; end: number; tight: boolean; lead: number; handover: number } {
+): {
+  // The window the van is allowed to use.
+  allowedStart: number;
+  allowedEnd: number;
+  // What the day is planned around: the allowed window, or the single moment
+  // the linen company chose within it.
+  start: number;
+  end: number;
+  tight: boolean;
+  lead: number;
+  handover: number;
+  chosen: "none" | "set" | "stale";
+} {
   const arrival = stop.cleanerArrival.getTime();
   const lead = leadMinutesFor(stop.cleanMinutes, settings);
   const handover = handoverMinutesFor(stop.cleanMinutes, settings);
-  const end = arrival + (stop.cleanMinutes - lead) * 60_000;
+  const allowedEnd = arrival + (stop.cleanMinutes - lead) * 60_000;
   const opens = arrival + handover * 60_000;
-  return { start: Math.min(opens, end), end, tight: end < opens, lead, handover };
+  const allowedStart = Math.min(opens, allowedEnd);
+
+  let chosen: "none" | "set" | "stale" = "none";
+  let start = allowedStart;
+  let end = allowedEnd;
+  if (stop.chosenArrival) {
+    const at = stop.chosenArrival.getTime();
+    if (at >= allowedStart && at <= allowedEnd) {
+      chosen = "set";
+      start = at;
+      end = at;
+    } else {
+      chosen = "stale";
+    }
+  }
+  return { allowedStart, allowedEnd, start, end, tight: allowedEnd < opens, lead, handover, chosen };
 }
 
 // Runs the day forward in a given order: the van goes straight to each stop
@@ -273,8 +307,9 @@ export function planRoute(stops: StopInput[], settings: PlanSettings): RoutePlan
     return {
       ...stop,
       order: k + 1,
-      windowStart: new Date(window.start),
-      windowEnd: new Date(window.end),
+      windowStart: new Date(window.allowedStart),
+      windowEnd: new Date(window.allowedEnd),
+      chosen: window.chosen,
       tight: window.tight,
       leadMinutes: window.lead,
       handoverMinutes: window.handover,

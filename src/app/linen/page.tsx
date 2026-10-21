@@ -25,5 +25,5 @@ export default async function LinenPage({ searchParams }: { searchParams: Promis
   const data = await loadLinenDay(db, facilityId, day);
   if (!data) return <p className="text-sm text-zinc-600">This linen company no longer exists.</p>;
 
-  return <LinenScheduleView data={data} hrefForDay={(iso) => `/linen?day=${iso}`} />;
+  return <LinenScheduleView data={data} mode="linen" hrefForDay={(iso) => `/linen?day=${iso}`} />;
 }

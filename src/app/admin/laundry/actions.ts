@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
-import { getOrgModules } from "@/lib/modules";
+import { assertModule, getOrgModules } from "@/lib/modules";
+import { logAudit } from "@/lib/audit";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 
 function str(formData: FormData, key: string): string | null {
@@ -111,4 +112,31 @@ export async function setLaundryLoadCollected(id: string, propertyId: string | n
   revalidatePath("/admin/laundry");
   revalidatePath(`/admin/laundry/${id}`);
   if (propertyId) revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+// The office picking up a problem the linen company flagged: marks it
+// resolved, with an optional word back that the linen company sees on its
+// own schedule.
+export async function resolveLinenIssue(cleanId: string, formData: FormData) {
+  const { session, db } = await requireStaff();
+  await assertModule(session.user.organizationId, "laundry");
+
+  const visit = await db.linenVisit.findUnique({ where: { cleanId } });
+  if (!visit || !visit.issueRaisedAt || visit.issueResolvedAt) return;
+
+  const reply = str(formData, "resolutionNote");
+  await db.linenVisit.update({
+    where: { cleanId },
+    data: { issueResolvedAt: new Date(), resolutionNote: reply },
+  });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Clean",
+    entityId: cleanId,
+    summary: reply ? `Resolved a linen company problem: ${reply}` : "Resolved a linen company problem",
+  });
+
+  revalidatePath("/admin/laundry/schedule");
+  revalidatePath("/admin/laundry");
+  revalidatePath("/linen");
 }

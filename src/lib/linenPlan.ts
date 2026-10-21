@@ -5,10 +5,22 @@ import { planRoute, type LatLng, type RoutePlan, type StopInput } from "@/lib/li
 import { dayBounds, isDateOnly } from "@/lib/schedule";
 import { estimateCleanMinutes, visitMinutes } from "@/lib/cleanDuration";
 
+// What the linen company has said about one stop (see LinenVisit): the
+// problem it flagged, and what the office said back.
+export type VisitInfo = {
+  issueNote: string | null;
+  issueRaisedAt: Date | null;
+  issueResolvedAt: Date | null;
+  resolutionNote: string | null;
+};
+
 export type LinenDay = {
   facility: { id: string; name: string; depotAddress: string | null };
   day: Date;
   plan: RoutePlan;
+  // Keyed by the stop's cleanId. Only stops the linen company has done
+  // something about have an entry.
+  visits: Record<string, VisitInfo>;
   // Things that make the plan less certain than it looks, in plain words.
   notes: string[];
   depotKnown: boolean;
@@ -115,6 +127,11 @@ export async function loadLinenDay(
     visitsByProperty.set(log.clean.propertyId, list);
   }
 
+  const visitRows = cleans.length
+    ? await db.linenVisit.findMany({ where: { cleanId: { in: cleans.map((c) => c.id) } } })
+    : [];
+  const visitByClean = new Map(visitRows.map((v) => [v.cleanId, v]));
+
   const stops: StopInput[] = [];
   for (const clean of cleans) {
     if (seen.has(clean.propertyId)) continue;
@@ -137,6 +154,7 @@ export async function loadLinenDay(
       cleanMinutes: estimate.minutes,
       cleanEstimateSample: estimate.sample,
       cleanEstimateLearned: estimate.learned,
+      chosenArrival: visitByClean.get(clean.id)?.chosenArrivalAt ?? null,
     });
   }
 
@@ -158,10 +176,24 @@ export async function loadLinenDay(
     notes.push("Where a cleaner hasn't confirmed their arrival, the time the clean is booked for is used.");
   }
 
+  const visits: Record<string, VisitInfo> = {};
+  for (const stop of plan.stops) {
+    const v = visitByClean.get(stop.cleanId);
+    if (v && (v.issueNote || v.issueRaisedAt)) {
+      visits[stop.cleanId] = {
+        issueNote: v.issueNote,
+        issueRaisedAt: v.issueRaisedAt,
+        issueResolvedAt: v.issueResolvedAt,
+        resolutionNote: v.resolutionNote,
+      };
+    }
+  }
+
   return {
     facility: { id: facility.id, name: facility.name, depotAddress: facility.depotAddress },
     day,
     plan,
+    visits,
     notes,
     depotKnown: depot !== null,
   };

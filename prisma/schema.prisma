@@ -105,6 +105,7 @@ model Organization {
   properties                Property[]
   propertyImages            PropertyImage[]
   cleans                    Clean[]
+  linenVisits               LinenVisit[]
   cleanLogs                 CleanLog[]
   cleanPhotos               CleanPhoto[]
   stockItems                StockItem[]
@@ -285,6 +286,9 @@ enum NotificationKind {
   // To staff and the assigned cleaner: a same-day turnover isn't finished
   // and the next guests are due soon.
   TURNOVER_AT_RISK
+  // To staff: the linen company flagged a problem with a visit (see
+  // LinenVisit), which someone needs to pick up.
+  LINEN_ISSUE
   // To staff: the assigned cleaner hasn't confirmed what time they'll arrive
   // and the clean is now close (see checkUnconfirmedArrivals).
   ARRIVAL_UNCONFIRMED
@@ -543,6 +547,9 @@ model Clean {
   // Same as syncedBookingEvent above, but for a PMS-API-sourced reservation --
   // see SyncedPmsReservation.
   syncedPmsReservation SyncedPmsReservation?
+  // What the linen company has said about its visit here (a time it picked,
+  // or a problem it flagged). See LinenVisit.
+  linenVisit   LinenVisit?
   issues       Issue[]
   // Set once people have been alerted that this clean is at risk of not
   // being finished before the next guests arrive (see checkAtRiskTurnovers
@@ -864,6 +871,33 @@ model LaundryLoad {
   @@index([organizationId])
   @@index([recordedById])
   @@index([facilityId])
+}
+
+// What the linen company has told us about its visit to one clean's property:
+// the exact time it chose to arrive within its window (otherwise the planner's
+// suggested time stands), and/or a problem it flagged for the office. One row
+// per clean, created only when the linen company first does something.
+model LinenVisit {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  clean          Clean        @relation(fields: [cleanId], references: [id], onDelete: Cascade)
+  cleanId        String       @unique
+  // Null means "use the suggested time". Checked against the window every
+  // time the schedule is built: if the cleaner's arrival moves and this no
+  // longer fits, it's shown as needing to be chosen again, not silently used.
+  chosenArrivalAt DateTime?
+  // A problem the linen company raised ("van off the road, can't reach this
+  // one by 12"). Open while issueResolvedAt is null.
+  issueNote       String?
+  issueRaisedAt   DateTime?
+  issueResolvedAt DateTime?
+  // What the office said back when marking it resolved.
+  resolutionNote  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
 }
 
 // The catalogue of launderettes/facilities a business actually uses on

@@ -44,16 +44,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Issues' badge counts everything not yet resolved -- the same number as
   // the dashboard's "Open issues" tile and the Issues page's Open tab, so
   // the three never disagree about how much is outstanding.
-  const [unread, openIssues] = await Promise.all([
+  const [unread, openIssues, linenProblems] = await Promise.all([
     unreadNotificationCount(db, session.user.id),
     db.issue.count({ where: { status: { not: "RESOLVED" } } }),
+    // A problem the linen company has flagged and nobody has picked up yet.
+    modules.laundry ? db.linenVisit.count({ where: { issueRaisedAt: { not: null }, issueResolvedAt: null } }) : 0,
   ]);
   const items = NAV.filter(
     (item) =>
       (item.href !== "/admin/stock" || modules.stock) &&
       (item.href !== "/admin/invoices" || modules.invoicing) &&
       (item.href !== "/admin/laundry" || modules.laundry),
-  ).map((item) => (item.href === "/admin/issues" ? { ...item, count: openIssues, countLabel: "open" } : item));
+  ).map((item) =>
+    item.href === "/admin/issues"
+      ? { ...item, count: openIssues, countLabel: "open" }
+      : item.href === "/admin/laundry"
+        ? { ...item, count: linenProblems, countLabel: "linen problems" }
+        : item,
+  );
   const rightItems = [
     { href: "/admin/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" },
     ...PROFILE_NAV,

@@ -75,6 +75,7 @@ export default async function LinenSchedulePage({
       {data && (
         <LinenScheduleView
           data={data}
+          mode="staff"
           hrefForDay={(iso) => `/admin/laundry/schedule?facilityId=${data.facility.id}&day=${iso}`}
           hrefForClean={(id) => `/admin/cleans/${id}`}
         />
