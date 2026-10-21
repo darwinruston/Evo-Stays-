@@ -89,7 +89,7 @@ const FEATURES = [
   },
   {
     icon: ReceiptIcon,
-    title: "Cleaner pay, generated in one click",
+    title: "Hours added up into invoices, in one click",
     body: "Set an hourly rate once, then generate invoices straight from real check-in/check-out times, grouped per property, since each one belongs to a different client who needs their own cleaning cost visible on its own, not lumped in with the rest of the portfolio.",
   },
   {

@@ -17,7 +17,7 @@ export const ALL_MODULES_ON: Modules = { laundry: true, stock: true, invoicing: 
 export type Answers = {
   businessType: BusinessType;
   bookings: "pms" | "calendars" | "manual";
-  invoicing: "evo" | "elsewhere";
+  invoicing: "yes" | "no";
   laundry: "track" | "ourselves" | "none";
   stock: "yes" | "no";
 };
@@ -78,17 +78,18 @@ export const QUESTIONS: Question[] = [
   },
   {
     key: "invoicing",
-    title: "How do you pay your cleaners?",
+    title: "Do you want to track your cleaners' hours?",
+    hint: "Evo Stays doesn't handle payments. It adds up the hours each cleaner has worked so they can invoice you.",
     options: [
       {
-        value: "evo",
-        label: "Through Evo Stays",
-        description: "Evo totals each cleaner's hours into invoices.",
+        value: "yes",
+        label: "Yes, add up their hours",
+        description: "Hours are totalled into an invoice for each cleaner.",
       },
       {
-        value: "elsewhere",
-        label: "Separately",
-        description: "I handle pay outside Evo Stays, so I don't need invoices here.",
+        value: "no",
+        label: "No, I don't need that",
+        description: "Hours and invoices aren't tracked in Evo Stays.",
       },
     ],
   },
@@ -124,7 +125,7 @@ export function modulesFromAnswers(a: Answers): Modules {
   return {
     laundry: a.laundry === "track",
     stock: a.stock === "yes",
-    invoicing: a.invoicing === "evo",
+    invoicing: a.invoicing === "yes",
     sync: a.bookings !== "manual",
   };
 }
@@ -138,9 +139,9 @@ export const MODULE_LABELS: Record<keyof Modules, { name: string; on: string; of
     off: "You add cleans by hand.",
   },
   invoicing: {
-    name: "Cleaner invoices",
-    on: "Evo Stays totals cleaner hours into invoices.",
-    off: "Cleaner pay is handled outside Evo Stays.",
+    name: "Hours and invoices",
+    on: "Cleaner hours are added up into invoices.",
+    off: "Hours and invoices aren't tracked.",
   },
   laundry: {
     name: "Laundry",
