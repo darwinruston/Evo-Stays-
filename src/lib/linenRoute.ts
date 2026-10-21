@@ -2,9 +2,11 @@
 // order, and the window of time to be at each one. The van comes AFTER the
 // cleaner has arrived, to take that turnover's dirty linen: no sooner than
 // `handoverMinutes` after they get there (time to strip the beds and bag it
-// up), and early enough that the clean linen it brings is there at least
-// `leadMinutes` before the clean is expected to end (so the cleaner can make
-// the beds with it). Pure functions with no database or
+// up), and early enough that the clean linen it brings is there while a share
+// of the clean is still left (so the cleaner can make the beds with it). That
+// share scales with the clean: about a third, so a one hour clean needs the
+// linen with 20 minutes to go and a three hour one (a bigger property, more
+// beds to make) with an hour to go. Pure functions with no database or
 // network access, so the rules can be tested on their own and the loader in
 // src/lib/linenPlan.ts only has to gather inputs.
 //
@@ -74,9 +76,10 @@ export type PlanSettings = {
   // The earliest the van may arrive, after the cleaner has: time for them to
   // strip the beds and have the dirty linen ready.
   handoverMinutes: number;
-  // How long before the clean is expected to end the clean linen must be
-  // there, so the cleaner has time to use it.
-  leadMinutes: number;
+  // How much of the clean must still be left when the clean linen arrives,
+  // as a percentage of the clean's length, and the least that can be.
+  leadPercent: number;
+  minLeadMinutes: number;
   // How long dropping off and collecting takes at each property.
   stopMinutes: number;
 };
@@ -89,6 +92,8 @@ export type PlannedStop = StopInput & {
   // True when the clean is so short that the window had to close before the
   // dirty linen would normally be ready.
   tight: boolean;
+  // How long before the clean ends the clean linen has to be here by.
+  leadMinutes: number;
   // When the van is planned to arrive: the earliest it can, waiting outside
   // if it would otherwise be early, going round in this order.
   plannedArrival: Date;
@@ -118,15 +123,26 @@ type Timed = StopInput & { cleanerArrival: Date };
 
 type Evaluation = { lateness: number; finish: number; drive: number };
 
-// The window to arrive in. It closes leadMinutes before the clean is expected
-// to end; it opens handoverMinutes after the cleaner arrives, unless the
-// clean is so short that this would be after it closes, in which case it
+// How long before the end of a clean its linen has to be there: a share of
+// the clean's length, never less than the minimum.
+export function leadMinutesFor(cleanMinutes: number, settings: PlanSettings): number {
+  const share = Math.round((cleanMinutes * settings.leadPercent) / 100 / 5) * 5;
+  return Math.max(settings.minLeadMinutes, share);
+}
+
+// The window to arrive in. It closes leadMinutesFor() before the clean is
+// expected to end; it opens handoverMinutes after the cleaner arrives, unless
+// the clean is so short that this would be after it closes, in which case it
 // opens when it closes (a single moment, flagged as tight).
-function windowOf(stop: Timed, settings: PlanSettings): { start: number; end: number; tight: boolean } {
+function windowOf(
+  stop: Timed,
+  settings: PlanSettings,
+): { start: number; end: number; tight: boolean; lead: number } {
   const arrival = stop.cleanerArrival.getTime();
-  const end = arrival + (stop.cleanMinutes - settings.leadMinutes) * 60_000;
+  const lead = leadMinutesFor(stop.cleanMinutes, settings);
+  const end = arrival + (stop.cleanMinutes - lead) * 60_000;
   const opens = arrival + settings.handoverMinutes * 60_000;
-  return { start: Math.min(opens, end), end, tight: end < opens };
+  return { start: Math.min(opens, end), end, tight: end < opens, lead };
 }
 
 // Runs the day forward in a given order: the van goes straight to each stop
@@ -246,6 +262,7 @@ export function planRoute(stops: StopInput[], settings: PlanSettings): RoutePlan
       windowStart: new Date(window.start),
       windowEnd: new Date(window.end),
       tight: window.tight,
+      leadMinutes: window.lead,
       plannedArrival: planned[k],
       latestArrival: latest[k],
       waitMinutes: waits[k],

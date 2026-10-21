@@ -85,7 +85,8 @@ export async function updateLaundryFacility(id: string, formData: FormData) {
       // would put the van in the wrong place.
       ...(depotAddress !== (before?.depotAddress ?? null) ? { depotLatitude: null, depotLongitude: null } : {}),
       handoverMinutes: minutes(formData, "handoverMinutes", 30, 0, 240),
-      cleanLeadMinutes: minutes(formData, "cleanLeadMinutes", 40, 0, 240),
+      cleanLeadPercent: minutes(formData, "cleanLeadPercent", 33, 5, 90),
+      minLeadMinutes: minutes(formData, "minLeadMinutes", 15, 0, 240),
       defaultCleanMinutes: minutes(formData, "defaultCleanMinutes", 90, 15, 480),
       stopMinutes: minutes(formData, "stopMinutes", 15, 1, 120),
     },

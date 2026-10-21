@@ -92,19 +92,37 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
               <p className="text-xs text-zinc-500">Time for the cleaner to strip the beds and have the dirty linen ready.</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="cleanLeadMinutes" className="text-sm font-medium">
-                Clean linen there before the clean ends (min)
+              <label htmlFor="cleanLeadPercent" className="text-sm font-medium">
+                Clean linen there with this much of the clean left (%)
               </label>
               <input
-                id="cleanLeadMinutes"
-                name="cleanLeadMinutes"
+                id="cleanLeadPercent"
+                name="cleanLeadPercent"
+                type="number"
+                min={5}
+                max={90}
+                defaultValue={facility.cleanLeadPercent}
+                className={inputCompact}
+              />
+              <p className="text-xs text-zinc-500">
+                A share of the clean, so a long clean (a bigger property) gets its linen earlier. 33% means 20 minutes
+                before the end of an hour-long clean and an hour before the end of a three-hour one.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="minLeadMinutes" className="text-sm font-medium">
+                But never less than (min)
+              </label>
+              <input
+                id="minLeadMinutes"
+                name="minLeadMinutes"
                 type="number"
                 min={0}
                 max={240}
-                defaultValue={facility.cleanLeadMinutes}
+                defaultValue={facility.minLeadMinutes}
                 className={inputCompact}
               />
-              <p className="text-xs text-zinc-500">So an hour-long clean gets its linen at least this long before the end.</p>
+              <p className="text-xs text-zinc-500">The least time the cleaner needs to change the beds.</p>
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="defaultCleanMinutes" className="text-sm font-medium">

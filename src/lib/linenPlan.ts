@@ -6,7 +6,7 @@ import { dayBounds, isDateOnly } from "@/lib/schedule";
 import { estimateCleanMinutes, visitMinutes } from "@/lib/cleanDuration";
 
 export type LinenDay = {
-  facility: { id: string; name: string; depotAddress: string | null; cleanLeadMinutes: number };
+  facility: { id: string; name: string; depotAddress: string | null };
   day: Date;
   plan: RoutePlan;
   // Things that make the plan less certain than it looks, in plain words.
@@ -145,7 +145,8 @@ export async function loadLinenDay(
     depot,
     dayStart,
     handoverMinutes: facility.handoverMinutes,
-    leadMinutes: facility.cleanLeadMinutes,
+    leadPercent: facility.cleanLeadPercent,
+    minLeadMinutes: facility.minLeadMinutes,
     stopMinutes: facility.stopMinutes,
   });
 
@@ -157,12 +158,7 @@ export async function loadLinenDay(
   }
 
   return {
-    facility: {
-      id: facility.id,
-      name: facility.name,
-      depotAddress: facility.depotAddress,
-      cleanLeadMinutes: facility.cleanLeadMinutes,
-    },
+    facility: { id: facility.id, name: facility.name, depotAddress: facility.depotAddress },
     day,
     plan,
     notes,

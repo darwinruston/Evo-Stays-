@@ -130,7 +130,7 @@ export function LinenScheduleView({
                   ? ` (an early estimate, ${stop.cleanEstimateSample} past ${stop.cleanEstimateSample === 1 ? "clean" : "cleans"} so far)`
                   : " (a rough estimate, no past cleans yet)"}
               . Dirty linen is ready from {formatClock(stop.windowStart)}, and clean linen needs to be here by{" "}
-              {formatClock(stop.windowEnd)}, {data.facility.cleanLeadMinutes} min before the clean ends.
+              {formatClock(stop.windowEnd)}, about {formatMinutes(stop.leadMinutes)} before the clean ends.
               {stop.tight ? " This is a short clean, so there's little time to have the dirty linen ready." : ""}
               {stop.waitMinutes > 0 ? ` The van waits about ${stop.waitMinutes} min here for that.` : ""}
             </p>
