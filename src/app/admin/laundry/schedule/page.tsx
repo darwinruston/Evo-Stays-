@@ -1,22 +1,22 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
-import { loadLinenDay } from "@/lib/linenPlan";
+import { loadLinenDays } from "@/lib/linenPlan";
 import { parseIsoDate, toIsoDate } from "@/lib/schedule";
 import { LinenScheduleView } from "@/components/LinenScheduleView";
 import { button } from "@/lib/ui";
 
 export const metadata = { title: "Delivery schedule" };
 
-// What a linen company sees, for staff: the same plan, so a clash (two
+// What a linen company sees, for staff: the same week, so a clash (two
 // properties they can't both reach in time) is noticed here and sorted out
 // before the linen company finds it on the day.
 export default async function LinenSchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ facilityId?: string; day?: string }>;
+  searchParams: Promise<{ facilityId?: string; from?: string; day?: string }>;
 }) {
   const { db } = await requireStaff();
-  const { facilityId, day: dayParam } = await searchParams;
+  const { facilityId, from: fromParam, day: dayParam } = await searchParams;
 
   const facilities = await db.laundryFacility.findMany({
     where: { active: true },
@@ -26,8 +26,9 @@ export default async function LinenSchedulePage({
   const withProperties = facilities.filter((f) => f._count.properties > 0);
   const selected = facilities.find((f) => f.id === facilityId) ?? withProperties[0] ?? facilities[0];
 
-  const day = (dayParam ? parseIsoDate(dayParam) : null) ?? new Date();
-  const data = selected ? await loadLinenDay(db, selected.id, day) : null;
+  // `day` is accepted too: notification links use it.
+  const from = (fromParam ? parseIsoDate(fromParam) : dayParam ? parseIsoDate(dayParam) : null) ?? new Date();
+  const days = selected && selected._count.properties > 0 ? await loadLinenDays(db, selected.id, from) : [];
 
   return (
     <div className="flex max-w-xl flex-col gap-6">
@@ -37,7 +38,7 @@ export default async function LinenSchedulePage({
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Delivery schedule</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          When the linen company needs to be at each property, worked out from when each cleaner arrives.
+          When the clean linen should be at each property, worked out from when each cleaner arrives.
         </p>
       </div>
 
@@ -46,7 +47,7 @@ export default async function LinenSchedulePage({
           {facilities.map((f) => (
             <Link
               key={f.id}
-              href={`/admin/laundry/schedule?facilityId=${f.id}&day=${toIsoDate(day)}`}
+              href={`/admin/laundry/schedule?facilityId=${f.id}&from=${toIsoDate(from)}`}
               className={button(f.id === selected?.id ? "primary" : "secondary", "sm")}
             >
               {f.name}
@@ -72,11 +73,13 @@ export default async function LinenSchedulePage({
         </p>
       )}
 
-      {data && (
+      {selected && selected._count.properties > 0 && (
         <LinenScheduleView
-          data={data}
+          days={days}
+          facilityName={selected.name}
+          from={from}
           mode="staff"
-          hrefForDay={(iso) => `/admin/laundry/schedule?facilityId=${data.facility.id}&day=${iso}`}
+          hrefForFrom={(iso) => `/admin/laundry/schedule?facilityId=${selected.id}&from=${iso}`}
           hrefForClean={(id) => `/admin/cleans/${id}`}
         />
       )}

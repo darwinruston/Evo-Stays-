@@ -198,3 +198,24 @@ export async function loadLinenDay(
     depotKnown: depot !== null,
   };
 }
+
+// The number of days one page of the schedule covers.
+export const LINEN_RANGE_DAYS = 7;
+
+// Several days in a row, starting at `from`, each planned on its own (a van's
+// day starts afresh each morning). Loaded one after another so the map
+// lookup for a new property is made once and remembered.
+export async function loadLinenDays(
+  db: ScopedPrismaClient,
+  facilityId: string,
+  from: Date,
+  count: number = LINEN_RANGE_DAYS,
+): Promise<LinenDay[]> {
+  const days: LinenDay[] = [];
+  for (let i = 0; i < count; i++) {
+    const day = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);
+    const data = await loadLinenDay(db, facilityId, day);
+    if (data) days.push(data);
+  }
+  return days;
+}

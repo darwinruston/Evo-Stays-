@@ -1,14 +1,27 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import type { ActionResult } from "@/lib/actionResult";
 import { badge, button, inputCompact } from "@/lib/ui";
 
 type Issue = { note: string; resolved: boolean; resolutionNote: string | null };
 
+// The submit button reads the form's own pending state, so it says "Saving…"
+// for exactly as long as the server action is running.
+function SubmitButton({ idle, busy, variant = "primary" }: { idle: string; busy: string; variant?: "primary" | "secondary" }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className={button(variant, "sm")}>
+      {pending ? busy : idle}
+    </button>
+  );
+}
+
 // What the linen company can do at one stop: pick the exact time it'll
 // arrive (within the window), or flag a problem for the office. The server
-// re-checks everything, so the min/max on the time box is only a courtesy.
+// checks everything again; the check here is only so a time outside the
+// window is explained straight away instead of after a round trip.
 export function LinenStopControls({
   windowStart,
   windowEnd,
@@ -20,7 +33,7 @@ export function LinenStopControls({
   clearArrival,
   flagIssue,
 }: {
-  // "HH:MM" strings for the time box and the wording around it.
+  // "HH:MM" strings.
   windowStart: string;
   windowEnd: string;
   suggested: string;
@@ -32,76 +45,89 @@ export function LinenStopControls({
   clearArrival: () => Promise<ActionResult>;
   flagIssue: (formData: FormData) => Promise<ActionResult>;
 }) {
-  const [timeError, setTimeError] = useState<string | null>(null);
+  const [timeMessage, setTimeMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [issueError, setIssueError] = useState<string | null>(null);
   const [flagging, setFlagging] = useState(false);
-  const [pending, startTransition] = useTransition();
 
-  function run(action: () => Promise<ActionResult>, onError: (message: string) => void, onDone?: () => void) {
-    startTransition(async () => {
-      try {
-        const result = await action();
-        if (result) onError(result.error);
-        else onDone?.();
-      } catch {
-        onError("Something went wrong. Try again.");
-      }
-    });
+  const openIssue = issue && !issue.resolved;
+  const range =
+    windowStart === windowEnd ? `The only time that works is ${windowStart}.` : `Choose a time between ${windowStart} and ${windowEnd}.`;
+
+  async function saveTime(formData: FormData) {
+    setTimeMessage(null);
+    const value = String(formData.get("arrivalTime") ?? "");
+    if (!value) {
+      setTimeMessage({ ok: false, text: "Enter the time you'll arrive." });
+      return;
+    }
+    // HH:MM strings compare correctly as text.
+    if (value < windowStart || value > windowEnd) {
+      setTimeMessage({ ok: false, text: range });
+      return;
+    }
+    try {
+      const result = await setArrival(formData);
+      setTimeMessage(result ? { ok: false, text: result.error } : { ok: true, text: "Saved" });
+    } catch {
+      setTimeMessage({ ok: false, text: "Couldn't save. Try again." });
+    }
   }
 
-  const onlyOneTime = windowStart === windowEnd;
-  const openIssue = issue && !issue.resolved;
+  async function useSuggested() {
+    setTimeMessage(null);
+    try {
+      const result = await clearArrival();
+      setTimeMessage(result ? { ok: false, text: result.error } : { ok: true, text: "Back to the suggested time" });
+    } catch {
+      setTimeMessage({ ok: false, text: "Couldn't save. Try again." });
+    }
+  }
+
+  async function sendIssue(formData: FormData) {
+    setIssueError(null);
+    try {
+      const result = await flagIssue(formData);
+      if (result) setIssueError(result.error);
+      else setFlagging(false);
+    } catch {
+      setIssueError("Couldn't send. Try again.");
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3 border-t border-black/5 pt-3">
-      <form
-        action={(formData) => {
-          setTimeError(null);
-          run(() => setArrival(formData), setTimeError);
-        }}
-        className="flex flex-col gap-1.5"
-      >
+      {/* Remounted when the saved time changes so the box always shows what's
+          actually saved, not what was last typed into it. */}
+      <form key={chosen ?? `suggested-${suggested}`} action={saveTime} className="flex flex-col gap-1.5">
         <label htmlFor="arrivalTime" className="text-xs font-medium text-zinc-600">
-          {chosen ? "You're arriving at" : "Pick your arrival time"}
+          {chosen ? "Your arrival time" : "Pick your arrival time"}
         </label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             id="arrivalTime"
             name="arrivalTime"
             type="time"
             required
-            min={windowStart}
-            max={windowEnd}
             defaultValue={chosen ?? suggested}
             className={`${inputCompact} w-32`}
           />
-          <button type="submit" disabled={pending} className={button(chosen ? "secondary" : "primary", "sm")}>
-            {chosen ? "Update" : "Set time"}
-          </button>
+          <SubmitButton idle={chosen ? "Update" : "Set time"} busy="Saving…" variant={chosen ? "secondary" : "primary"} />
           {chosen && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                setTimeError(null);
-                run(clearArrival, setTimeError);
-              }}
-              className={button("ghost", "sm")}
-            >
+            <button type="button" onClick={useSuggested} className={button("ghost", "sm")}>
               Use suggested
             </button>
           )}
+          {timeMessage && (
+            <span className={`text-xs ${timeMessage.ok ? "text-zinc-600" : "text-red-600"}`} role={timeMessage.ok ? "status" : "alert"}>
+              {timeMessage.text}
+            </span>
+          )}
         </div>
-        <p className="text-xs text-zinc-500">
-          {onlyOneTime ? `The only time that works is ${windowStart}.` : `Any time from ${windowStart} to ${windowEnd}.`}
-        </p>
         {stale && (
-          <p className="text-xs font-medium text-zinc-700">
-            The time you chose no longer fits (the cleaner&apos;s time has changed), so the suggested time is being
-            used. Pick a new one if you like.
+          <p className="text-xs text-zinc-600">
+            Your earlier time no longer fits because the cleaner&apos;s time changed. Pick a new one.
           </p>
         )}
-        {timeError && <p className="text-xs text-red-600">{timeError}</p>}
       </form>
 
       {issue && (
@@ -117,13 +143,7 @@ export function LinenStopControls({
 
       {!openIssue &&
         (flagging ? (
-          <form
-            action={(formData) => {
-              setIssueError(null);
-              run(() => flagIssue(formData), setIssueError, () => setFlagging(false));
-            }}
-            className="flex flex-col gap-2"
-          >
+          <form action={sendIssue} className="flex flex-col gap-2">
             <label htmlFor="note" className="text-xs font-medium text-zinc-600">
               What&apos;s the problem?
             </label>
@@ -138,9 +158,7 @@ export function LinenStopControls({
             />
             {issueError && <p className="text-xs text-red-600">{issueError}</p>}
             <div className="flex items-center gap-2">
-              <button type="submit" disabled={pending} className={button("primary", "sm")}>
-                {pending ? "Sending…" : "Tell the office"}
-              </button>
+              <SubmitButton idle="Tell the office" busy="Sending…" />
               <button type="button" onClick={() => setFlagging(false)} className={button("ghost", "sm")}>
                 Cancel
               </button>
