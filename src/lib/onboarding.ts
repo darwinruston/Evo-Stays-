@@ -78,17 +78,17 @@ export const QUESTIONS: Question[] = [
   },
   {
     key: "invoicing",
-    title: "Do you want to track your cleaners' hours?",
-    hint: "Evo Stays doesn't handle payments. It adds up the hours each cleaner has worked so they can invoice you.",
+    title: "Do you want invoices made from your cleaners' hours?",
+    hint: "Evo Stays doesn't handle payments. It totals the hours each cleaner has worked into an invoice they can use to bill you.",
     options: [
       {
         value: "yes",
-        label: "Yes, add up their hours",
-        description: "Hours are totalled into an invoice for each cleaner.",
+        label: "Yes, create invoices from their hours",
+        description: "Each cleaner's hours are added up into an invoice.",
       },
       {
         value: "no",
-        label: "No, I don't need that",
+        label: "No, I don't need invoices",
         description: "Hours and invoices aren't tracked in Evo Stays.",
       },
     ],
@@ -139,9 +139,9 @@ export const MODULE_LABELS: Record<keyof Modules, { name: string; on: string; of
     off: "You add cleans by hand.",
   },
   invoicing: {
-    name: "Hours and invoices",
-    on: "Cleaner hours are added up into invoices.",
-    off: "Hours and invoices aren't tracked.",
+    name: "Cleaner invoices",
+    on: "Each cleaner's hours are added up into an invoice.",
+    off: "Invoices aren't created from cleaner hours.",
   },
   laundry: {
     name: "Laundry",
