@@ -77,19 +77,36 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="handoverMinutes" className="text-sm font-medium">
-                Earliest after cleaner arrives (min)
+              <label htmlFor="handoverPercent" className="text-sm font-medium">
+                Time for the cleaner to strip the beds first (% of the clean)
               </label>
               <input
-                id="handoverMinutes"
-                name="handoverMinutes"
+                id="handoverPercent"
+                name="handoverPercent"
                 type="number"
                 min={0}
-                max={240}
-                defaultValue={facility.handoverMinutes}
+                max={60}
+                defaultValue={facility.handoverPercent}
                 className={inputCompact}
               />
-              <p className="text-xs text-zinc-500">Time for the cleaner to strip the beds and have the dirty linen ready.</p>
+              <p className="text-xs text-zinc-500">
+                The van waits this long after the cleaner arrives. A share of the clean, so a bigger property gets
+                longer, but much shorter than the lead time below.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="minHandoverMinutes" className="text-sm font-medium">
+                But never less than (min)
+              </label>
+              <input
+                id="minHandoverMinutes"
+                name="minHandoverMinutes"
+                type="number"
+                min={0}
+                max={120}
+                defaultValue={facility.minHandoverMinutes}
+                className={inputCompact}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="cleanLeadPercent" className="text-sm font-medium">

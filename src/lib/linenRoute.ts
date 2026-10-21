@@ -1,12 +1,13 @@
 // Plans one day for a linen company's van: which property to visit in which
 // order, and the window of time to be at each one. The van comes AFTER the
-// cleaner has arrived, to take that turnover's dirty linen: no sooner than
-// `handoverMinutes` after they get there (time to strip the beds and bag it
-// up), and early enough that the clean linen it brings is there while a share
-// of the clean is still left (so the cleaner can make the beds with it). That
-// share scales with the clean: about a third, so a one hour clean needs the
-// linen with 20 minutes to go and a three hour one (a bigger property, more
-// beds to make) with an hour to go. Pure functions with no database or
+// cleaner has arrived, to take that turnover's dirty linen, and brings clean
+// linen the cleaner still has to use. Both ends of the window scale with how
+// long the clean takes, since a longer clean means a bigger property with
+// more beds: it opens once the cleaner has had time to strip the bedding (a
+// small share of the clean, about 15%), and closes while a larger share of
+// the clean is still left to make the beds (about a third). So a one hour
+// clean has a window from about 10 minutes in to 20 minutes before the end,
+// and a three hour one from about 25 minutes in to an hour before the end. Pure functions with no database or
 // network access, so the rules can be tested on their own and the loader in
 // src/lib/linenPlan.ts only has to gather inputs.
 //
@@ -73,9 +74,11 @@ export type PlanSettings = {
   depot: LatLng | null;
   // The earliest the van sets off.
   dayStart: Date;
-  // The earliest the van may arrive, after the cleaner has: time for them to
-  // strip the beds and have the dirty linen ready.
-  handoverMinutes: number;
+  // How long after the cleaner arrives the van may come, so they've had time
+  // to strip the bedding: a percentage of the clean's length, and the least
+  // that can be.
+  handoverPercent: number;
+  minHandoverMinutes: number;
   // How much of the clean must still be left when the clean linen arrives,
   // as a percentage of the clean's length, and the least that can be.
   leadPercent: number;
@@ -94,6 +97,8 @@ export type PlannedStop = StopInput & {
   tight: boolean;
   // How long before the clean ends the clean linen has to be here by.
   leadMinutes: number;
+  // How long after the cleaner arrives the window opens.
+  handoverMinutes: number;
   // When the van is planned to arrive: the earliest it can, waiting outside
   // if it would otherwise be early, going round in this order.
   plannedArrival: Date;
@@ -130,19 +135,28 @@ export function leadMinutesFor(cleanMinutes: number, settings: PlanSettings): nu
   return Math.max(settings.minLeadMinutes, share);
 }
 
+// How long after the cleaner arrives the dirty linen is ready: a small share
+// of the clean's length (more beds to strip in a bigger property), never
+// less than the minimum.
+export function handoverMinutesFor(cleanMinutes: number, settings: PlanSettings): number {
+  const share = Math.round((cleanMinutes * settings.handoverPercent) / 100 / 5) * 5;
+  return Math.max(settings.minHandoverMinutes, share);
+}
+
 // The window to arrive in. It closes leadMinutesFor() before the clean is
-// expected to end; it opens handoverMinutes after the cleaner arrives, unless
-// the clean is so short that this would be after it closes, in which case it
-// opens when it closes (a single moment, flagged as tight).
+// expected to end; it opens handoverMinutesFor() after the cleaner arrives,
+// unless the clean is so short that this would be after it closes, in which
+// case it opens when it closes (a single moment, flagged as tight).
 function windowOf(
   stop: Timed,
   settings: PlanSettings,
-): { start: number; end: number; tight: boolean; lead: number } {
+): { start: number; end: number; tight: boolean; lead: number; handover: number } {
   const arrival = stop.cleanerArrival.getTime();
   const lead = leadMinutesFor(stop.cleanMinutes, settings);
+  const handover = handoverMinutesFor(stop.cleanMinutes, settings);
   const end = arrival + (stop.cleanMinutes - lead) * 60_000;
-  const opens = arrival + settings.handoverMinutes * 60_000;
-  return { start: Math.min(opens, end), end, tight: end < opens, lead };
+  const opens = arrival + handover * 60_000;
+  return { start: Math.min(opens, end), end, tight: end < opens, lead, handover };
 }
 
 // Runs the day forward in a given order: the van goes straight to each stop
@@ -263,6 +277,7 @@ export function planRoute(stops: StopInput[], settings: PlanSettings): RoutePlan
       windowEnd: new Date(window.end),
       tight: window.tight,
       leadMinutes: window.lead,
+      handoverMinutes: window.handover,
       plannedArrival: planned[k],
       latestArrival: latest[k],
       waitMinutes: waits[k],

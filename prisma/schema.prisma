@@ -882,19 +882,23 @@ model LaundryFacility {
   // from its postcode, only used to estimate drive times) and how a day is
   // planned. The van comes AFTER the cleaner has arrived, to collect that
   // turnover's dirty linen, and brings clean linen the cleaner still has to
-  // use. Each property's window opens handoverMinutes after the cleaner
-  // arrives (time to strip the beds) and closes while a share of the clean
-  // is still left: cleanLeadPercent of its length, never less than
-  // minLeadMinutes, so a short clean needs the linen about 20 minutes before
-  // the end and a long one (a bigger property, more beds) much earlier. How
-  // long a clean takes is learned per property from past visits (see
-  // src/lib/cleanDuration.ts), starting from defaultCleanMinutes.
+  // use. Both ends of each property's window scale with how long its clean
+  // takes, because a longer clean means a bigger property with more beds. The
+  // window opens once the cleaner has had time to strip the bedding and bag
+  // it up: handoverPercent of the clean's length (a small share), never less
+  // than minHandoverMinutes. It closes while a larger share of the clean is
+  // still left to make the beds with the new linen: cleanLeadPercent, never
+  // less than minLeadMinutes. So a one hour clean needs about 10 minutes to
+  // hand over and the linen with 20 to go; a three hour one about 25 and an
+  // hour to go. How long a clean takes is learned per property from past
+  // visits (see src/lib/cleanDuration.ts), starting from defaultCleanMinutes.
   // stopMinutes is how long each visit takes. See src/lib/linenRoute.ts.
   depotAddress     String?
   depotLatitude    Float?
   depotLongitude   Float?
   dayStartMinutes  Int      @default(390)
-  handoverMinutes  Int      @default(15)
+  handoverPercent  Int      @default(15)
+  minHandoverMinutes Int    @default(10)
   cleanLeadPercent Int      @default(33)
   minLeadMinutes   Int      @default(15)
   defaultCleanMinutes Int   @default(90)
