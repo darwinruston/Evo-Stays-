@@ -17,8 +17,10 @@ function mapsHref(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
-// One day of a linen company's delivery plan: the order to visit, the time
-// the linen has to be at each property by, and when each cleaner arrives.
+// One day of a linen company's delivery plan: the order to visit, the window
+// to arrive within at each property (after the cleaner has got there, so
+// there's dirty linen to take, and before the clean linen is too late to
+// use), and when each cleaner arrives.
 // Shared by the linen company's own page and the staff preview of it, which
 // differ only in where the day links go and whether a stop links on to the
 // clean (staff only).
@@ -62,13 +64,11 @@ export function LinenScheduleView({
             driving
           </p>
           {plan.feasible ? (
-            <p className="text-base font-medium">
-              Leave by {formatClock(plan.leaveBy ?? data.day)} to get everything there in time
-            </p>
+            <p className="text-base font-medium">Leave the depot at about {formatClock(plan.leaveAt ?? data.day)}</p>
           ) : (
             <p role="alert" className="text-base font-medium">
-              This day can&apos;t be fully made: some linen would arrive after the buffer. See the stops marked
-              late.
+              This day can&apos;t be fully made: the van can&apos;t reach every property while its clean linen is
+              still useful. See the stops marked late.
             </p>
           )}
         </div>
@@ -97,8 +97,13 @@ export function LinenScheduleView({
                 </a>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-xs text-zinc-500">Be there by</p>
-                <p className="text-xl font-semibold tracking-tight">{formatClock(stop.deliverBy)}</p>
+                <p className="text-xs text-zinc-500">Arrive between</p>
+                <p className="text-xl font-semibold tracking-tight">
+                  {formatClock(stop.plannedArrival)}
+                  {stop.latestArrival.getTime() > stop.plannedArrival.getTime()
+                    ? ` to ${formatClock(stop.latestArrival)}`
+                    : ""}
+                </p>
               </div>
             </div>
 
@@ -116,10 +121,16 @@ export function LinenScheduleView({
                 {stop.driveKnown ? "" : " (guess)"}
               </span>
             </div>
+            <p className="-mt-1 text-xs text-zinc-500">
+              Dirty linen ready from {formatClock(stop.windowStart)}; clean linen is needed by{" "}
+              {formatClock(stop.windowEnd)}.
+              {stop.waitMinutes > 0 ? ` The van waits about ${stop.waitMinutes} min here for that.` : ""}
+            </p>
 
             {stop.lateByMinutes > 0 && (
               <p role="alert" className={`${badge("solid")} w-fit`}>
-                Earliest possible {formatClock(stop.earliestArrival)}, {stop.lateByMinutes} min late
+                Can&apos;t arrive before {formatClock(stop.plannedArrival)}, {stop.lateByMinutes} min after the clean
+                linen is needed
               </p>
             )}
 

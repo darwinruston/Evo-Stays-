@@ -880,13 +880,18 @@ model LaundryFacility {
   loads     LaundryLoad[]
   // Where the van sets off from each morning (any address, found on the map
   // from its postcode) and how its day is planned: the earliest it leaves,
-  // how long before a cleaner arrives the linen must be there, and how long
-  // each stop takes. See src/lib/linenRoute.ts.
+  // and a visit window at each property measured from when the cleaner
+  // arrives. The van comes AFTER the cleaner, to collect that turnover's
+  // dirty linen: no sooner than handoverMinutes after they arrive (time to
+  // strip the beds and bag it up) and no later than needByMinutes after
+  // (when the clean linen it brings is still in time to be used). stopMinutes
+  // is how long each visit takes. See src/lib/linenRoute.ts.
   depotAddress     String?
   depotLatitude    Float?
   depotLongitude   Float?
   dayStartMinutes  Int      @default(390)
-  dropBufferMinutes Int     @default(30)
+  handoverMinutes  Int      @default(30)
+  needByMinutes    Int      @default(90)
   stopMinutes      Int      @default(15)
   // The properties this company supplies, and the logins it signs in with.
   properties Property[]

@@ -53,8 +53,9 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
           <div>
             <h2 className="text-sm font-medium text-zinc-500">Delivery schedule</h2>
             <p className="mt-1 text-sm text-zinc-500">
-              Used to work out when their van needs to be at each property so the linen is there before the
-              cleaner. The schedule is at{" "}
+              Used to work out when their van should arrive at each property: after the cleaner has got there, so
+              there&apos;s dirty linen to collect, and before the clean linen it brings is too late to use. The schedule
+              is at{" "}
               <Link href="/admin/laundry/schedule" className="underline underline-offset-2">
                 Laundry &gt; Delivery schedule
               </Link>
@@ -78,7 +79,7 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="dayStart" className="text-sm font-medium">
                 Van leaves no earlier than
@@ -92,16 +93,30 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="dropBufferMinutes" className="text-sm font-medium">
-                Linen there before cleaner (min)
+              <label htmlFor="handoverMinutes" className="text-sm font-medium">
+                Earliest after cleaner arrives (min)
               </label>
               <input
-                id="dropBufferMinutes"
-                name="dropBufferMinutes"
+                id="handoverMinutes"
+                name="handoverMinutes"
                 type="number"
                 min={0}
                 max={240}
-                defaultValue={facility.dropBufferMinutes}
+                defaultValue={facility.handoverMinutes}
+                className={inputCompact}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="needByMinutes" className="text-sm font-medium">
+                Latest after cleaner arrives (min)
+              </label>
+              <input
+                id="needByMinutes"
+                name="needByMinutes"
+                type="number"
+                min={5}
+                max={480}
+                defaultValue={facility.needByMinutes}
                 className={inputCompact}
               />
             </div>

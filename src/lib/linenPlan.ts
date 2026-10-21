@@ -111,7 +111,8 @@ export async function loadLinenDay(
   const plan = planRoute(stops, {
     depot,
     dayStart,
-    bufferMinutes: facility.dropBufferMinutes,
+    handoverMinutes: facility.handoverMinutes,
+    needByMinutes: facility.needByMinutes,
     stopMinutes: facility.stopMinutes,
   });
 

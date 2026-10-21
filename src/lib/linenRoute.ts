@@ -1,8 +1,11 @@
 // Plans one day for a linen company's van: which property to visit in which
-// order, and the latest time the linen must be at each one so it's there
-// before the cleaner is. Pure functions with no database or network access,
-// so the rules can be tested on their own (see the tests in this repo's
-// notes) and the loader in src/lib/linenPlan.ts only has to gather inputs.
+// order, and the window of time to be at each one. The van comes AFTER the
+// cleaner has arrived, to take that turnover's dirty linen: no sooner than
+// `handoverMinutes` after they get there (time to strip the beds and bag it
+// up), and no later than `needByMinutes` after (while the clean linen the van
+// brings can still be used in the clean). Pure functions with no database or
+// network access, so the rules can be tested on their own and the loader in
+// src/lib/linenPlan.ts only has to gather inputs.
 //
 // Drive times are an estimate, not a map lookup: straight-line distance
 // stretched by ROAD_FACTOR for the roads not being a straight line, at an
@@ -62,22 +65,29 @@ export type PlanSettings = {
   depot: LatLng | null;
   // The earliest the van sets off.
   dayStart: Date;
-  // How long before the cleaner arrives the linen must already be there.
-  bufferMinutes: number;
+  // The earliest the van may arrive, after the cleaner has: time for them to
+  // strip the beds and have the dirty linen ready.
+  handoverMinutes: number;
+  // The latest it may arrive, after the cleaner has: past this the clean
+  // linen it brings is too late to use in the clean.
+  needByMinutes: number;
   // How long dropping off and collecting takes at each property.
   stopMinutes: number;
 };
 
 export type PlannedStop = StopInput & {
   order: number;
-  // The cleaner's arrival minus the buffer: the deadline this stop works to.
-  deadline: Date;
-  // The latest the van can arrive and still reach every later stop on time.
-  // When the day can't be made, this is the deadline that's being missed.
-  deliverBy: Date;
-  // When the van could first get here if it left at the start of the day
-  // and went straight round in this order.
-  earliestArrival: Date;
+  // The window the van has to arrive within, from the cleaner's arrival.
+  windowStart: Date;
+  windowEnd: Date;
+  // When the van is planned to arrive: the earliest it can, waiting outside
+  // if it would otherwise be early, going round in this order.
+  plannedArrival: Date;
+  // The latest it can arrive and still make every later stop in its window.
+  latestArrival: Date;
+  // Minutes the van waits before this stop for its window to open.
+  waitMinutes: number;
+  // How far past the window's end the plan has to be, 0 when it fits.
   lateByMinutes: number;
   driveFromPreviousMinutes: number;
   driveKnown: boolean;
@@ -87,8 +97,8 @@ export type RoutePlan = {
   stops: PlannedStop[];
   // Stops with a date but no time yet, so there's nothing to plan around.
   untimed: StopInput[];
-  // The latest the van can leave the depot to make the first stop.
-  leaveBy: Date | null;
+  // When the van sets off to make the first stop at its planned time.
+  leaveAt: Date | null;
   totalDriveMinutes: number;
   feasible: boolean;
 };
@@ -99,11 +109,19 @@ function addMinutes(date: Date, minutes: number): Date {
 
 type Timed = StopInput & { cleanerArrival: Date };
 
-type Evaluation = { lateness: number; drive: number };
+type Evaluation = { lateness: number; finish: number; drive: number };
 
-// Runs the day forward in a given order with no waiting around: the earliest
-// each stop could be reached, how late that is against its own deadline,
-// and the total driving.
+function windowOf(stop: Timed, settings: PlanSettings): { start: number; end: number } {
+  const arrival = stop.cleanerArrival.getTime();
+  return {
+    start: arrival + settings.handoverMinutes * 60_000,
+    end: arrival + settings.needByMinutes * 60_000,
+  };
+}
+
+// Runs the day forward in a given order: the van goes straight to each stop
+// and waits for its window to open if it gets there early. Returns how late
+// that is past the windows in total, when the van finishes, and the driving.
 function evaluate(order: Timed[], settings: PlanSettings): Evaluation {
   let lateness = 0;
   let drive = 0;
@@ -112,17 +130,18 @@ function evaluate(order: Timed[], settings: PlanSettings): Evaluation {
   order.forEach((stop, index) => {
     const leg = index === 0 && !settings.depot ? { minutes: 0 } : driveMinutes(position, stop.location);
     drive += leg.minutes;
-    clock += leg.minutes * 60_000;
-    const deadline = stop.cleanerArrival.getTime() - settings.bufferMinutes * 60_000;
-    lateness += Math.max(0, (clock - deadline) / 60_000);
-    clock += settings.stopMinutes * 60_000;
+    const window = windowOf(stop, settings);
+    const arrival = Math.max(clock + leg.minutes * 60_000, window.start);
+    lateness += Math.max(0, (arrival - window.end) / 60_000);
+    clock = arrival + settings.stopMinutes * 60_000;
     position = stop.location;
   });
-  return { lateness, drive };
+  return { lateness, finish: clock, drive };
 }
 
 function better(a: Evaluation, b: Evaluation): boolean {
   if (a.lateness !== b.lateness) return a.lateness < b.lateness;
+  if (a.finish !== b.finish) return a.finish < b.finish;
   return a.drive < b.drive;
 }
 
@@ -148,12 +167,14 @@ function* permutations<T>(items: T[]): Generator<T[]> {
 }
 
 function chooseOrder(timed: Timed[], settings: PlanSettings): Timed[] {
-  const byDeadline = [...timed].sort((x, y) => x.cleanerArrival.getTime() - y.cleanerArrival.getTime());
-  if (byDeadline.length <= 1 || byDeadline.length > MAX_EXHAUSTIVE_STOPS) return byDeadline;
+  // Soonest window first: a good start, and the answer when there are too
+  // many stops to try every order.
+  const byWindow = [...timed].sort((x, y) => x.cleanerArrival.getTime() - y.cleanerArrival.getTime());
+  if (byWindow.length <= 1 || byWindow.length > MAX_EXHAUSTIVE_STOPS) return byWindow;
 
-  let best = byDeadline;
-  let bestScore = evaluate(byDeadline, settings);
-  for (const candidate of permutations(byDeadline)) {
+  let best = byWindow;
+  let bestScore = evaluate(byWindow, settings);
+  for (const candidate of permutations(byWindow)) {
     const score = evaluate(candidate, settings);
     if (better(score, bestScore)) {
       best = candidate;
@@ -167,65 +188,67 @@ export function planRoute(stops: StopInput[], settings: PlanSettings): RoutePlan
   const timed = stops.filter((s): s is Timed => s.cleanerArrival !== null);
   const untimed = stops.filter((s) => s.cleanerArrival === null);
   if (timed.length === 0) {
-    return { stops: [], untimed, leaveBy: null, totalDriveMinutes: 0, feasible: true };
+    return { stops: [], untimed, leaveAt: null, totalDriveMinutes: 0, feasible: true };
   }
 
   const order = chooseOrder(timed, settings);
-  const bufferMs = settings.bufferMinutes * 60_000;
 
-  // Forward pass: when the van could first reach each stop, and the drive
-  // before it.
   const legs = order.map((stop, index) => {
     const previous = index === 0 ? settings.depot : order[index - 1].location;
     return index === 0 && !settings.depot ? { minutes: 0, known: true } : driveMinutes(previous, stop.location);
   });
-  const earliest: Date[] = [];
+
+  // Forward pass: planned arrival at each stop, waiting for a window to open.
+  const planned: Date[] = [];
+  const waits: number[] = [];
   let clock = settings.dayStart;
-  order.forEach((_, index) => {
-    clock = addMinutes(clock, legs[index].minutes);
-    earliest.push(clock);
-    clock = addMinutes(clock, settings.stopMinutes);
+  order.forEach((stop, index) => {
+    const reachable = addMinutes(clock, legs[index].minutes);
+    const opens = new Date(windowOf(stop, settings).start);
+    const arrival = reachable.getTime() >= opens.getTime() ? reachable : opens;
+    // The first stop never involves waiting: the van just leaves the depot
+    // later (see leaveAt). Waiting only happens between stops.
+    waits.push(index === 0 ? 0 : Math.round((arrival.getTime() - reachable.getTime()) / 60_000));
+    planned.push(arrival);
+    clock = addMinutes(arrival, settings.stopMinutes);
   });
 
   // Backward pass: the latest each stop can be reached and still leave time
-  // to get to the next one before its own deadline.
+  // to get to the next one before its window closes.
   const latest: Date[] = new Array(order.length);
   for (let k = order.length - 1; k >= 0; k--) {
-    const deadline = new Date(order[k].cleanerArrival.getTime() - bufferMs);
+    const end = new Date(windowOf(order[k], settings).end);
     latest[k] =
       k === order.length - 1
-        ? deadline
+        ? end
         : new Date(
-            Math.min(
-              deadline.getTime(),
-              addMinutes(latest[k + 1], -(settings.stopMinutes + legs[k + 1].minutes)).getTime(),
-            ),
+            Math.min(end.getTime(), addMinutes(latest[k + 1], -(settings.stopMinutes + legs[k + 1].minutes)).getTime()),
           );
+    // A stop that can't be made in time has no slack at all.
+    if (latest[k].getTime() < planned[k].getTime()) latest[k] = planned[k];
   }
 
-  const planned: PlannedStop[] = order.map((stop, k) => {
-    const deadline = new Date(stop.cleanerArrival.getTime() - bufferMs);
-    const lateBy = Math.max(0, Math.round((earliest[k].getTime() - deadline.getTime()) / 60_000));
+  const result: PlannedStop[] = order.map((stop, k) => {
+    const window = windowOf(stop, settings);
     return {
       ...stop,
       order: k + 1,
-      deadline,
-      deliverBy: lateBy > 0 ? deadline : latest[k],
-      earliestArrival: earliest[k],
-      lateByMinutes: lateBy,
+      windowStart: new Date(window.start),
+      windowEnd: new Date(window.end),
+      plannedArrival: planned[k],
+      latestArrival: latest[k],
+      waitMinutes: waits[k],
+      lateByMinutes: Math.max(0, Math.round((planned[k].getTime() - window.end) / 60_000)),
       driveFromPreviousMinutes: legs[k].minutes,
       driveKnown: legs[k].known,
     };
   });
 
-  const feasible = planned.every((p) => p.lateByMinutes === 0);
   return {
-    stops: planned,
+    stops: result,
     untimed,
-    // An impossible day has no meaningful latest departure: the van would
-    // have to leave at the start of the day and is still late.
-    leaveBy: feasible ? addMinutes(latest[0], -legs[0].minutes) : settings.dayStart,
+    leaveAt: addMinutes(planned[0], -legs[0].minutes),
     totalDriveMinutes: legs.reduce((sum, leg) => sum + leg.minutes, 0),
-    feasible,
+    feasible: result.every((r) => r.lateByMinutes === 0),
   };
 }
