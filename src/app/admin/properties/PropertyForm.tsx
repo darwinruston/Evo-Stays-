@@ -17,6 +17,7 @@ type PropertyFields = {
   accessOptions: unknown;
   accessNotes: string | null;
   notes: string | null;
+  laundryFacilityId?: string | null;
 };
 
 // Shared between create and edit. On edit the client can't be changed --
@@ -30,6 +31,7 @@ export function PropertyForm({
   defaultClientId,
   submitLabel,
   showPhotos = false,
+  linenCompanies = [],
 }: {
   action: (formData: FormData) => void;
   property?: PropertyFields;
@@ -37,6 +39,9 @@ export function PropertyForm({
   defaultClientId?: string;
   submitLabel: string;
   showPhotos?: boolean;
+  // The laundry/linen companies that could supply this property. Empty (or
+  // laundry switched off for the company) hides the choice altogether.
+  linenCompanies?: { id: string; name: string }[];
 }) {
   const selected = parseAccessOptions(property?.accessOptions);
 
@@ -269,6 +274,31 @@ export function PropertyForm({
             className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
           <p className="text-xs text-zinc-500">The first one becomes the cover photo.</p>
+        </div>
+      )}
+
+      {linenCompanies.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="laundryFacilityId" className="text-sm font-medium">
+            Linen company
+          </label>
+          <select
+            id="laundryFacilityId"
+            name="laundryFacilityId"
+            defaultValue={property?.laundryFacilityId ?? ""}
+            className={inputCompact}
+          >
+            <option value="">None</option>
+            {linenCompanies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-500">
+            The company that delivers and collects linen here. They&apos;re told when the cleaner arrives so the linen
+            is there in time.
+          </p>
         </div>
       )}
 

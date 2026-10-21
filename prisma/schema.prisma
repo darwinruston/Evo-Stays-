@@ -151,6 +151,10 @@ enum Role {
   // Does the turnovers: works a schedule of cleans on site, records stock
   // counts. The equivalent of Evo Services' FIELD_EMPLOYEE.
   CLEANER
+  // A login for the linen/laundry company that delivers and collects linen
+  // at the properties: sees only its own delivery schedule (see /linen), and
+  // is tied to one LaundryFacility via User.laundryFacilityId.
+  LINEN
 }
 
 model User {
@@ -184,6 +188,10 @@ model User {
   // out everywhere -- otherwise a reset would leave an old session working
   // until it expired on its own.
   sessionVersion Int           @default(0)
+  // Only meaningful for LINEN: which laundry/linen company this login
+  // belongs to, and therefore whose delivery schedule it sees.
+  laundryFacility   LaundryFacility? @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
+  laundryFacilityId String?
   notifications  Notification[]
   reportedIssues Issue[]       @relation("IssueReporter")
   resolvedIssues Issue[]       @relation("IssueResolver")
@@ -395,6 +403,10 @@ model Property {
   // freehand. Null if never matched to a location.
   latitude         Float?
   longitude        Float?
+  // The linen company that delivers to and collects from this property.
+  // Null means none: it doesn't appear on any linen schedule.
+  laundryFacility   LaundryFacility? @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
+  laundryFacilityId String?
   type             PropertyType         @default(APARTMENT)
   bedrooms         Int?
   bathrooms        Int?
@@ -866,6 +878,19 @@ model LaundryFacility {
   name      String
   active    Boolean       @default(true)
   loads     LaundryLoad[]
+  // Where the van sets off from each morning (any address, found on the map
+  // from its postcode) and how its day is planned: the earliest it leaves,
+  // how long before a cleaner arrives the linen must be there, and how long
+  // each stop takes. See src/lib/linenRoute.ts.
+  depotAddress     String?
+  depotLatitude    Float?
+  depotLongitude   Float?
+  dayStartMinutes  Int      @default(390)
+  dropBufferMinutes Int     @default(30)
+  stopMinutes      Int      @default(15)
+  // The properties this company supplies, and the logins it signs in with.
+  properties Property[]
+  linenUsers User[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 

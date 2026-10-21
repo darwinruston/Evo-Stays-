@@ -25,6 +25,7 @@ export async function GET(
   if (!session?.user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
+  if (session.user.role === "LINEN") return new NextResponse("Not found", { status: 404 });
 
   const { path: segments } = await params;
   const resolved = path.resolve(PROFILE_PHOTO_STORAGE_ROOT, ...segments);

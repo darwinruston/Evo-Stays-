@@ -152,7 +152,7 @@ export default async function Home() {
     // since that account still carries a staff role to satisfy the schema
     // even though it isn't a customer running cleaning operations.
     if (session.user.email === process.env.PLATFORM_OWNER_EMAIL) redirect("/owner");
-    redirect(session.user.role === "CLEANER" ? "/cleaner" : "/admin");
+    redirect(session.user.role === "CLEANER" ? "/cleaner" : session.user.role === "LINEN" ? "/linen" : "/admin");
   }
 
   return (

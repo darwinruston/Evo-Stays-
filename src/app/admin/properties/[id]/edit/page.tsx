@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
+import { getOrgModules } from "@/lib/modules";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyForm } from "../../PropertyForm";
 import { updateProperty, deleteProperty } from "../../actions";
@@ -9,8 +10,15 @@ import { button } from "@/lib/ui";
 export const metadata = { title: "Edit property" };
 
 export default async function EditPropertyPage({ params }: { params: Promise<{ id: string }> }) {
-  const { db } = await requireStaff();
+  const { session, db } = await requireStaff();
   const { id } = await params;
+  const linenCompanies = (await getOrgModules(session.user.organizationId)).laundry
+    ? await db.laundryFacility.findMany({
+        where: { active: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
 
   const property = await db.property.findUnique({
     where: { id },
@@ -33,6 +41,7 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
         property={property}
         clients={[property.client]}
         submitLabel="Save changes"
+        linenCompanies={linenCompanies}
       />
 
       <section className="flex flex-col items-start gap-2 border-t border-black/5 pt-6">

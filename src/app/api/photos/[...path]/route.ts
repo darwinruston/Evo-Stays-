@@ -46,6 +46,10 @@ export async function GET(
   // PropertyImage and CleanPhoto alike.
   const propertyId = segments[0];
 
+  // A linen company's login only ever sees its own delivery schedule, which
+  // shows no photos: it gets none from here.
+  if (session.user.role === "LINEN") return new NextResponse("Not found", { status: 404 });
+
   if (session.user.role === "CLEANER") {
     const db = scopedDb(session.user.organizationId);
     const assigned = await db.clean.findFirst({

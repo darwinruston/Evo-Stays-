@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireStaff } from "@/lib/authz";
+import bcrypt from "bcryptjs";
+import { requireAdmin, requireStaff } from "@/lib/authz";
+import { logAudit } from "@/lib/audit";
+import type { ActionResult } from "@/lib/actionResult";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -54,17 +57,47 @@ export async function createLaundryFacilityQuick(name: string): Promise<{ id: st
   return { id: facility.id, name: facility.name };
 }
 
+// A whole number of minutes within [min, max], or the fallback when the box
+// was left empty or isn't a sensible number.
+function minutes(formData: FormData, key: string, fallback: number, min: number, max: number): number {
+  const raw = str(formData, key);
+  if (raw === null) return fallback;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
+}
+
+// "HH:MM" from a time input, as minutes after midnight.
+function timeMinutes(formData: FormData, key: string, fallback: number): number {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(str(formData, key) ?? "");
+  return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
+}
+
 export async function updateLaundryFacility(id: string, formData: FormData) {
   const { db } = await requireStaff();
 
   const name = str(formData, "name");
   if (!name) throw new Error("Name is required");
 
+  const before = await db.laundryFacility.findUnique({ where: { id }, select: { depotAddress: true } });
+  const depotAddress = str(formData, "depotAddress");
+
   await db.laundryFacility.update({
     where: { id },
-    data: { name, active: formData.get("active") === "on" },
+    data: {
+      name,
+      active: formData.get("active") === "on",
+      depotAddress,
+      // A new address has to be found on the map again; the old position
+      // would put the van in the wrong place.
+      ...(depotAddress !== (before?.depotAddress ?? null) ? { depotLatitude: null, depotLongitude: null } : {}),
+      dayStartMinutes: timeMinutes(formData, "dayStart", 390),
+      dropBufferMinutes: minutes(formData, "dropBufferMinutes", 30, 0, 240),
+      stopMinutes: minutes(formData, "stopMinutes", 15, 1, 120),
+    },
   });
 
+  revalidatePath("/admin/laundry/schedule");
+  revalidatePath("/linen");
   revalidatePath("/admin/laundry-facilities");
   redirect("/admin/laundry-facilities");
 }
@@ -86,4 +119,63 @@ export async function deleteLaundryFacility(id: string) {
 
   revalidatePath("/admin/laundry-facilities");
   redirect("/admin/laundry-facilities");
+}
+
+// A login for the linen company itself, which only ever sees its own
+// delivery schedule (see /linen). Admin-only, like every other login.
+export async function createLinenLogin(facilityId: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireAdmin();
+
+  const name = str(formData, "name");
+  const email = str(formData, "email");
+  const password = str(formData, "password");
+  if (!name || !email || !password) return { error: "Name, email and password are all required" };
+  if (password.length < 8) return { error: "Password must be at least 8 characters" };
+
+  const facility = await db.laundryFacility.findUnique({ where: { id: facilityId }, select: { id: true } });
+  if (!facility) return { error: "That laundry company no longer exists" };
+
+  const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
+  if (existing) return { error: "That email address already has a login" };
+
+  const created = await db.user.create({
+    data: {
+      organizationId: session.user.organizationId,
+      name,
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      role: "LINEN",
+      laundryFacilityId: facilityId,
+    },
+    select: { id: true },
+  });
+
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Staff",
+    entityId: created.id,
+    summary: `Added a linen company login: ${name} (${email})`,
+  });
+
+  revalidatePath(`/admin/laundry-facilities/${facilityId}/edit`);
+}
+
+export async function removeLinenLogin(userId: string, facilityId: string) {
+  const { session, db } = await requireAdmin();
+
+  const user = await db.user.findFirst({
+    where: { id: userId, role: "LINEN", laundryFacilityId: facilityId },
+    select: { name: true, email: true },
+  });
+  if (!user) return;
+
+  await db.user.delete({ where: { id: userId } });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Staff",
+    entityId: userId,
+    summary: `Removed a linen company login: ${user.name} (${user.email})`,
+  });
+
+  revalidatePath(`/admin/laundry-facilities/${facilityId}/edit`);
 }

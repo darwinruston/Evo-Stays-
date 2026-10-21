@@ -54,9 +54,14 @@ export default async function LaundryPage() {
             Who&apos;s collecting each drop-off, and which visits&apos; linen it covers.
           </p>
         </div>
-        <Link href="/admin/laundry-facilities" className="shrink-0 text-sm text-zinc-500 hover:text-zinc-900">
-          Manage laundry companies →
-        </Link>
+        <div className="flex shrink-0 flex-col items-end gap-1 text-sm">
+          <Link href="/admin/laundry/schedule" className="text-zinc-500 hover:text-zinc-900">
+            Delivery schedule →
+          </Link>
+          <Link href="/admin/laundry-facilities" className="text-zinc-500 hover:text-zinc-900">
+            Manage laundry companies →
+          </Link>
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">

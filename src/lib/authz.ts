@@ -116,6 +116,23 @@ export async function requireCleaner() {
   return { session, db: scopedDb(session.user.organizationId) };
 }
 
+// The linen company's own area: just its delivery schedule. Only a LINEN
+// login gets in (not even admins: staff see the same schedule from
+// /admin/laundry/schedule). Unlike the guards above this can't send the
+// wrong person to "/" without looping, since "/" routes a LINEN login back
+// here, so a login with no company attached gets a null facilityId and the
+// page explains it.
+export async function requireLinen() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  if (isPlatformOwner(session.user.email)) redirect("/owner");
+  if (session.user.role !== "LINEN") redirect("/");
+  await redirectIfSuspended(session.user.organizationId, session.user.impersonatedBy);
+  const db = scopedDb(session.user.organizationId);
+  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { laundryFacilityId: true } });
+  return { session, db, facilityId: user?.laundryFacilityId ?? null };
+}
+
 // A cleaner sees a property only where they hold a clean -- any status, so
 // they keep access to their own completed history. Access notes carry key
 // safe and alarm codes, so browsing the whole estate isn't something the job

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
+import { getOrgModules } from "@/lib/modules";
 import { PropertyForm } from "../PropertyForm";
 import { createProperty } from "../actions";
 
@@ -10,7 +11,14 @@ export default async function NewPropertyPage({
 }: {
   searchParams: Promise<{ clientId?: string }>;
 }) {
-  const { db } = await requireStaff();
+  const { session, db } = await requireStaff();
+  const linenCompanies = (await getOrgModules(session.user.organizationId)).laundry
+    ? await db.laundryFacility.findMany({
+        where: { active: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
   // Preselected when arriving from a client's own page ("Add property").
   const { clientId } = await searchParams;
 
@@ -42,6 +50,7 @@ export default async function NewPropertyPage({
           clients={clients}
           defaultClientId={clientId}
           submitLabel="Create property"
+          linenCompanies={linenCompanies}
           showPhotos
         />
       )}

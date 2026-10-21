@@ -103,6 +103,7 @@ export async function createProperty(formData: FormData) {
       accessOptions: accessOptions(formData),
       accessNotes: str(formData, "accessNotes"),
       notes: str(formData, "notes"),
+      ...linenCompanyField(formData),
     },
   });
 
@@ -124,16 +125,29 @@ export async function createProperty(formData: FormData) {
   redirect(`/admin/properties/${property.id}`);
 }
 
+// Only touched when the form actually offered the choice (it's left out when
+// the company doesn't use laundry), so saving a property from a form without
+// it never clears an existing linen company.
+function linenCompanyField(formData: FormData): { laundryFacilityId?: string | null } {
+  return formData.has("laundryFacilityId") ? { laundryFacilityId: str(formData, "laundryFacilityId") } : {};
+}
+
 export async function updateProperty(id: string, formData: FormData) {
   const { session, db } = await requireStaff();
 
   const address = str(formData, "address");
   if (!address) throw new Error("Address is required");
 
+  // A changed address has to be found on the map again (see geocodeUkAddress):
+  // the stored position belongs to the old one.
+  const before = await db.property.findUnique({ where: { id }, select: { address: true } });
+
   const property = await db.property.update({
     where: { id },
     data: {
       address,
+      ...(before && before.address !== address ? { latitude: null, longitude: null } : {}),
+      ...linenCompanyField(formData),
       name: str(formData, "name"),
       nickname: str(formData, "nickname"),
       type: propertyType(formData),
