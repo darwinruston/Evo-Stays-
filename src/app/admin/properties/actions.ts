@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Prisma, PropertyType } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import type { ActionResult } from "@/lib/actionResult";
 import { savePropertyPhotos, savePmsCoverPhoto } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { syncCalendarFeed } from "@/lib/icalSync";
@@ -203,7 +204,7 @@ export async function addPropertyPhotos(id: string, formData: FormData) {
 // without forcing it to be the cover if one's already set -- ensurePrimary
 // only promotes it when the property has none, so this can't silently
 // replace a photo staff already chose.
-export async function fetchPropertyPmsCoverPhoto(id: string) {
+export async function fetchPropertyPmsCoverPhoto(id: string): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const property = await db.property.findUniqueOrThrow({
@@ -211,10 +212,10 @@ export async function fetchPropertyPmsCoverPhoto(id: string) {
     select: { pmsListingId: true, client: { select: { pmsProvider: true, pmsCredentials: true } } },
   });
   if (!property.pmsListingId) {
-    throw new Error("This property isn't linked to a PMS listing.");
+    return { error: "This property isn't linked to a PMS listing." };
   }
   if (!property.client.pmsProvider || !property.client.pmsCredentials) {
-    throw new Error("No PMS connected on this client.");
+    return { error: "No PMS connected on this client." };
   }
 
   const adapter = getPmsAdapter(property.client.pmsProvider);
@@ -225,10 +226,19 @@ export async function fetchPropertyPmsCoverPhoto(id: string) {
   const credentials = decryptPmsCredentials(property.client.pmsCredentials);
   const photoUrl = await adapter.fetchCoverPhotoUrl(credentials, property.pmsListingId);
   if (!photoUrl) {
-    throw new Error(`${adapter.displayName} doesn't have a cover photo for this listing.`);
+    return { error: `${adapter.displayName} doesn't have a cover photo for this listing.` };
   }
 
-  const photoPath = await savePmsCoverPhoto(id, photoUrl);
+  // The download is the one step here that can fail for reasons outside the
+  // app (the PMS's image host, the network). The detail goes to the server
+  // log; the person gets something they can act on.
+  let photoPath: string;
+  try {
+    photoPath = await savePmsCoverPhoto(id, photoUrl);
+  } catch (err) {
+    console.error("[fetchPropertyPmsCoverPhoto] download failed:", err);
+    return { error: `Couldn't download the photo from ${adapter.displayName}. Try again shortly.` };
+  }
   await db.propertyImage.create({
     data: { organizationId: session.user.organizationId, propertyId: id, path: photoPath, isPrimary: false },
   });
@@ -283,18 +293,18 @@ export async function deletePropertyPhoto(propertyId: string, imageId: string) {
 // Adds an item to this property's stock list with a starting level -- no
 // par, no count, just what's on the shelf right now as best guessed (staff
 // can correct it immediately with the same toggle used everywhere else).
-export async function addPropertyStockLevel(propertyId: string, formData: FormData) {
+export async function addPropertyStockLevel(propertyId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const stockItemId = str(formData, "stockItemId");
   const band = formData.get("band");
-  if (!stockItemId) throw new Error("Pick an item");
-  if (typeof band !== "string" || !isStockLevelBand(band)) throw new Error("Pick a level");
+  if (!stockItemId) return { error: "Pick an item" };
+  if (typeof band !== "string" || !isStockLevelBand(band)) return { error: "Pick a level" };
 
   const existing = await db.propertyStockLevel.findUnique({
     where: { propertyId_stockItemId: { propertyId, stockItemId } },
   });
-  if (existing) throw new Error("That item is already configured on this property");
+  if (existing) return { error: "That item is already configured on this property" };
 
   await db.propertyStockLevel.create({
     data: { organizationId: session.user.organizationId, propertyId, stockItemId, band: bandToDb(band) },

@@ -1,12 +1,13 @@
 "use client";
 
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { button, card, input } from "@/lib/ui";
 
 // Reveal-on-click, closing itself after a successful save like the other
 // reveal forms. The password is set by whoever is adding the login and
 // passed on to that person -- there's no invite email flow.
-export function AddStaffForm({ action }: { action: (formData: FormData) => Promise<void> }) {
+export function AddStaffForm({ action }: { action: (formData: FormData) => Promise<ActionResult> }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(action);
 
   if (!open) {

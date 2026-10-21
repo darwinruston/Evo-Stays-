@@ -123,8 +123,11 @@ export function LaundryLoadWizard({
       setFacilityId(created.id);
       setNewFacilityName("");
       setAddingFacility(false);
-    } catch (err) {
-      setCreateFacilityError(err instanceof Error ? err.message : "Couldn't add that laundry company.");
+    } catch {
+      // Production hides a thrown error's message, and the only rejection the
+      // action has (a blank name) can't happen from here -- so nothing more
+      // specific to say.
+      setCreateFacilityError("Couldn't add that laundry company.");
     } finally {
       setCreatingFacility(false);
     }

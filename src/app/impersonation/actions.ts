@@ -40,6 +40,9 @@ async function setSessionToken(payload: {
   email: string;
   role: string;
   organizationId: string;
+  // Must match the user's current sessionVersion or the jwt callback in
+  // src/auth.ts ends the session on the next request.
+  sessionVersion: number;
   impersonatedBy?: string;
 }): Promise<void> {
   const { name, secure } = await sessionCookieName();
@@ -69,6 +72,7 @@ export async function impersonateOrganization(organizationId: string) {
     email: targetUser.email,
     role: targetUser.role,
     organizationId: targetUser.organizationId,
+    sessionVersion: targetUser.sessionVersion,
     impersonatedBy: ownerSession.user.id,
   });
 
@@ -109,6 +113,7 @@ export async function stopImpersonating() {
     email: owner.email,
     role: owner.role,
     organizationId: owner.organizationId,
+    sessionVersion: owner.sessionVersion,
     // No impersonatedBy this time -- a genuine session again.
   });
 

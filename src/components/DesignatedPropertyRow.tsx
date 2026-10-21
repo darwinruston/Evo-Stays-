@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { button, card, inputCompact } from "@/lib/ui";
 
 // One designated property, with an optional reveal-on-click form to pick
@@ -27,12 +28,12 @@ export function DesignatedPropertyRow({
   clientName: string;
   cleanerName: string;
   removeAction: (formData: FormData) => void;
-  moveAction: (formData: FormData) => Promise<void>;
+  moveAction: (formData: FormData) => Promise<ActionResult>;
   pendingCount: number;
   // The agreed flat fee per clean here, or null when paid by the hour.
   flatFee: number | null;
   hourlyRate: number | null;
-  feeAction: (formData: FormData) => Promise<void>;
+  feeAction: (formData: FormData) => Promise<ActionResult>;
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(moveAction);
   const fee = useRevealForm(feeAction);
@@ -46,10 +47,14 @@ export function DesignatedPropertyRow({
     setAllError(null);
     startMoveAll(async () => {
       try {
-        await moveAction(new FormData());
+        const result = await moveAction(new FormData());
+        if (result) {
+          setAllError(result.error);
+          return;
+        }
         setConfirmingAll(false);
-      } catch (err) {
-        setAllError(err instanceof Error ? err.message : "Something went wrong.");
+      } catch {
+        setAllError("Something went wrong.");
       }
     });
   }

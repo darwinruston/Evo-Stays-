@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { button, card, inputCompact } from "@/lib/ui";
 
 function addDays(iso: string, days: number): string {
@@ -21,7 +22,7 @@ export function RescheduleClean({
   alsoThatDay,
   cleanerName,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   // YYYY-MM-DD the clean is on now, or null when it has no date yet.
   currentDate: string | null;
   // The other still-to-do cleans the same cleaner has that day, by property.
@@ -39,9 +40,10 @@ export function RescheduleClean({
       try {
         const formData = new FormData();
         formData.set("date", addDays(currentDate, 1));
-        await action(formData);
-      } catch (err) {
-        setNextError(err instanceof Error ? err.message : "Something went wrong.");
+        const result = await action(formData);
+        if (result) setNextError(result.error);
+      } catch {
+        setNextError("Something went wrong.");
       }
     });
   }

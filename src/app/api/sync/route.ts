@@ -21,7 +21,19 @@ function isAuthorized(request: NextRequest, expected: string): boolean {
 // required for day-to-day automation, which the scheduler already handles.
 // No staff session exists here, so this is protected by a bearer secret
 // instead of requireStaff().
+// Headers the public-facing tunnels add to every request they forward:
+// Tailscale Funnel and Cloudflare Tunnel respectively. Nobody outside the
+// tailnet ever needs to trigger a sync, so a request that came in through
+// the public URL is turned away before the secret is even checked.
+function cameThroughPublicTunnel(request: NextRequest): boolean {
+  return request.headers.has("tailscale-funnel-request") || request.headers.has("cf-connecting-ip");
+}
+
 export async function POST(request: NextRequest) {
+  if (cameThroughPublicTunnel(request)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const expected = process.env.SYNC_API_KEY;
   if (!expected) {
     return NextResponse.json({ error: "SYNC_API_KEY is not configured" }, { status: 500 });

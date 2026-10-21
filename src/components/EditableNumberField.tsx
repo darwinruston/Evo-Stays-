@@ -1,6 +1,7 @@
 "use client";
 
 import { useRevealForm } from "@/lib/useRevealForm";
+import type { ActionResult } from "@/lib/actionResult";
 import { button, inputCompact } from "@/lib/ui";
 
 // A number setting that reads as plain text until "Edit" is clicked, rather
@@ -20,7 +21,7 @@ export function EditableNumberField({
 }: {
   id: string;
   fieldName: string;
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   value: number | null;
   displayValue: string;
   placeholder: string;
