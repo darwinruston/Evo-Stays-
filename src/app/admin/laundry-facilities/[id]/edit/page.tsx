@@ -7,10 +7,6 @@ import { button, card, inputCompact } from "@/lib/ui";
 
 export const metadata = { title: "Edit laundry company" };
 
-function clock(minutes: number): string {
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-}
-
 export default async function EditLaundryFacilityPage({ params }: { params: Promise<{ id: string }> }) {
   const { session, db } = await requireStaff();
   const { id } = await params;
@@ -79,19 +75,7 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="dayStart" className="text-sm font-medium">
-                Van leaves no earlier than
-              </label>
-              <input
-                id="dayStart"
-                name="dayStart"
-                type="time"
-                defaultValue={clock(facility.dayStartMinutes)}
-                className={inputCompact}
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="handoverMinutes" className="text-sm font-medium">
                 Earliest after cleaner arrives (min)
@@ -105,20 +89,40 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
                 defaultValue={facility.handoverMinutes}
                 className={inputCompact}
               />
+              <p className="text-xs text-zinc-500">Time for the cleaner to strip the beds and have the dirty linen ready.</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="needByMinutes" className="text-sm font-medium">
-                Latest after cleaner arrives (min)
+              <label htmlFor="cleanLeadMinutes" className="text-sm font-medium">
+                Clean linen there before the clean ends (min)
               </label>
               <input
-                id="needByMinutes"
-                name="needByMinutes"
+                id="cleanLeadMinutes"
+                name="cleanLeadMinutes"
                 type="number"
-                min={5}
-                max={480}
-                defaultValue={facility.needByMinutes}
+                min={0}
+                max={240}
+                defaultValue={facility.cleanLeadMinutes}
                 className={inputCompact}
               />
+              <p className="text-xs text-zinc-500">So an hour-long clean gets its linen at least this long before the end.</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="defaultCleanMinutes" className="text-sm font-medium">
+                Clean length until we&apos;ve learned it (min)
+              </label>
+              <input
+                id="defaultCleanMinutes"
+                name="defaultCleanMinutes"
+                type="number"
+                min={15}
+                max={480}
+                defaultValue={facility.defaultCleanMinutes}
+                className={inputCompact}
+              />
+              <p className="text-xs text-zinc-500">
+                A property&apos;s real clean length is learned from the check-in and check-out times of its past
+                cleans, and takes over from this as they build up.
+              </p>
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="stopMinutes" className="text-sm font-medium">

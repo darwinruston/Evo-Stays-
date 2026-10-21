@@ -3,9 +3,10 @@ import { propertyDisplayName } from "@/lib/address";
 import { geocodeUkAddress } from "@/lib/geocode";
 import { planRoute, type LatLng, type RoutePlan, type StopInput } from "@/lib/linenRoute";
 import { dayBounds, isDateOnly } from "@/lib/schedule";
+import { estimateCleanMinutes, visitMinutes } from "@/lib/cleanDuration";
 
 export type LinenDay = {
-  facility: { id: string; name: string; depotAddress: string | null };
+  facility: { id: string; name: string; depotAddress: string | null; cleanLeadMinutes: number };
   day: Date;
   plan: RoutePlan;
   // Things that make the plan less certain than it looks, in plain words.
@@ -89,12 +90,41 @@ export async function loadLinenDay(
     locations.set(p.id, location);
   }
 
+  // How long each property's clean usually takes, from the visits already
+  // recorded there (newest first; see estimateCleanMinutes).
+  const propertyIds = [...locations.keys()];
+  const history = propertyIds.length
+    ? await db.cleanLog.findMany({
+        where: {
+          arrivedAt: { not: null },
+          departedAt: { not: null },
+          clean: { propertyId: { in: propertyIds } },
+        },
+        orderBy: { departedAt: "desc" },
+        select: { arrivedAt: true, departedAt: true, clean: { select: { propertyId: true } } },
+        take: 400,
+      })
+    : [];
+  const visitsByProperty = new Map<string, number[]>();
+  for (const log of history) {
+    if (!log.arrivedAt || !log.departedAt) continue;
+    const minutes = visitMinutes(log.arrivedAt, log.departedAt);
+    if (minutes === null) continue;
+    const list = visitsByProperty.get(log.clean.propertyId) ?? [];
+    list.push(minutes);
+    visitsByProperty.set(log.clean.propertyId, list);
+  }
+
   const stops: StopInput[] = [];
   for (const clean of cleans) {
     if (seen.has(clean.propertyId)) continue;
     seen.add(clean.propertyId);
     const scheduled = clean.scheduledFor;
     const arrival = clean.plannedArrivalAt ?? (scheduled && !isDateOnly(scheduled) ? scheduled : null);
+    const estimate = estimateCleanMinutes(
+      visitsByProperty.get(clean.propertyId) ?? [],
+      facility.defaultCleanMinutes,
+    );
     stops.push({
       cleanId: clean.id,
       propertyId: clean.propertyId,
@@ -104,6 +134,9 @@ export async function loadLinenDay(
       cleanerName: clean.assignedTo?.name ?? null,
       cleanerArrival: arrival,
       arrivalConfirmed: clean.plannedArrivalAt !== null,
+      cleanMinutes: estimate.minutes,
+      cleanEstimateSample: estimate.sample,
+      cleanEstimateLearned: estimate.learned,
     });
   }
 
@@ -112,7 +145,7 @@ export async function loadLinenDay(
     depot,
     dayStart,
     handoverMinutes: facility.handoverMinutes,
-    needByMinutes: facility.needByMinutes,
+    leadMinutes: facility.cleanLeadMinutes,
     stopMinutes: facility.stopMinutes,
   });
 
@@ -124,7 +157,12 @@ export async function loadLinenDay(
   }
 
   return {
-    facility: { id: facility.id, name: facility.name, depotAddress: facility.depotAddress },
+    facility: {
+      id: facility.id,
+      name: facility.name,
+      depotAddress: facility.depotAddress,
+      cleanLeadMinutes: facility.cleanLeadMinutes,
+    },
     day,
     plan,
     notes,

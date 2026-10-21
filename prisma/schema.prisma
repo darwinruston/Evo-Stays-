@@ -879,19 +879,22 @@ model LaundryFacility {
   active    Boolean       @default(true)
   loads     LaundryLoad[]
   // Where the van sets off from each morning (any address, found on the map
-  // from its postcode) and how its day is planned: the earliest it leaves,
-  // and a visit window at each property measured from when the cleaner
-  // arrives. The van comes AFTER the cleaner, to collect that turnover's
-  // dirty linen: no sooner than handoverMinutes after they arrive (time to
-  // strip the beds and bag it up) and no later than needByMinutes after
-  // (when the clean linen it brings is still in time to be used). stopMinutes
-  // is how long each visit takes. See src/lib/linenRoute.ts.
+  // from its postcode, only used to estimate drive times) and how a day is
+  // planned. The van comes AFTER the cleaner has arrived, to collect that
+  // turnover's dirty linen, and brings clean linen the cleaner still has to
+  // use: so each property's window opens handoverMinutes after the cleaner
+  // arrives (time to strip the beds) and closes cleanLeadMinutes before the
+  // clean is expected to end. How long a clean takes is learned per property
+  // from past visits (see src/lib/cleanDuration.ts), starting from
+  // defaultCleanMinutes. stopMinutes is how long each visit takes. See
+  // src/lib/linenRoute.ts.
   depotAddress     String?
   depotLatitude    Float?
   depotLongitude   Float?
   dayStartMinutes  Int      @default(390)
-  handoverMinutes  Int      @default(30)
-  needByMinutes    Int      @default(90)
+  handoverMinutes  Int      @default(15)
+  cleanLeadMinutes Int      @default(40)
+  defaultCleanMinutes Int   @default(90)
   stopMinutes      Int      @default(15)
   // The properties this company supplies, and the logins it signs in with.
   properties Property[]

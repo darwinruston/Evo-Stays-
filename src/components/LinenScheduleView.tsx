@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatClock, type LinenDay } from "@/lib/linenPlan";
+import { formatMinutes } from "@/lib/cleanDuration";
 import { toIsoDate } from "@/lib/schedule";
 import { badge, button, card } from "@/lib/ui";
 
@@ -63,9 +64,7 @@ export function LinenScheduleView({
             {plan.stops.length} {plan.stops.length === 1 ? "stop" : "stops"} · about {plan.totalDriveMinutes} min
             driving
           </p>
-          {plan.feasible ? (
-            <p className="text-base font-medium">Leave the depot at about {formatClock(plan.leaveAt ?? data.day)}</p>
-          ) : (
+          {!plan.feasible && (
             <p role="alert" className="text-base font-medium">
               This day can&apos;t be fully made: the van can&apos;t reach every property while its clean linen is
               still useful. See the stops marked late.
@@ -116,14 +115,23 @@ export function LinenScheduleView({
               ) : (
                 <span className={badge("outline")}>Not confirmed</span>
               )}
-              <span className="text-zinc-400">
-                {stop.order === 1 ? "From the depot" : "From the last stop"}: about {stop.driveFromPreviousMinutes} min
-                {stop.driveKnown ? "" : " (guess)"}
-              </span>
+              {stop.order > 1 && (
+                <span className="text-zinc-400">
+                  From the last stop: about {stop.driveFromPreviousMinutes} min
+                  {stop.driveKnown ? "" : " (guess)"}
+                </span>
+              )}
             </div>
             <p className="-mt-1 text-xs text-zinc-500">
-              Dirty linen ready from {formatClock(stop.windowStart)}; clean linen is needed by{" "}
-              {formatClock(stop.windowEnd)}.
+              The clean usually takes about {formatMinutes(stop.cleanMinutes)}
+              {stop.cleanEstimateLearned
+                ? ` (from ${stop.cleanEstimateSample} past cleans)`
+                : stop.cleanEstimateSample > 0
+                  ? ` (an early estimate, ${stop.cleanEstimateSample} past ${stop.cleanEstimateSample === 1 ? "clean" : "cleans"} so far)`
+                  : " (a rough estimate, no past cleans yet)"}
+              . Dirty linen is ready from {formatClock(stop.windowStart)}, and clean linen needs to be here by{" "}
+              {formatClock(stop.windowEnd)}, {data.facility.cleanLeadMinutes} min before the clean ends.
+              {stop.tight ? " This is a short clean, so there's little time to have the dirty linen ready." : ""}
               {stop.waitMinutes > 0 ? ` The van waits about ${stop.waitMinutes} min here for that.` : ""}
             </p>
 

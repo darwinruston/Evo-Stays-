@@ -66,12 +66,6 @@ function minutes(formData: FormData, key: string, fallback: number, min: number,
   return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
 }
 
-// "HH:MM" from a time input, as minutes after midnight.
-function timeMinutes(formData: FormData, key: string, fallback: number): number {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(str(formData, key) ?? "");
-  return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
-}
-
 export async function updateLaundryFacility(id: string, formData: FormData) {
   const { db } = await requireStaff();
 
@@ -90,9 +84,9 @@ export async function updateLaundryFacility(id: string, formData: FormData) {
       // A new address has to be found on the map again; the old position
       // would put the van in the wrong place.
       ...(depotAddress !== (before?.depotAddress ?? null) ? { depotLatitude: null, depotLongitude: null } : {}),
-      dayStartMinutes: timeMinutes(formData, "dayStart", 390),
       handoverMinutes: minutes(formData, "handoverMinutes", 30, 0, 240),
-      needByMinutes: minutes(formData, "needByMinutes", 90, 5, 480),
+      cleanLeadMinutes: minutes(formData, "cleanLeadMinutes", 40, 0, 240),
+      defaultCleanMinutes: minutes(formData, "defaultCleanMinutes", 90, 15, 480),
       stopMinutes: minutes(formData, "stopMinutes", 15, 1, 120),
     },
   });

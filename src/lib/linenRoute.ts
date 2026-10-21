@@ -2,8 +2,9 @@
 // order, and the window of time to be at each one. The van comes AFTER the
 // cleaner has arrived, to take that turnover's dirty linen: no sooner than
 // `handoverMinutes` after they get there (time to strip the beds and bag it
-// up), and no later than `needByMinutes` after (while the clean linen the van
-// brings can still be used in the clean). Pure functions with no database or
+// up), and early enough that the clean linen it brings is there at least
+// `leadMinutes` before the clean is expected to end (so the cleaner can make
+// the beds with it). Pure functions with no database or
 // network access, so the rules can be tested on their own and the loader in
 // src/lib/linenPlan.ts only has to gather inputs.
 //
@@ -59,6 +60,11 @@ export type StopInput = {
   // clean's own time. Null when only a date is known.
   cleanerArrival: Date | null;
   arrivalConfirmed: boolean;
+  // How long the clean at this property usually takes, and whether that is
+  // learned from past visits (see src/lib/cleanDuration.ts).
+  cleanMinutes: number;
+  cleanEstimateSample: number;
+  cleanEstimateLearned: boolean;
 };
 
 export type PlanSettings = {
@@ -68,9 +74,9 @@ export type PlanSettings = {
   // The earliest the van may arrive, after the cleaner has: time for them to
   // strip the beds and have the dirty linen ready.
   handoverMinutes: number;
-  // The latest it may arrive, after the cleaner has: past this the clean
-  // linen it brings is too late to use in the clean.
-  needByMinutes: number;
+  // How long before the clean is expected to end the clean linen must be
+  // there, so the cleaner has time to use it.
+  leadMinutes: number;
   // How long dropping off and collecting takes at each property.
   stopMinutes: number;
 };
@@ -80,6 +86,9 @@ export type PlannedStop = StopInput & {
   // The window the van has to arrive within, from the cleaner's arrival.
   windowStart: Date;
   windowEnd: Date;
+  // True when the clean is so short that the window had to close before the
+  // dirty linen would normally be ready.
+  tight: boolean;
   // When the van is planned to arrive: the earliest it can, waiting outside
   // if it would otherwise be early, going round in this order.
   plannedArrival: Date;
@@ -97,8 +106,6 @@ export type RoutePlan = {
   stops: PlannedStop[];
   // Stops with a date but no time yet, so there's nothing to plan around.
   untimed: StopInput[];
-  // When the van sets off to make the first stop at its planned time.
-  leaveAt: Date | null;
   totalDriveMinutes: number;
   feasible: boolean;
 };
@@ -111,12 +118,15 @@ type Timed = StopInput & { cleanerArrival: Date };
 
 type Evaluation = { lateness: number; finish: number; drive: number };
 
-function windowOf(stop: Timed, settings: PlanSettings): { start: number; end: number } {
+// The window to arrive in. It closes leadMinutes before the clean is expected
+// to end; it opens handoverMinutes after the cleaner arrives, unless the
+// clean is so short that this would be after it closes, in which case it
+// opens when it closes (a single moment, flagged as tight).
+function windowOf(stop: Timed, settings: PlanSettings): { start: number; end: number; tight: boolean } {
   const arrival = stop.cleanerArrival.getTime();
-  return {
-    start: arrival + settings.handoverMinutes * 60_000,
-    end: arrival + settings.needByMinutes * 60_000,
-  };
+  const end = arrival + (stop.cleanMinutes - settings.leadMinutes) * 60_000;
+  const opens = arrival + settings.handoverMinutes * 60_000;
+  return { start: Math.min(opens, end), end, tight: end < opens };
 }
 
 // Runs the day forward in a given order: the van goes straight to each stop
@@ -188,7 +198,7 @@ export function planRoute(stops: StopInput[], settings: PlanSettings): RoutePlan
   const timed = stops.filter((s): s is Timed => s.cleanerArrival !== null);
   const untimed = stops.filter((s) => s.cleanerArrival === null);
   if (timed.length === 0) {
-    return { stops: [], untimed, leaveAt: null, totalDriveMinutes: 0, feasible: true };
+    return { stops: [], untimed, totalDriveMinutes: 0, feasible: true };
   }
 
   const order = chooseOrder(timed, settings);
@@ -235,6 +245,7 @@ export function planRoute(stops: StopInput[], settings: PlanSettings): RoutePlan
       order: k + 1,
       windowStart: new Date(window.start),
       windowEnd: new Date(window.end),
+      tight: window.tight,
       plannedArrival: planned[k],
       latestArrival: latest[k],
       waitMinutes: waits[k],
@@ -247,7 +258,6 @@ export function planRoute(stops: StopInput[], settings: PlanSettings): RoutePlan
   return {
     stops: result,
     untimed,
-    leaveAt: addMinutes(planned[0], -legs[0].minutes),
     totalDriveMinutes: legs.reduce((sum, leg) => sum + leg.minutes, 0),
     feasible: result.every((r) => r.lateByMinutes === 0),
   };
