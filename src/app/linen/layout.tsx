@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireLinen } from "@/lib/authz";
 import { unreadNotificationCount } from "@/lib/notificationViews";
+import { vapidPublicKey } from "@/lib/push";
+import { DeviceSetupBanner } from "@/components/DeviceSetupBanner";
 import { BellIcon } from "@/components/Icons";
 import { EvoTick } from "@/components/EvoTick";
 import { button } from "@/lib/ui";
@@ -40,7 +42,12 @@ export default async function LinenLayout({ children }: { children: React.ReactN
           </div>
         </nav>
       </header>
-      <main className="mx-auto max-w-md px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">{children}</main>
+      <main className="mx-auto max-w-md px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+        <div className="mb-4 empty:hidden">
+          <DeviceSetupBanner publicKey={vapidPublicKey()} />
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

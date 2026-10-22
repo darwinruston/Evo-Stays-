@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PwaRegister } from "@/components/PwaRegister";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,6 +17,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Evo Stays", template: "%s · Evo Stays" },
   description: "Cleaning and stock management for short-let properties.",
+  // iPhone: what the home screen icon looks like, and opening full screen
+  // from it. (The manifest, for Android and desktop, is src/app/manifest.ts.)
+  icons: { apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Evo Stays", statusBarStyle: "default" },
 };
 
 // No explicit viewport meta before this -- Next's implicit default omits
@@ -29,12 +35,18 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Colours the phone's status bar to match the app's page background.
+  themeColor: "#fafafa",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <PwaRegister />
+        <OfflineBanner />
+        {children}
+      </body>
     </html>
   );
 }

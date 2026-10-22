@@ -12,6 +12,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // A phone checks this file for a new version each time. A cached copy
+        // would leave old behaviour on devices indefinitely.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           { key: "Strict-Transport-Security", value: "max-age=31536000" },

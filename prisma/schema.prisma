@@ -106,6 +106,7 @@ model Organization {
   propertyImages            PropertyImage[]
   cleans                    Clean[]
   linenVisits               LinenVisit[]
+  pushSubscriptions         PushSubscription[]
   cleanLogs                 CleanLog[]
   cleanPhotos               CleanPhoto[]
   stockItems                StockItem[]
@@ -194,6 +195,7 @@ model User {
   laundryFacility   LaundryFacility? @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
   laundryFacilityId String?
   notifications  Notification[]
+  pushSubscriptions PushSubscription[]
   reportedIssues Issue[]       @relation("IssueReporter")
   resolvedIssues Issue[]       @relation("IssueResolver")
   assignedCleans Clean[]       @relation("CleanAssignee")
@@ -875,6 +877,29 @@ model LaundryLoad {
   @@index([organizationId])
   @@index([recordedById])
   @@index([facilityId])
+}
+
+// One device (a phone or browser) that has turned on push alerts for a user.
+// `endpoint` is the push service's address for that device and is unique to
+// it; p256dh and auth are the device's keys, used to encrypt what's sent to
+// it. A user can have several (phone, laptop). Removed when the person turns
+// alerts off or when the push service says the device is gone.
+model PushSubscription {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  endpoint       String       @unique
+  p256dh         String
+  auth           String
+  // Which device it is, for the person's own reference ("iPhone", "Chrome on
+  // Windows"). Informational only.
+  userAgent      String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
 }
 
 // What the linen company has told us about its visit to one clean's property:

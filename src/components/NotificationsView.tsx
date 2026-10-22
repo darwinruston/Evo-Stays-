@@ -4,6 +4,8 @@ import { formatScheduledFor } from "@/lib/schedule";
 import { button, card } from "@/lib/ui";
 import { markAllNotificationsRead, setEmailNotifications } from "@/app/notifications/actions";
 import { unreadNotificationCount } from "@/lib/notificationViews";
+import { vapidPublicKey } from "@/lib/push";
+import { PushToggle } from "@/components/PushToggle";
 
 // How far back the list goes. Notifications are "what changed that affects
 // you" -- nobody scrolls back through months of them, and older ones are
@@ -77,6 +79,8 @@ export async function NotificationsView({
           ))}
         </ul>
       )}
+
+      <PushToggle publicKey={vapidPublicKey()} />
 
       <section className={card("flex flex-col gap-2 p-4")}>
         <h2 className="text-sm font-medium">Email</h2>

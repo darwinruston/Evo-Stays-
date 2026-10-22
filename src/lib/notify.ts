@@ -4,6 +4,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { ISSUE_CATEGORY_LABELS, ISSUE_SEVERITY_LABELS } from "@/lib/issues";
 import { formatScheduledFor } from "@/lib/schedule";
 import { absoluteUrl, emailConfigured, sendEmail } from "@/lib/email";
+import { pushConfigured, sendPushToUsers } from "@/lib/push";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 
 export type NotificationInput = {
@@ -52,6 +53,23 @@ export async function notify(db: ScopedPrismaClient, items: NotificationInput[])
   if (emailConfigured()) {
     emailNotifications(db, created).catch((err) => {
       console.error("[notify] couldn't send notification email:", err);
+    });
+  }
+
+  // And a push to any phone or browser the person has turned alerts on for.
+  // Tapping it goes through /notifications/{id}, which marks it read.
+  if (pushConfigured()) {
+    sendPushToUsers(
+      db,
+      created.map((n) => ({
+        userId: n.userId,
+        title: n.title,
+        body: n.body,
+        url: `/notifications/${n.id}`,
+        tag: n.id,
+      })),
+    ).catch((err) => {
+      console.error("[notify] couldn't send push notifications:", err);
     });
   }
 }

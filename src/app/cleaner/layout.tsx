@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireCleaner } from "@/lib/authz";
 import { getOrgModules } from "@/lib/modules";
+import { vapidPublicKey } from "@/lib/push";
+import { DeviceSetupBanner } from "@/components/DeviceSetupBanner";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
 import { unreadNotificationCount } from "@/lib/notificationViews";
@@ -38,6 +40,9 @@ export default async function CleanerLayout({ children }: { children: React.Reac
           instead of the button underneath it. This area is used one-handed
           mid-clean, so that's the button that matters most. */}
       <main className="mx-auto max-w-md px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+        <div className="mb-4 empty:hidden">
+          <DeviceSetupBanner publicKey={vapidPublicKey()} />
+        </div>
         {children}
       </main>
     </div>
