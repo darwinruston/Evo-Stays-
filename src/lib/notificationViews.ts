@@ -4,7 +4,9 @@ import type { ScopedPrismaClient } from "@/lib/prisma";
 // route a signed-in user (see src/app/page.tsx). Takes a plain string since
 // that's how the session carries the role (see src/types/next-auth.d.ts).
 export function notificationsHref(role: string): string {
-  return role === "CLEANER" ? "/cleaner/notifications" : "/admin/notifications";
+  if (role === "CLEANER") return "/cleaner/notifications";
+  if (role === "LINEN") return "/linen/notifications";
+  return "/admin/notifications";
 }
 
 // For the nav badge in both area layouts.

@@ -289,6 +289,10 @@ enum NotificationKind {
   // To staff: the linen company flagged a problem with a visit (see
   // LinenVisit), which someone needs to pick up.
   LINEN_ISSUE
+  // To a linen company's login: a clean at a property it supplies was moved,
+  // cancelled, or its cleaner's arrival time changed, so its times have moved
+  // (see src/lib/linenNotify.ts).
+  LINEN_SCHEDULE_CHANGED
   // To staff: the assigned cleaner hasn't confirmed what time they'll arrive
   // and the clean is now close (see checkUnconfirmedArrivals).
   ARRIVAL_UNCONFIRMED

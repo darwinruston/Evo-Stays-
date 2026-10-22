@@ -20,6 +20,7 @@ async function requireUser() {
 function revalidateNotificationViews() {
   revalidatePath("/admin", "layout");
   revalidatePath("/cleaner", "layout");
+  revalidatePath("/linen", "layout");
 }
 
 export async function markAllNotificationsRead() {

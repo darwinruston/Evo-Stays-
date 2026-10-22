@@ -5,6 +5,8 @@ import { Prisma } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { assertModule, getOrgModules } from "@/lib/modules";
+import { linenNoticesFor } from "@/lib/linenNotify";
+import { notify } from "@/lib/notify";
 import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
@@ -53,6 +55,8 @@ export async function confirmArrival(cleanId: string, formData: FormData) {
   if (!plannedArrivalAt) throw new Error("Enter the time you'll arrive.");
 
   await db.clean.update({ where: { id: cleanId }, data: { plannedArrivalAt } });
+  // The linen company plans its window around this time.
+  await notify(db, await linenNoticesFor(db, clean, { ...clean, plannedArrivalAt }));
 
   revalidatePath("/cleaner");
   revalidatePath(`/cleaner/cleans/${cleanId}`);

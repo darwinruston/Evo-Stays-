@@ -9,6 +9,7 @@ import { formatScheduledFor, isDateOnly, sameCalendarDay } from "@/lib/schedule"
 import { RESET_ARRIVAL } from "@/lib/arrival";
 import { logAudit } from "@/lib/audit";
 import type { ActionResult } from "@/lib/actionResult";
+import { linenNoticesFor } from "@/lib/linenNotify";
 import { notify, newCleanNotices, cleanEditNotices, cleanCancelledNotice } from "@/lib/notify";
 import { turnoverFor, isAtRisk, atRiskNotices } from "@/lib/turnover";
 
@@ -115,6 +116,8 @@ export async function updateClean(id: string, formData: FormData) {
   });
 
   await notify(db, cleanEditNotices(before, after));
+  // The linen company's times depend on when the cleaner is there.
+  await notify(db, await linenNoticesFor(db, before, after));
 
   // Staff were already alerted this clean is at risk (and it's still the
   // same day, so that alert stands) -- but a cleaner just handed it wasn't
@@ -205,6 +208,8 @@ export async function rescheduleClean(id: string, formData: FormData): Promise<A
   });
 
   await notify(db, cleanEditNotices(before, after));
+  // The linen company's times depend on when the cleaner is there.
+  await notify(db, await linenNoticesFor(db, before, after));
   await logAudit(db, {
     actorId: session.user.id,
     entityType: "Clean",
@@ -232,6 +237,7 @@ export async function deleteClean(id: string) {
   });
 
   await db.clean.delete({ where: { id } });
+  await notify(db, await linenNoticesFor(db, clean, null));
 
   // Only worth telling the cleaner if they still had it to do -- deleting a
   // completed or already-cancelled clean changes nothing for them.

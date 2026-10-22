@@ -5,6 +5,7 @@ import { PmsAuthError } from "@/lib/pms/errors";
 import type { PmsAdapter } from "@/lib/pms/types";
 import { createCleanRecord } from "@/lib/cleans";
 import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
+import { linenNoticesFor } from "@/lib/linenNotify";
 import { RESET_ARRIVAL } from "@/lib/arrival";
 import { logAudit } from "@/lib/audit";
 import {
@@ -195,6 +196,9 @@ export async function syncPmsListing(
             entityId: existing.clean.id,
             summary: `Cancelled: ${adapter.displayName} reservation status changed to "${reservation.status}"`,
           });
+          notices.push(
+            ...(await linenNoticesFor(db, existing.clean, { ...existing.clean, status: "CANCELLED" })),
+          );
           if (existing.clean.assignedToId) {
             notices.push(
               ...cleanCancelledNotice(
@@ -223,6 +227,13 @@ export async function syncPmsListing(
             entityId: existing.clean.id,
             summary: `Rescheduled to ${formatScheduledFor(checkOut)} (${adapter.displayName} sync)`,
           });
+          notices.push(
+            ...(await linenNoticesFor(db, existing.clean, {
+              ...existing.clean,
+              scheduledFor: checkOut,
+              plannedArrivalAt: null,
+            })),
+          );
           if (existing.clean.assignedToId) {
             notices.push(
               ...cleanRescheduledNotice(

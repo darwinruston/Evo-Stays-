@@ -13,7 +13,15 @@ const LIST_LIMIT = 50;
 // The whole Notifications page body, shared by /admin/notifications and
 // /cleaner/notifications -- the only difference between the two is which
 // layout wraps it, so the page files are just a heading and this.
-export async function NotificationsView({ db, userId }: { db: ScopedPrismaClient; userId: string }) {
+export async function NotificationsView({
+  db,
+  userId,
+  emptyText = "Nothing yet. You'll see changes to your cleans here as they happen.",
+}: {
+  db: ScopedPrismaClient;
+  userId: string;
+  emptyText?: string;
+}) {
   const [notifications, user, unread] = await Promise.all([
     db.notification.findMany({
       where: { userId },
@@ -41,9 +49,7 @@ export async function NotificationsView({ db, userId }: { db: ScopedPrismaClient
       </div>
 
       {notifications.length === 0 ? (
-        <p className="text-sm text-zinc-600">
-          Nothing yet. You&apos;ll see changes to your cleans here as they happen.
-        </p>
+        <p className="text-sm text-zinc-600">{emptyText}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {notifications.map((n) => (

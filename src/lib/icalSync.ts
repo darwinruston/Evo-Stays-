@@ -2,6 +2,7 @@ import * as ical from "node-ical";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { createCleanRecord } from "@/lib/cleans";
 import { formatScheduledFor, sameCalendarDay } from "@/lib/schedule";
+import { linenNoticesFor } from "@/lib/linenNotify";
 import { RESET_ARRIVAL } from "@/lib/arrival";
 import { logAudit } from "@/lib/audit";
 import {
@@ -111,6 +112,13 @@ export async function syncCalendarFeed(
           entityId: existing.clean.id,
           summary: `Rescheduled to ${formatScheduledFor(checkOut)} (${feed.label} calendar sync)`,
         });
+        notices.push(
+          ...(await linenNoticesFor(db, existing.clean, {
+            ...existing.clean,
+            scheduledFor: checkOut,
+            plannedArrivalAt: null,
+          })),
+        );
         if (existing.clean.assignedToId) {
           notices.push(
             ...cleanRescheduledNotice(
@@ -146,6 +154,7 @@ export async function syncCalendarFeed(
           entityId: event.clean.id,
           summary: `Cancelled: booking no longer on the ${feed.label} calendar`,
         });
+        notices.push(...(await linenNoticesFor(db, event.clean, { ...event.clean, status: "CANCELLED" })));
         if (event.clean.assignedToId) {
           notices.push(
             ...cleanCancelledNotice(
