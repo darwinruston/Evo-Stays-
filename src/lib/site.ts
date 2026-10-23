@@ -96,12 +96,12 @@ export const FAQ: FaqItem[] = [
   {
     question: "How does our linen or laundry company fit in?",
     answer:
-      "They can have their own login. It shows a week at a time of the properties they supply, with the window to arrive in worked out from when each cleaner arrives and how long that property's clean usually takes, so clean linen is there while the cleaner can still use it and the dirty linen is ready to collect. They can pick an exact time inside the window or flag a problem, and they are told if a clean moves or is cancelled. Drive times between properties are estimated, not taken from live traffic.",
+      "They get their own login. It shows a week at a time of the properties they supply, with the window to arrive in at each one. That window is worked out from when the cleaner arrives and how long the property usually takes to clean. They can pick an exact time or flag a problem, and they are told if a clean moves or is cancelled. Drive times between properties are estimated, not live traffic.",
   },
   {
     question: "Who can see what?",
     answer:
-      "A cleaner sees only the properties they are assigned to, including access notes and key safe codes. A linen company sees addresses and times only, never access codes. Each company's data is kept separate from every other company's, enforced in the database itself and not only on the screen.",
+      "A cleaner sees only the properties they are assigned to, with the access notes for them. A linen company sees addresses and times, never access codes.",
   },
   {
     question: "Do property owners or guests get a login?",
@@ -112,10 +112,5 @@ export const FAQ: FaqItem[] = [
     question: "What happens when a cleaner has no signal?",
     answer:
       "The app tells them they are offline, and anything they try to save will not go through until the signal is back. It does not store work to send later, so we would not promise it for a basement with no signal at all.",
-  },
-  {
-    question: "Is my data secure?",
-    answer:
-      "Passwords are stored hashed, repeated wrong sign-in attempts are blocked, changing a password signs the person out everywhere, and each company's data is separated at the database level. Our privacy page says what we collect and why. If you have a specific security question, ask us.",
   },
 ];

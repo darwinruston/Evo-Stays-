@@ -8,6 +8,12 @@ export const metadata = {
     "Who is behind Evo Stays, what we believe about running short-let turnovers, and where the product is today.",
 };
 
+const AUDIENCES = [
+  { title: "Property managers", body: "You look after properties for owners." },
+  { title: "Cleaning companies", body: "You clean for other businesses with your own team." },
+  { title: "Hosts with a team", body: "You run your own properties and have your own cleaners." },
+];
+
 const PRINCIPLES = [
   {
     title: "Your team, not a marketplace",
@@ -22,8 +28,8 @@ const PRINCIPLES = [
     body: "A property manager and a cleaning company run very differently. Evo Stays asks how you operate and switches on only what you use.",
   },
   {
-    title: "Everyone sees what they need and no more",
-    body: "A cleaner sees their own properties. A linen company sees addresses and times, never door codes. Each company's data stays separate from every other's.",
+    title: "Everyone sees what they need",
+    body: "A cleaner sees their own properties. A linen company sees addresses and times, never door codes.",
   },
   {
     title: "Honest about what it does",
@@ -60,6 +66,18 @@ export default function AboutPage() {
       </Section>
 
       <Section tone="surface">
+        <SectionHeading eyebrow="Who it is for" title="Teams with their own cleaners" />
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          {AUDIENCES.map((a) => (
+            <div key={a.title} className="flex flex-col gap-2 rounded-2xl border border-black/5 bg-background p-6">
+              <h3 className="font-semibold">{a.title}</h3>
+              <p className="text-sm text-zinc-600">{a.body}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section>
         <SectionHeading eyebrow="What we believe" title="The ideas behind the product" />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PRINCIPLES.map((p) => (
@@ -71,7 +89,7 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      <Section>
+      <Section tone="surface">
         <div className="mx-auto max-w-3xl">
           <SectionHeading eyebrow="Where we are" title="Early, and working with a few teams at a time" />
           <div className="mt-6 grid gap-4 text-zinc-600">
