@@ -10,7 +10,7 @@ type ProviderOption = {
 };
 
 // The provider picker plus whichever provider's 1-or-2 credential fields are
-// currently relevant -- generalizes what was a single hardcoded "Hostify API
+// currently relevant -- generalises what was a single hardcoded "Hostify API
 // key" field in ClientForm. Needs client-side state since which fields show
 // depends on the <select>'s own live value, not just what was initially
 // saved.

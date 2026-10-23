@@ -30,7 +30,7 @@ function localDateFromInput(formData: FormData, key: string): Date | null {
 
 // Creates a new tenant and its first login in one step -- a trial company
 // starts here, not as a raw database row someone has to script. The org
-// itself is created via the unscoped client (Organization carries no RLS --
+// itself is created via the unscoped client (Organisation carries no RLS --
 // see UNSCOPED_MODELS in src/lib/prisma.ts), then its first admin is
 // created through a client freshly scoped to that new org, the same way any
 // other write in the app is scoped, just built from an id that didn't exist
@@ -42,7 +42,7 @@ export async function createOrganization(formData: FormData) {
   const adminName = str(formData, "adminName");
   const adminEmail = str(formData, "adminEmail");
   const adminPassword = str(formData, "adminPassword");
-  if (!orgName) throw new Error("Organization name is required");
+  if (!orgName) throw new Error("Organisation name is required");
   if (!adminName || !adminEmail || !adminPassword) {
     throw new Error("The first admin's name, email and password are all required");
   }
@@ -50,7 +50,7 @@ export async function createOrganization(formData: FormData) {
 
   // Email is globally unique platform-wide (see the User model comment in
   // schema.prisma) -- checked against the unscoped client, since this has
-  // to catch a clash with any organization, not just a new one that has no
+  // to catch a clash with any organisation, not just a new one that has no
   // users yet to clash with.
   const existing = await prisma.user.findUnique({ where: { email: adminEmail }, select: { id: true } });
   if (existing) throw new Error("That email address already has a login");
@@ -72,13 +72,13 @@ export async function createOrganization(formData: FormData) {
   redirect("/owner");
 }
 
-// The commercial state shown on the Organizations page -- Trial or Paid,
+// The commercial state shown on the Organisations page -- Trial or Paid,
 // (only meaningful for Paid) the agreed monthly price, and (only really
 // meaningful for Trial, though never enforced either way -- see the
-// comment on Organization.trialEndsAt in schema.prisma) when the trial is
+// comment on Organisation.trialEndsAt in schema.prisma) when the trial is
 // due to end. Not a payment integration: this doesn't charge anything, it's
 // a record of what's been agreed, the same way BillingSettings.cadence is a
-// record rather than an invoicing engine. Organization carries no RLS (see
+// record rather than an invoicing engine. Organisation carries no RLS (see
 // UNSCOPED_MODELS in src/lib/prisma.ts), so this goes through the unscoped
 // client directly, same as reading the list itself.
 export async function updateOrganizationPlan(organizationId: string, formData: FormData) {
@@ -107,7 +107,7 @@ export async function updateOrganizationPlan(organizationId: string, formData: F
       ...(plan === "PAID" ? { monthlyPriceGBP } : {}),
       // Cleared on save if the field was left blank, same "blank field is
       // the toggle" convention as elsewhere in this app (e.g.
-      // updatePropertySyncHorizon) -- an organization can be moved back to
+      // updatePropertySyncHorizon) -- an organisation can be moved back to
       // an indefinite trial by clearing the date and saving.
       trialEndsAt: localDateFromInput(formData, "trialEndsAt"),
     },
@@ -116,7 +116,7 @@ export async function updateOrganizationPlan(organizationId: string, formData: F
   revalidatePath("/owner");
 }
 
-// Cuts off every user in this organization -- see redirectIfSuspended in
+// Cuts off every user in this organisation -- see redirectIfSuspended in
 // src/lib/authz.ts, checked on every staff/cleaner request, not just at
 // login. Pure record-keeping toggle, same "nullable timestamp doubles as
 // the on/off state" pattern as setInvoicePaid and setLaundryLoadCollected

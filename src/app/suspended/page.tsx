@@ -22,7 +22,7 @@ export default async function SuspendedPage() {
       <div className={`${card("mt-8 max-w-md p-8")} flex flex-col items-center gap-3`}>
         <h1 className="text-xl font-semibold tracking-tight">Account suspended</h1>
         <p className="text-sm text-zinc-600">
-          Access for your organization has been paused. Get in touch if you think this is a
+          Access for your organisation has been paused. Get in touch if you think this is a
           mistake, or to sort out reactivating it.
         </p>
         <form action={logoutAction} className="mt-2">

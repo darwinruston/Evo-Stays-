@@ -77,7 +77,7 @@ export async function turnoversFor(
     // anyone. NOTE: "accepted" is Hostify's own confirmed-status string --
     // each adapter's outcome classification (src/lib/pms/types.ts's
     // PmsReservationOutcome) isn't persisted on SyncedPmsReservation, only
-    // the raw provider status is, so this check needs generalizing (e.g. a
+    // the raw provider status is, so this check needs generalising (e.g. a
     // per-provider "confirmed status strings" list, or persisting outcome
     // itself) once a second provider with a different vocabulary is
     // connected by a real org -- harmless today since Hostify is still the

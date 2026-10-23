@@ -26,7 +26,7 @@ export async function resetPassword(
     return "This reset link is invalid or has expired. Request a new one.";
   }
 
-  // authPrisma to find which organization this user belongs to (the same
+  // authPrisma to find which organisation this user belongs to (the same
   // cross-tenant-before-we-know-the-organization shape as the request step
   // in ../../forgot-password/actions.ts), so the actual password write
   // below can go through properly scoped -- User does carry RLS, and its

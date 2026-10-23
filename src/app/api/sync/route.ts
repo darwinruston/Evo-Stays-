@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAllSyncs } from "@/lib/runAllSyncs";
 
 function isAuthorized(request: NextRequest, expected: string): boolean {
-  const auth = request.headers.get("authorization");
+  const auth = request.headers.get("authorization"); // spelling-ok: the HTTP header's own name
   const provided = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : null;
   if (!provided) return false;
 

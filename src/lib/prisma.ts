@@ -4,13 +4,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// The raw, unscoped client -- every organization's data, no filtering. Only
-// ever used where that's actually correct: the platform-owner Organizations
+// The raw, unscoped client -- every organisation's data, no filtering. Only
+// ever used where that's actually correct: the platform-owner Organisations
 // page (spans every tenant by design), the background sync loop's outer
 // per-Organization iteration (src/lib/runAllSyncs.ts, before it has picked
-// an organization to scope into), and building the scoped clients below.
+// an organisation to scope into), and building the scoped clients below.
 // Everywhere else (any page, action or shared lib helper working with one
-// organization's data) should receive a scoped `db` instead -- see
+// organisation's data) should receive a scoped `db` instead -- see
 // scopedDb().
 export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
@@ -23,7 +23,7 @@ const globalForAuthPrisma = globalThis as unknown as {
 // A separate connection using the narrowly-scoped evo_auth Postgres role
 // (SELECT only, and only on the User table) -- used exclusively by
 // src/auth.ts's login lookup, which has to find an account by email alone,
-// before it knows which organization to scope into. See the comment on the
+// before it knows which organisation to scope into. See the comment on the
 // 20260930150000_auth_lookup_role migration for why this needs its own role
 // rather than going through the restricted runtime role (RLS would deny the
 // lookup outright) or the privileged migration role (far more access than
@@ -47,7 +47,7 @@ function isPlainObject(value: unknown): value is AnyRecord {
 // and stamps organizationId onto each one, however deep. Leaves `where`,
 // `select`, `include`, `connect` and `update` alone -- those reference or
 // change existing rows, which already carry the right organizationId (or, in
-// the case of `connect`, must already belong to this organization for the
+// the case of `connect`, must already belong to this organisation for the
 // relation to be valid, which RLS itself enforces).
 function withOrganizationId(data: unknown, organizationId: string): unknown {
   if (Array.isArray(data)) {
@@ -88,8 +88,8 @@ function withOrganizationId(data: unknown, organizationId: string): unknown {
 }
 
 // Every table this can be called for has an organizationId column, with
-// three exceptions: Organization itself, never created through a scoped
-// client anyway (there's no organization to scope into yet when one is
+// three exceptions: Organisation itself, never created through a scoped
+// client anyway (there's no organisation to scope into yet when one is
 // being created); PasswordResetToken; and InterestRegistration -- the
 // latter two carry no RLS at all (see the comment on each model in
 // schema.prisma) -- neither is ever written or read through a scoped
@@ -99,14 +99,14 @@ const UNSCOPED_MODELS = new Set(["Organization", "PasswordResetToken", "Interest
 
 export type ScopedPrismaClient = ReturnType<typeof scopedDb>;
 
-// Builds a per-request Prisma client scoped to one organization -- the two
+// Builds a per-request Prisma client scoped to one organisation -- the two
 // halves of tenant isolation described in the multi-tenant plan:
 //
 // 1. Every query this client runs is issued inside its own transaction that
 //    first sets the Postgres session variable app.current_organization_id
 //    (via set_config(..., true), i.e. local to that one transaction), so the
 //    Row-Level Security policies on every scoped table (see the RLS
-//    migration) can see which organization is asking and filter accordingly.
+//    migration) can see which organisation is asking and filter accordingly.
 //    This is the real backstop -- true even for a raw query that bypasses
 //    this extension entirely.
 // 2. create/createMany/upsert calls get organizationId stamped onto their
@@ -118,11 +118,11 @@ export type ScopedPrismaClient = ReturnType<typeof scopedDb>;
 //    and nested) still has to pass it explicitly to type-check. What this
 //    layer actually buys is a real backstop against a call site that gets it
 //    wrong -- a stale copy-paste, an `as any`, a value from the wrong
-//    session -- which would otherwise write a row into another organization,
+//    session -- which would otherwise write a row into another organisation,
 //    or (worse) one RLS would then hide from everyone, including its own
-//    organization.
+//    organisation.
 //
-// Layer 1 is the actual guarantee. Layer 2 is defense in depth, not
+// Layer 1 is the actual guarantee. Layer 2 is defence in depth, not
 // ergonomics -- neither replaces the other.
 export function scopedDb(organizationId: string) {
   const client = prisma.$extends({
@@ -144,7 +144,7 @@ export function scopedDb(organizationId: string) {
           // Array form of $transaction batches these two onto the same
           // connection as one Postgres transaction -- the set_config has to
           // land in the same transaction as the query it's guarding, or RLS
-          // sees no organization and (per the DENY-by-default policies) the
+          // sees no organisation and (per the DENY-by-default policies) the
           // query returns nothing.
           const [, result] = await prisma.$transaction([
             prisma.$executeRaw`SELECT set_config('app.current_organization_id', ${organizationId}, TRUE)`,

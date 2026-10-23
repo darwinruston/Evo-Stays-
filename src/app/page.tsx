@@ -138,7 +138,7 @@ function ProductShot({ src, alt, className = "" }: { src: string; alt: string; c
         <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
         <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element -- plain <img>, see the reasoning on EvoTick.tsx: next/image's optimizer 400s on this project's static images. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- plain <img>, see the reasoning on EvoTick.tsx: next/image's optimiser 400s on this project's static images. */}
       <img src={src} alt={alt} className="w-full" />
     </div>
   );

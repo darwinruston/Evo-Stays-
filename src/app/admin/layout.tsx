@@ -71,7 +71,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Only fetched when actually impersonating (see impersonateOrganization
   // in src/app/impersonation/actions.ts) -- an extra query every other
   // admin page load has no reason to pay for. Raw `prisma`, not `db`: this
-  // organization's own name isn't itself RLS-protected data (Organization
+  // organisation's own name isn't itself RLS-protected data (Organisation
   // carries no RLS -- see UNSCOPED_MODELS in src/lib/prisma.ts).
   const impersonatedOrganization = session.user.impersonatedBy
     ? await prisma.organization.findUnique({

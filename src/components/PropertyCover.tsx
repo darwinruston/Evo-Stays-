@@ -1,6 +1,6 @@
 // A property's cover photo, or a neutral placeholder when it has none.
 // Plain <img> for the same reason as Avatar/EvoTick -- the on-the-fly
-// optimizer 400s on these files.
+// optimiser 400s on these files.
 export function PropertyCover({
   path,
   alt,

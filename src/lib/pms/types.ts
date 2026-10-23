@@ -13,7 +13,7 @@ export type PmsCredentialField = {
 
 export type PmsCredentials = Record<string, string>;
 
-// A property as the PMS's own API describes it -- the normalized shape the
+// A property as the PMS's own API describes it -- the normalised shape the
 // "Import from <provider>" picker works from, replacing what was Hostify's
 // own HostifyListing type.
 export type PmsListing = {

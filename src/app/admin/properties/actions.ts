@@ -459,9 +459,9 @@ export async function syncPropertyCalendarFeed(propertyId: string, feedId: strin
 // listing already aggregates every channel for one physical unit, so unlike
 // calendar feeds this is a single field, not a one-to-many list -- see
 // pmsListingId's @unique in schema.prisma. pmsProvider is stamped here too
-// (denormalized from the property's own client), not left for the client's
+// (denormalised from the property's own client), not left for the client's
 // value to be joined through on every later read -- see the comment on
-// Property.pmsProvider in schema.prisma for why that denormalization is
+// Property.pmsProvider in schema.prisma for why that denormalisation is
 // load-bearing, not just a convenience.
 export async function updatePropertyPmsListingId(propertyId: string, formData: FormData) {
   const { session, db } = await requireStaff();

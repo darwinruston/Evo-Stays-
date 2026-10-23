@@ -16,7 +16,7 @@ function str(formData: FormData, key: string): string | null {
 // trial account -- see the comment on InterestRegistration in
 // schema.prisma. Goes through the raw, unscoped `prisma` client on
 // purpose (see UNSCOPED_MODELS in src/lib/prisma.ts): there's no
-// organization to scope into yet, since submitting this is how a
+// organisation to scope into yet, since submitting this is how a
 // prospective one might eventually come to exist. Upserts on email rather
 // than rejecting a repeat submission as a duplicate -- resubmitting
 // (an updated company name, more detail in notes) is a normal thing to do

@@ -18,13 +18,13 @@ function isPlatformOwner(email: string | null | undefined): boolean {
 // Checked on every staff/cleaner request, not just at login -- a session
 // already issued (this app uses JWT sessions, decoded from the cookie alone)
 // stays valid for its own lifetime regardless of what changes in the
-// database afterwards, so suspending an organization has to be caught here
-// to actually cut off someone already signed in. Organization carries no
+// database afterwards, so suspending an organisation has to be caught here
+// to actually cut off someone already signed in. Organisation carries no
 // RLS (see UNSCOPED_MODELS in src/lib/prisma.ts), so this reads it directly.
 //
 // Skipped entirely when the owner is impersonating (see
 // src/app/impersonation/actions.ts) -- support access to a suspended
-// organization is exactly the case that access still needs to work for.
+// organisation is exactly the case that access still needs to work for.
 async function redirectIfSuspended(organizationId: string, impersonatedBy?: string): Promise<void> {
   if (impersonatedBy) return;
   const organization = await prisma.organization.findUnique({
@@ -35,7 +35,7 @@ async function redirectIfSuspended(organizationId: string, impersonatedBy?: stri
 }
 
 // Gates the whole /owner area -- the platform owner's own space for managing
-// every organization on the platform (who exists, how many properties
+// every organisation on the platform (who exists, how many properties
 // they're running, trial vs paid). The owner isn't a customer using Evo
 // Stays as a service the way every other account is, so this is kept
 // entirely separate from /admin and /cleaner, not a page tucked inside
@@ -58,7 +58,7 @@ export async function requirePlatformOwner() {
 // Returns the scoped Prisma client alongside the session, not just the
 // session -- every query a staff page or action runs should go through this
 // `db`, not the raw `prisma` singleton, so it's automatically confined to
-// the signed-in user's own organization (see scopedDb in src/lib/prisma.ts).
+// the signed-in user's own organisation (see scopedDb in src/lib/prisma.ts).
 export async function requireStaff() {
   const session = await auth();
   if (!session?.user) redirect("/login");

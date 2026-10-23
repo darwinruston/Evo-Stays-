@@ -10,14 +10,14 @@ import type { PmsAdapter, PmsCredentials, PmsListing, PmsReservation, PmsReserva
 // Auth is a Personal Access Token over HTTP Basic (confirmed against
 // OwnerRez's own docs example: `curl -u you@example.com:pt_xxxxx ...`) --
 // not a bearer token despite being called an "access token" elsewhere, and
-// not the full OAuth2 Authorization Code flow OwnerRez also offers, which
+// not the full OAuth2 Authorisation Code flow OwnerRez also offers, which
 // would need a public redirect URL this app doesn't have yet. Two
 // credential fields, not one: the account's own email as the Basic auth
 // username, and the token itself as the password.
 //
 // Operational note, not something this adapter can work around: OwnerRez
 // rate-limits PATs by server IP -- 2 distinct OwnerRez accounts per IP per
-// 24h (see the comment in src/lib/runAllSyncs.ts). A 3rd organization
+// 24h (see the comment in src/lib/runAllSyncs.ts). A 3rd organisation
 // connecting OwnerRez will start getting rate-limited by OwnerRez itself,
 // not by anything in this codebase.
 
@@ -120,7 +120,7 @@ type OwnerRezBooking = {
   adults: number | null;
   children: number | null;
   infants: number | null;
-  status: "active" | "canceled" | "pending";
+  status: "active" | "canceled" | "pending"; // spelling-ok: OwnerRez's own status values
   is_block: boolean;
 };
 
@@ -142,7 +142,7 @@ function isoDateParam(date: Date): string {
 function outcomeFor(booking: OwnerRezBooking): PmsReservationOutcome {
   if (booking.is_block) return "pending";
   if (booking.status === "active") return "active";
-  if (booking.status === "canceled") return "cancelled";
+  if (booking.status === "canceled") return "cancelled"; // spelling-ok: OwnerRez's own status value
   return "pending";
 }
 

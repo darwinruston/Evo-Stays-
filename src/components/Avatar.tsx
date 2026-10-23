@@ -1,5 +1,5 @@
 // Plain <img>, not next/image -- same reason as the Evo branding: the
-// on-the-fly optimizer 400s on these files even though they're valid images.
+// on-the-fly optimiser 400s on these files even though they're valid images.
 // Used for people and client orgs (a circular profile photo), as opposed to
 // properties (a place), which get a landscape cover photo instead.
 export function Avatar({

@@ -20,10 +20,10 @@ export async function requestPasswordReset(
   // authPrisma, not the raw client -- same reasoning as auth.ts's own login
   // lookup (see the comment there and on the evo_auth role in the
   // 20260930150000_auth_lookup_role migration): finding an account by email
-  // alone, before anything is known about which organization it belongs to,
+  // alone, before anything is known about which organisation it belongs to,
   // is a genuinely cross-tenant read, and User's RLS policy denies it
   // outright (its USING clause governs reads, not just writes) through any
-  // client with no organization scope set, including the plain `prisma`
+  // client with no organisation scope set, including the plain `prisma`
   // singleton.
   const user = await authPrisma.user.findUnique({ where: { email } });
 

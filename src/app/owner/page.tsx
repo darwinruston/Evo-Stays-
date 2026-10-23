@@ -7,12 +7,12 @@ import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 import { createOrganization, updateOrganizationPlan, setOrganizationSuspended } from "./actions";
 import { impersonateOrganization } from "@/app/impersonation/actions";
 
-export const metadata = { title: "Organizations" };
+export const metadata = { title: "Organisations" };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // "Trial ends in 3 days" / "Trial ended 2 days ago" / "Trial ends today" --
-// informational only (see the comment on Organization.trialEndsAt in
+// informational only (see the comment on Organisation.trialEndsAt in
 // schema.prisma), so this is purely about making the date easy to act on at
 // a glance, not a real countdown anything else in the app reacts to.
 function trialEndLabel(trialEndsAt: Date, now: Date): { text: string; overdue: boolean } {
@@ -25,23 +25,23 @@ function trialEndLabel(trialEndsAt: Date, now: Date): { text: string; overdue: b
 
 // The one screen that legitimately spans every tenant -- gated by
 // requirePlatformOwner (via the /owner layout), not requireStaff, and reads
-// the organization list itself through the unscoped `prisma` client on
+// the organisation list itself through the unscoped `prisma` client on
 // purpose (see UNSCOPED_MODELS in src/lib/prisma.ts): there's no single
-// organization to scope a "every organization" list into.
+// organisation to scope a "every organisation" list into.
 //
 // The per-organization counts below can't just be `include: { _count }` on
 // that same unscoped query, though: User and Property both carry RLS, and
 // the unscoped client sets no app.current_organization_id at all, so RLS's
-// deny-by-default would silently count zero rows for every organization
-// rather than the real numbers. Counted per organization instead, through a
+// deny-by-default would silently count zero rows for every organisation
+// rather than the real numbers. Counted per organisation instead, through a
 // client freshly scoped to each one in turn -- the same mechanism every
 // other cross-organization loop in this app already uses (see
 // runAllSyncs.ts), just for a read here rather than a sync.
 export default async function OrganizationsPage() {
   await requirePlatformOwner();
 
-  // isPlatform: false excludes the owner's own technical home organization
-  // (see the comment on Organization.isPlatform in schema.prisma) -- it's
+  // isPlatform: false excludes the owner's own technical home organisation
+  // (see the comment on Organisation.isPlatform in schema.prisma) -- it's
   // not a real customer, so it has no place in a list of them.
   const organizationRows = await prisma.organization.findMany({
     where: { isPlatform: false },
@@ -68,7 +68,7 @@ export default async function OrganizationsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Organisations</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Every company on the platform, each with its own fully separate clients, properties,
           cleaners and data.
@@ -82,13 +82,13 @@ export default async function OrganizationsPage() {
             <p className="mt-0.5 text-2xl font-semibold tracking-tight">{formatCurrency(mrr)}</p>
           </div>
           <p className="text-sm text-zinc-500">
-            across {paidCount} paid {paidCount === 1 ? "organization" : "organizations"}
+            across {paidCount} paid {paidCount === 1 ? "organisation" : "organisations"}
           </p>
         </div>
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-500">All organizations ({organizations.length})</h2>
+        <h2 className="text-sm font-medium text-zinc-500">All organisations ({organizations.length})</h2>
         {organizations.length === 0 ? (
           <p className="text-sm text-zinc-600">None yet. Create the first one below.</p>
         ) : (
@@ -177,7 +177,7 @@ export default async function OrganizationsPage() {
                   <div className="flex flex-wrap gap-3">
                     <form action={impersonateOrganization.bind(null, org.id)}>
                       <button type="submit" className={button("ghost", "sm")}>
-                        View as this organization
+                        View as this organisation
                       </button>
                     </form>
                     <form action={setOrganizationSuspended.bind(null, org.id, !org.suspendedAt)}>
@@ -194,7 +194,7 @@ export default async function OrganizationsPage() {
       </section>
 
       <section className="flex flex-col gap-3 border-t border-black/5 pt-6">
-        <h2 className="text-lg font-semibold text-zinc-900">New organization</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">New organisation</h2>
         <p className="text-sm text-zinc-600">
           Creates the company and its first admin login together. That admin can then add their
           own staff, clients and properties from here on.
@@ -202,7 +202,7 @@ export default async function OrganizationsPage() {
         <form action={createOrganization} className="flex max-w-lg flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="orgName" className="text-sm font-medium">
-              Organization name
+              Organisation name
             </label>
             <input id="orgName" name="orgName" required placeholder="e.g. Coastal Lets Ltd" className={inputCompact} />
           </div>
@@ -242,7 +242,7 @@ export default async function OrganizationsPage() {
 
           <div>
             <button type="submit" className={button("primary", "sm")}>
-              Create organization
+              Create organisation
             </button>
           </div>
         </form>

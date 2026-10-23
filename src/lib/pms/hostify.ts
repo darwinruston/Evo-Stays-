@@ -43,7 +43,7 @@ function isoDateParam(date: Date): string {
 // "denied"/"cancelled_by_host"/"cancelled_by_guest"/"no_show", none of which
 // actually occur. Kept those documented variants alongside the real one in
 // case a different account or a future Hostify version does use them --
-// costs nothing to also recognize, and the alternative (trusting the docs
+// costs nothing to also recognise, and the alternative (trusting the docs
 // alone) is exactly what missed the real value the first time.
 const CANCELLED_STATUSES = new Set([
   "cancelled",
@@ -55,7 +55,7 @@ const CANCELLED_STATUSES = new Set([
 
 // "pending" is also the fallback for any status Hostify might add later --
 // tracked, but never creates or cancels a Clean on its own, so an
-// unrecognized value can't silently do either.
+// unrecognised value can't silently do either.
 function outcomeFor(status: string): PmsReservationOutcome {
   if (status === "accepted") return "active";
   if (CANCELLED_STATUSES.has(status)) return "cancelled";

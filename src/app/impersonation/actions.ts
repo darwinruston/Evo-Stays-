@@ -51,9 +51,9 @@ async function setSessionToken(payload: {
   store.set(name, token, { httpOnly: true, sameSite: "lax", path: "/", secure, maxAge: MAX_AGE });
 }
 
-// Lets the platform owner see exactly what an organization's admin sees --
+// Lets the platform owner see exactly what an organisation's admin sees --
 // for support, without needing their password (which the owner never has
-// and never should). Always the organization's longest-standing real admin
+// and never should). Always the organisation's longest-standing real admin
 // login, not a picker -- keeps this to the one thing it needs to be for
 // support rather than a general-purpose "log in as anyone" tool.
 export async function impersonateOrganization(organizationId: string) {
@@ -64,7 +64,7 @@ export async function impersonateOrganization(organizationId: string) {
     where: { role: "ADMIN", NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
     orderBy: { createdAt: "asc" },
   });
-  if (!targetUser) throw new Error("This organization has no admin login to view as.");
+  if (!targetUser) throw new Error("This organisation has no admin login to view as.");
 
   await setSessionToken({
     sub: targetUser.id,
@@ -76,17 +76,17 @@ export async function impersonateOrganization(organizationId: string) {
     impersonatedBy: ownerSession.user.id,
   });
 
-  // Lands in this organization's own Activity log, not the owner's --
+  // Lands in this organisation's own Activity log, not the owner's --
   // AuditLog.actorId still points at the owner's real (cross-organization)
-  // user id, which this organization's own scoped reads can't join back to
-  // a name (RLS on User only allows this organization's own rows), so it
+  // user id, which this organisation's own scoped reads can't join back to
+  // a name (RLS on User only allows this organisation's own rows), so it
   // shows as "Unknown" there. The summary text stands on its own regardless
   // -- same reasoning as every other AuditLog.summary in this app.
   await logAudit(db, {
     actorId: ownerSession.user.id,
     entityType: "Staff",
     entityId: targetUser.id,
-    summary: `Platform owner viewed this organization as ${targetUser.name}`,
+    summary: `Platform owner viewed this organisation as ${targetUser.name}`,
   });
 
   redirect("/admin");
@@ -101,7 +101,7 @@ export async function stopImpersonating() {
   const ownerId = session?.user?.impersonatedBy;
   if (!session?.user || !ownerId) redirect("/login");
 
-  // Reading the owner's own User row by id, with no organization to scope
+  // Reading the owner's own User row by id, with no organisation to scope
   // into -- the same shape of lookup as auth.ts's login, and the same fix:
   // the narrowly-scoped evo_auth role (SELECT only, only on User) rather
   // than the raw client, which RLS would otherwise deny outright.

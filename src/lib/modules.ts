@@ -5,9 +5,9 @@ import type { Modules } from "@/lib/onboarding";
 
 export type ModuleKey = keyof Modules;
 
-// An organization's setup: which parts of the product it uses (the
+// An organisation's setup: which parts of the product it uses (the
 // *Enabled columns, set by the first-run questions or Settings) and whether
-// those questions have been answered yet. Organization carries no RLS, so
+// those questions have been answered yet. Organisation carries no RLS, so
 // this reads it directly. Cached for the length of one request: the layout,
 // the page and an action all ask, and it's one row.
 export const getOrgSetup = cache(async (organizationId: string) => {

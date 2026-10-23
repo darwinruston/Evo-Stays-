@@ -40,15 +40,15 @@ export function startSyncScheduler(): void {
       .then(async (organizations) => {
         for (const org of organizations) {
           await checkAtRiskTurnovers(scopedDb(org.id)).catch((err) => {
-            console.error(`[turnover check] run failed for organization ${org.id}:`, err);
+            console.error(`[turnover check] run failed for organisation ${org.id}:`, err);
           });
           await checkUnconfirmedArrivals(scopedDb(org.id)).catch((err) => {
-            console.error(`[arrival check] run failed for organization ${org.id}:`, err);
+            console.error(`[arrival check] run failed for organisation ${org.id}:`, err);
           });
         }
       })
       .catch((err) => {
-        console.error("[turnover check] couldn't list organizations:", err);
+        console.error("[turnover check] couldn't list organisations:", err);
       });
   };
   setTimeout(checkTurnovers, INITIAL_DELAY_MS);

@@ -4,14 +4,14 @@ import { prisma, scopedDb } from "@/lib/prisma";
 
 async function main() {
   // The platform owner's own account -- deliberately a separate login under
-  // its own organization, not the Demo Cleaning Co admin below. That
+  // its own organisation, not the Demo Cleaning Co admin below. That
   // account is a customer using Evo Stays as a service, same as any other
-  // organization; this one is the platform owner managing the platform
+  // organisation; this one is the platform owner managing the platform
   // itself (see requirePlatformOwner in src/lib/authz.ts and the /owner
-  // area), and the two should never be the same login. The organization
+  // area), and the two should never be the same login. The organisation
   // this account technically belongs to is just satisfying the schema's
   // FK (every User needs one) -- the owner never sees it, since /owner
-  // never scopes into its own organization the way /admin does.
+  // never scopes into its own organisation the way /admin does.
   const platformOrg = await prisma.organization.upsert({
     where: { id: "seed-org-platform" },
     // isPlatform also set on update, not just create, so re-running this
@@ -32,9 +32,9 @@ async function main() {
     },
   });
 
-  // Everything below belongs to one demo organization -- a fresh install's
+  // Everything below belongs to one demo organisation -- a fresh install's
   // very first real customer (the JFMS-equivalent -- see the createStaff
-  // comment on PLATFORM_OWNER_EMAIL in .env). Organization itself carries no
+  // comment on PLATFORM_OWNER_EMAIL in .env). Organisation itself carries no
   // RLS (see UNSCOPED_MODELS in src/lib/prisma.ts), so this upsert uses the
   // raw client directly; everything else goes through the scoped `db` built
   // from it, since RLS would otherwise reject every insert below (its WITH
@@ -100,7 +100,7 @@ async function main() {
             bathrooms: 1,
             maxOccupancy: 2,
             accessOptions: ["SMART_LOCK", "STAIRS_ONLY"],
-            accessNotes: "Keypad code changes weekly — check the schedule before travelling.",
+            accessNotes: "Keypad code changes weekly, so check the schedule before travelling.",
           },
         ],
       },
@@ -163,7 +163,7 @@ async function main() {
       assignedToId: cleaner1.id,
       scheduledFor: at(-3, 11),
       status: CleanStatus.COMPLETED,
-      instructions: "Guest checked out early — full turnover, restock the welcome tray.",
+      instructions: "Guest checked out early. Full turnover, restock the welcome tray.",
     },
     {
       id: "seed-clean-riverside-next",
@@ -208,7 +208,7 @@ async function main() {
       organizationId: organization.id,
       cleanId: "seed-clean-riverside-past",
       recordedById: cleaner1.id,
-      note: "All done. Shower sealant is starting to go mouldy — worth flagging to the owner.",
+      note: "All done. Shower sealant is starting to go mouldy, worth flagging to the owner.",
       arrivedAt: at(-3, 11),
       departedAt: at(-3, 13),
     },
@@ -252,7 +252,7 @@ async function main() {
     "Seeded logins:",
     staff.map((u) => `${u.email} / password123`).join(", "),
   );
-  console.log("Seeded organization:", organization.name);
+  console.log("Seeded organisation:", organization.name);
   console.log("Seeded clients:", [harbour.name, peak.name].join(", "));
   console.log("Seeded cleans:", cleans.length);
   console.log("Seeded stock items:", stockItems.map((s) => s.name).join(", "));

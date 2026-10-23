@@ -7,9 +7,9 @@ import { requireAdmin } from "@/lib/authz";
 import { modulesFromAnswers, parseAnswers, type Answers } from "@/lib/onboarding";
 
 // Saves the answers to the first-run questions: the chosen business type
-// plus the module switches they imply. Organization carries no RLS (see
+// plus the module switches they imply. Organisation carries no RLS (see
 // UNSCOPED_MODELS in src/lib/prisma.ts), so this goes through the plain
-// client, scoped by hand to the signed-in admin's own organization.
+// client, scoped by hand to the signed-in admin's own organisation.
 export async function completeOnboarding(raw: Answers) {
   const { session } = await requireAdmin();
   const answers = parseAnswers(raw);

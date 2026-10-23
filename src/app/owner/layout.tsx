@@ -6,12 +6,12 @@ import { logoutAction } from "../logout/actions";
 
 // The platform owner's own area -- deliberately separate from /admin and
 // /cleaner, not a page tucked inside either. This account manages the
-// platform (which organizations exist, how much they're using, whether
+// platform (which organisations exist, how much they're using, whether
 // they're paying), it doesn't run a cleaning business inside Evo Stays the
 // way every other account does, so there's no reason for it to carry
 // Properties/Cleans/Stock/Invoices/Laundry navigation it will never use.
 // Deliberately minimal for the same reason -- just the two things there
-// actually are to look at: real customers (Organizations) and prospective
+// actually are to look at: real customers (Organisations) and prospective
 // ones (Interest).
 export default async function OwnerLayout({ children }: { children: React.ReactNode }) {
   await requirePlatformOwner();
@@ -27,7 +27,7 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
             </Link>
             <div className="flex items-center gap-4 text-sm font-medium text-zinc-600">
               <Link href="/owner" className="hover:text-zinc-900">
-                Organizations
+                Organisations
               </Link>
               <Link href="/owner/interest" className="hover:text-zinc-900">
                 Interest

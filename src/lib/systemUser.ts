@@ -5,9 +5,9 @@ import type { ScopedPrismaClient } from "@/lib/prisma";
 // The actor attributed as Clean.createdById when a sync runs unattended (the
 // scheduler, or the /api/sync endpoint) -- there's no logged-in staff member
 // to credit the way a manual "Sync now" click credits whoever clicked it.
-// One per organization now, not a single global row -- User.id still has to
+// One per organisation now, not a single global row -- User.id still has to
 // be globally unique (it's the primary key across the whole platform), so
-// each organization's system user gets its own id built from this prefix
+// each organisation's system user gets its own id built from this prefix
 // plus its organizationId, and its own placeholder email (User.email stays
 // globally unique too). ADMIN role keeps it out of autoAssignCleaner's
 // CLEANER-only pool. Never used to log in -- the password hash is random and

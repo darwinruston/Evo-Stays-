@@ -26,7 +26,7 @@ class DemoPasswordRefused extends CredentialsSignin {
 
 // Every user lookup here goes through authPrisma, the narrowly-scoped
 // evo_auth role (SELECT only, only on User): at login and on every later
-// request there is no organization to scope into yet, which the raw client's
+// request there is no organisation to scope into yet, which the raw client's
 // row-level security would otherwise refuse outright.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },

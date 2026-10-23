@@ -142,7 +142,7 @@ type GuestyReservation = {
 // src/lib/pms/hostify.ts uses for any status it doesn't specifically
 // recognise.
 const ACTIVE_STATUSES = new Set(["reserved", "confirmed", "closed"]);
-const CANCELLED_STATUSES = new Set(["canceled", "cancelled"]);
+const CANCELLED_STATUSES = new Set(["canceled", "cancelled"]); // spelling-ok: Guesty's own status value
 
 function outcomeFor(status: string): PmsReservationOutcome {
   if (ACTIVE_STATUSES.has(status)) return "active";

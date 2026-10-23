@@ -1,5 +1,5 @@
 // The first-run setup questions, and how the answers turn into the module
-// switches on Organization. Plain data and pure functions so the question
+// switches on Organisation. Plain data and pure functions so the question
 // screen (client) and the action that saves the answers (server) read from
 // the same definition and can't drift apart.
 

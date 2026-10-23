@@ -16,7 +16,7 @@ const CONTENT_TYPES: Record<string, string> = {
 
 // Mirrors /api/photos/[...path] (see the comment there for the general
 // shape) but as a separate route rather than a branch on that one: that
-// route's whole authorization model is "the first path segment is a
+// route's whole authorisation model is "the first path segment is a
 // property id", which doesn't apply here -- a laundry load can cover
 // visits at several different properties.
 //

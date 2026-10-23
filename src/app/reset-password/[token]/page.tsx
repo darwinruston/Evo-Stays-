@@ -10,7 +10,7 @@ export const metadata = { title: "Set a new password" };
 // Checked here too, not just inside the action -- an expired or already-used
 // link should say so straight away rather than only after someone fills in
 // and submits a form that was always going to be rejected. The action
-// re-checks regardless (a GET here isn't the authorization, same reasoning
+// re-checks regardless (a GET here isn't the authorisation, same reasoning
 // as every other server action in this app).
 export default async function ResetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
