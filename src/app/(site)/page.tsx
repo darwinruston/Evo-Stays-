@@ -68,8 +68,8 @@ export default async function Home() {
             <Link href="/signup" className={button("primary", "lg")}>
               Register interest
             </Link>
-            <Link href="/features#how-it-works" className={button("secondary", "lg")}>
-              See how it works
+            <Link href="/features" className={button("secondary", "lg")}>
+              See what it does
             </Link>
           </div>
           <p className="mt-3 text-sm text-zinc-500">Not open to everyone yet. We will set up a demo with you.</p>

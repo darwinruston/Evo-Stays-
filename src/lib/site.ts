@@ -7,7 +7,6 @@ export const SITE_NAME = "Evo Stays";
 
 export const NAV_LINKS = [
   { href: "/features", label: "Features" },
-  { href: "/features#how-it-works", label: "How it works" },
   { href: "/faq", label: "FAQ" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
@@ -18,7 +17,6 @@ export const FOOTER_GROUPS = [
     title: "Product",
     links: [
       { href: "/features", label: "Features" },
-      { href: "/features#how-it-works", label: "How it works" },
       { href: "/faq", label: "FAQ" },
     ],
   },
