@@ -11,7 +11,19 @@ import { NextResponse } from "next/server";
 // /login the way every other route does. /signup, /forgot-password and
 // /reset-password/[token] are the same kind of exception, for the same
 // reason: a signed-out visitor has to be able to reach them at all.
-const PUBLIC_PATHS = new Set(["/", "/signup", "/forgot-password"]);
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/signup",
+  "/forgot-password",
+  // The public website: see src/app/(site)/.
+  "/features",
+  "/faq",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/cookies",
+]);
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/reset-password/");

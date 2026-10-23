@@ -879,6 +879,27 @@ model LaundryLoad {
   @@index([facilityId])
 }
 
+// A message sent from the public Contact page. Like InterestRegistration it
+// belongs to no company (the sender isn't a customer yet), so it carries no
+// organizationId and is read only by the platform owner. See UNSCOPED_MODELS
+// in src/lib/prisma.ts.
+model ContactMessage {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  company   String?
+  // What the sender picked from the list on the form ("demo", "question",
+  // "partnership", "other"): just a label to sort the inbox by.
+  topic     String
+  message   String
+  // Set when the owner has dealt with it, so the inbox can show what's still
+  // waiting.
+  handledAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
 // One device (a phone or browser) that has turned on push alerts for a user.
 // `endpoint` is the push service's address for that device and is unique to
 // it; p256dh and auth are the device's keys, used to encrypt what's sent to

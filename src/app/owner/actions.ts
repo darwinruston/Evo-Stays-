@@ -143,3 +143,27 @@ export async function deleteInterestRegistration(id: string) {
 
   revalidatePath("/owner/interest");
 }
+
+// The platform owner's inbox for messages from the public Contact page. Like
+// registered interest, a message belongs to no company, so it goes through the
+// unscoped client (see UNSCOPED_MODELS in src/lib/prisma.ts).
+export async function setContactMessageHandled(id: string, handled: boolean) {
+  await requirePlatformOwner();
+
+  await prisma.contactMessage.update({
+    where: { id },
+    data: { handledAt: handled ? new Date() : null },
+  });
+
+  revalidatePath("/owner/messages");
+  revalidatePath("/owner", "layout");
+}
+
+export async function deleteContactMessage(id: string) {
+  await requirePlatformOwner();
+
+  await prisma.contactMessage.delete({ where: { id } });
+
+  revalidatePath("/owner/messages");
+  revalidatePath("/owner", "layout");
+}

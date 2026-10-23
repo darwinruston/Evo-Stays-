@@ -95,7 +95,7 @@ function withOrganizationId(data: unknown, organizationId: string): unknown {
 // schema.prisma) -- neither is ever written or read through a scoped
 // client in the first place, but listed here too so nothing ever tries to
 // stamp an organizationId onto either that it doesn't have.
-const UNSCOPED_MODELS = new Set(["Organization", "PasswordResetToken", "InterestRegistration"]);
+const UNSCOPED_MODELS = new Set(["Organization", "PasswordResetToken", "InterestRegistration", "ContactMessage"]);
 
 export type ScopedPrismaClient = ReturnType<typeof scopedDb>;
 

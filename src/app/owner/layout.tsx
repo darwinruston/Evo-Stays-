@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requirePlatformOwner } from "@/lib/authz";
+import { prisma } from "@/lib/prisma";
 import { EvoTick } from "@/components/EvoTick";
 import { button } from "@/lib/ui";
 import { logoutAction } from "../logout/actions";
@@ -15,6 +16,7 @@ import { logoutAction } from "../logout/actions";
 // ones (Interest).
 export default async function OwnerLayout({ children }: { children: React.ReactNode }) {
   await requirePlatformOwner();
+  const unhandledMessages = await prisma.contactMessage.count({ where: { handledAt: null } });
 
   return (
     <div className="min-h-screen">
@@ -31,6 +33,14 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
               </Link>
               <Link href="/owner/interest" className="hover:text-zinc-900">
                 Interest
+              </Link>
+              <Link href="/owner/messages" className="flex items-center gap-1.5 hover:text-zinc-900">
+                Messages
+                {unhandledMessages > 0 && (
+                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-xs font-medium text-white">
+                    {unhandledMessages}
+                  </span>
+                )}
               </Link>
             </div>
           </div>
