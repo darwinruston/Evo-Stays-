@@ -57,6 +57,11 @@ export type FaqItem = { question: string; answer: string };
 
 export const FAQ: FaqItem[] = [
   {
+    question: "What does Evo Stays do that my channel manager does not?",
+    answer:
+      "Your channel manager looks after bookings, pricing and messages with guests. Evo Stays looks after the property itself: the key safe codes and access notes, problems and maintenance, cleans and who is doing them, stock and linen. It reads your bookings so cleans appear without retyping, but it does not replace your channel manager.",
+  },
+  {
     question: "Who is Evo Stays for?",
     answer:
       "Teams that run their own cleaning for short-let properties: property management companies, cleaning companies working for those businesses, and hosts with a team of their own. It is not a marketplace. You bring your cleaners and Evo Stays runs the day-to-day around them.",

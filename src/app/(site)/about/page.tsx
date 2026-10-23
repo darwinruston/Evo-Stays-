@@ -5,7 +5,7 @@ import { button, card } from "@/lib/ui";
 export const metadata = {
   title: "About",
   description:
-    "Who is behind Evo Stays, what we believe about running short-let turnovers, and where the product is today.",
+    "Evo Stays is property management for everything outside your channel manager: what we believe, who it is for and where the product is today.",
 };
 
 const AUDIENCES = [
@@ -43,7 +43,7 @@ export default function AboutPage() {
       <PageIntro
         eyebrow="About"
         title="Built for the people who run short-let turnovers"
-        intro="Evo Stays comes from the day-to-day of running short-let cleaning: same-day turnovers, linen that has to arrive at the right time, and a team that needs to know where to be."
+        intro="Your channel manager handles the bookings. Everything else a property team needs, from door codes to maintenance to the next clean, ends up in notes and group chats. Evo Stays puts it in one place."
       />
 
       <Section>

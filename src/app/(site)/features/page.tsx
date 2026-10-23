@@ -3,7 +3,7 @@ import { CheckIcon, CtaBand, PageIntro, PhoneShot, ProductShot, Section, Section
 export const metadata = {
   title: "Features",
   description:
-    "How Evo Stays works, and what it does: scheduling, the cleaner's phone, stock, problems, linen and laundry, hours and invoices, and booking connections.",
+    "How Evo Stays works, and what it does: a page for every property with its codes, maintenance and cleaning, plus scheduling, the cleaner's phone, stock, linen, hours and booking connections.",
 };
 
 const STEPS = [
@@ -34,6 +34,24 @@ type Area = {
 };
 
 const AREAS: Area[] = [
+  {
+    id: "properties",
+    title: "Every property in one place",
+    lead: "Everything your team needs to know about a property, outside your channel manager.",
+    points: [
+      "Address, type, bedrooms, bathrooms and how many it sleeps",
+      "Access notes and key safe codes, shown only to the cleaners on that property",
+      "Which cleaners look after it",
+      "Open problems with photos, kept against the property until fixed",
+      "Every clean, with its checklist, photos and stock levels",
+      "Bookings come in from your booking system, so you do not retype them",
+    ],
+    image: {
+      src: "/marketing/property-overview.jpg",
+      alt: "A property's page in Evo Stays, showing its address, key safe code and access notes, the cleaners assigned and an open maintenance issue",
+      kind: "desktop",
+    },
+  },
   {
     id: "scheduling",
     title: "Scheduling",
@@ -182,7 +200,7 @@ export default function FeaturesPage() {
       <PageIntro
         eyebrow="Features"
         title="How Evo Stays works, and what it does"
-        intro="Everything here works today."
+        intro="Your channel manager runs the bookings. Evo Stays runs everything else about a property. Everything here works today."
       />
 
       <Section id="how-it-works" tone="surface">
