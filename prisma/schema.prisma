@@ -319,6 +319,9 @@ enum NotificationKind {
   // To the person a task is with, and whoever asked for it: someone added an
   // update to it.
   TASK_COMMENTED
+  // To the people a task is with: it is due tomorrow or today, or has gone
+  // past its due date (see src/lib/taskReminders.ts).
+  TASK_DUE
 }
 
 // One thing a specific person should know about, shown in their in-app
@@ -1318,35 +1321,39 @@ enum TaskStatus {
 // removing a login shouldn't erase the task, which just becomes unassigned.
 // dueOn is a calendar date at midnight UTC (see src/lib/dateOnly.ts).
 model Task {
-  id             String               @id @default(cuid())
-  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  title          String
-  description    String?
-  priority       TaskPriority         @default(NORMAL)
-  status         TaskStatus           @default(TODO)
-  createdBy      User?                @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdById    String?
-  property       Property?            @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  propertyId     String?
-  dueOn          DateTime?
-  completedAt    DateTime?
-  completedBy    User?                @relation("TaskCompleter", fields: [completedById], references: [id], onDelete: SetNull)
-  completedById  String?
+  id                String               @id @default(cuid())
+  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId    String
+  title             String
+  description       String?
+  priority          TaskPriority         @default(NORMAL)
+  status            TaskStatus           @default(TODO)
+  createdBy         User?                @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById       String?
+  property          Property?            @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId        String?
+  dueOn             DateTime?
+  completedAt       DateTime?
+  completedBy       User?                @relation("TaskCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  completedById     String?
   // Set on a task made automatically from a health and safety date.
-  safetyCheck    PropertySafetyCheck? @relation(fields: [safetyCheckId], references: [id], onDelete: SetNull)
-  safetyCheckId  String?
+  safetyCheck       PropertySafetyCheck? @relation(fields: [safetyCheckId], references: [id], onDelete: SetNull)
+  safetyCheckId     String?
+  // When the people on it were last reminded that it is due soon / overdue.
+  // Cleared when the due date changes, so a new date reminds afresh.
+  dueSoonNotifiedAt DateTime?
+  overdueNotifiedAt DateTime?
   // Set on a task that comes round again. It needs a due date, which the next
   // one is counted from. previous is the occurrence this one was made from, so
   // finishing, reopening and finishing a task again can't make two next ones.
-  repeat         TaskRepeat?
-  previous       Task?                @relation("TaskRepeats", fields: [previousId], references: [id], onDelete: SetNull)
-  previousId     String?
-  followUps      Task[]               @relation("TaskRepeats")
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  comments       TaskComment[]
-  assignees      TaskAssignee[]
+  repeat            TaskRepeat?
+  previous          Task?                @relation("TaskRepeats", fields: [previousId], references: [id], onDelete: SetNull)
+  previousId        String?
+  followUps         Task[]               @relation("TaskRepeats")
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  comments          TaskComment[]
+  assignees         TaskAssignee[]
 
   @@index([organizationId])
   @@index([propertyId])

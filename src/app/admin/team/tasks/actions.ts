@@ -179,11 +179,15 @@ export async function updateTask(id: string, formData: FormData): Promise<Action
   const afterIds = new Set(assignees.map((a) => a.id));
   const peopleChanged = beforeIds.size !== afterIds.size || [...afterIds].some((x) => !beforeIds.has(x));
 
+  const dueChanged = (before.dueOn?.getTime() ?? null) !== (values.dueOn?.getTime() ?? null);
+
   // One nested write, so the task and its people change together.
   await db.task.update({
     where: { id },
     data: {
       ...values,
+      // A new due date reminds afresh (see src/lib/taskReminders.ts).
+      ...(dueChanged ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null } : {}),
       ...(peopleChanged
         ? {
             assignees: {
