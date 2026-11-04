@@ -67,13 +67,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     {
       key: "team",
       label: "Operations",
-      href: "/admin/team",
+      // Opens on Tasks, the first tab: what needs doing comes before who is on the team.
+      href: "/admin/team/tasks",
       prefixes: ["/admin/team", "/admin/staff", "/admin/cleaners", "/admin/audit"],
       count: myOpenTasks,
       countLabel: "tasks to do",
       tabs: [
-        { href: "/admin/team", label: "People" },
         { href: "/admin/team/tasks", label: "Tasks", count: myOpenTasks, countLabel: "of your tasks to do", deep: true },
+        { href: "/admin/team", label: "People" },
         { href: "/admin/audit", label: "Activity" },
       ],
     },
