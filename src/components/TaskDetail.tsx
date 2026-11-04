@@ -228,7 +228,7 @@ export function TaskDetail({
         {task.description && (
           <section aria-labelledby="notes-heading">
             <h2 id="notes-heading" className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Notes
+              Task info
             </h2>
             <div className={card(`${PANEL} mt-2 p-5`)}>
               <p className="text-[15px] leading-relaxed whitespace-pre-line [overflow-wrap:anywhere]">{task.description}</p>
