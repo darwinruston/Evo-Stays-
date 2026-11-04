@@ -27,6 +27,10 @@ export type TaskDetailData = {
   completedLine: string | null;
   form: TaskFormValues;
   canDelete: boolean;
+  // Anyone on the team may claim it: it is with everyone, or with nobody.
+  canPickUp: boolean;
+  // Set on a task made automatically from a health and safety date.
+  safetyHref: string | null;
 };
 
 const PANEL = "ring-1 ring-black/[0.04]";
@@ -43,6 +47,7 @@ export function TaskDetail({
   setStatus,
   update,
   remove,
+  claim,
   children,
 }: {
   task: TaskDetailData;
@@ -51,6 +56,7 @@ export function TaskDetail({
   setStatus: (status: Status) => Promise<ActionResult>;
   update: (formData: FormData) => Promise<ActionResult>;
   remove: () => Promise<ActionResult>;
+  claim: () => Promise<ActionResult>;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -126,10 +132,24 @@ export function TaskDetail({
               Mark as complete
             </button>
           )}
+          {task.canPickUp && !done && (
+            <button type="button" disabled={pending} onClick={() => run(claim)} className={button("secondary", "md")}>
+              Pick this up
+            </button>
+          )}
           <button type="button" onClick={() => setEditing(true)} className={button("secondary", "md")}>
             Edit task
           </button>
         </div>
+        {task.safetyHref && !done && (
+          <p className="text-sm text-zinc-600">
+            Made automatically from a health and safety date.{" "}
+            <Link href={task.safetyHref} className="underline decoration-black/20 underline-offset-2 hover:decoration-black">
+              Open the check to record it and upload the certificate
+            </Link>
+            .
+          </p>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </header>
 

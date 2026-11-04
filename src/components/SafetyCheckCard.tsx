@@ -1,9 +1,18 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { useRevealForm } from "@/lib/useRevealForm";
 import type { ActionResult } from "@/lib/actionResult";
+import { ACCEPTED_DOCUMENT_TYPES } from "@/lib/documentTypes";
 import { badge, button, card, inputCompact } from "@/lib/ui";
+
+export type SafetyDocumentItem = {
+  id: string;
+  fileName: string;
+  // "PDF, 1.2 MB. Added 12 Nov 25 by Sam. For the check completed 5 Nov 25."
+  meta: string;
+  href: string;
+};
 
 export type SafetyCheckCardProps = {
   title: string;
@@ -17,7 +26,10 @@ export type SafetyCheckCardProps = {
   intervalMonths: number;
   note: string | null;
   today: string;
+  documents: SafetyDocumentItem[];
   save: (formData: FormData) => Promise<ActionResult>;
+  upload: (formData: FormData) => Promise<ActionResult>;
+  removeDocument: (documentId: string) => Promise<ActionResult>;
   setApplicable: (applicable: boolean) => Promise<ActionResult>;
   // Present only for a check the manager added themselves.
   remove?: () => Promise<ActionResult>;
@@ -58,6 +70,22 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
         </p>
       )}
       {props.note && !props.notNeeded && <p className="text-sm text-zinc-500 [overflow-wrap:anywhere]">{props.note}</p>}
+
+      {(props.documents.length > 0 || !props.notNeeded) && (
+        <div className="flex flex-col gap-2 border-t border-black/5 pt-3">
+          <h4 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+            Documents{props.documents.length > 0 && ` (${props.documents.length})`}
+          </h4>
+          {props.documents.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {props.documents.map((doc) => (
+                <DocumentRow key={doc.id} doc={doc} remove={() => props.removeDocument(doc.id)} />
+              ))}
+            </ul>
+          )}
+          {!props.notNeeded && <DocumentUpload upload={props.upload} />}
+        </div>
+      )}
 
       {open ? (
         <form action={submit} className="flex flex-wrap items-end gap-3 rounded-lg bg-black/[0.03] p-3">
@@ -102,6 +130,19 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
               className={inputCompact}
             />
           </div>
+          <div className="flex w-full flex-col gap-1">
+            <label htmlFor={`${uid}-docs`} className="text-xs text-zinc-500">
+              Certificate or report (optional)
+            </label>
+            <input
+              id={`${uid}-docs`}
+              name="documents"
+              type="file"
+              multiple
+              accept={ACCEPTED_DOCUMENT_TYPES}
+              className="text-sm file:mr-3 file:rounded-md file:border file:border-black/10 file:bg-surface file:px-3 file:py-1.5 file:text-sm"
+            />
+          </div>
           <button type="submit" disabled={pending} className={button("primary", "sm")}>
             {pending ? "Saving…" : "Save"}
           </button>
@@ -109,7 +150,7 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
             Cancel
           </button>
           <p className="w-full text-xs text-zinc-500">
-            Leave the date empty to change only how often it repeats.
+            Leave the date empty to change only how often it repeats. A PDF, photo or Word file, up to 10 MB each.
           </p>
           {error && <p className="w-full text-xs text-red-600">{error}</p>}
         </form>
@@ -222,6 +263,100 @@ export function AddSafetyCheckForm({
       <button type="button" onClick={() => setOpen(false)} className={button("ghost", "sm")}>
         Cancel
       </button>
+      {error && <p className="w-full text-xs text-red-600">{error}</p>}
+    </form>
+  );
+}
+
+// One kept document: opens in a new tab (or downloads, for a Word file), with
+// a second-click remove so it can't be lost to a stray tap.
+function DocumentRow({ doc, remove }: { doc: SafetyDocumentItem; remove: () => Promise<ActionResult> }) {
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function run() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await remove();
+        if (result) setError(result.error);
+      } catch {
+        setError("Something went wrong.");
+      }
+      setConfirming(false);
+    });
+  }
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-black/[0.03] px-3 py-2">
+      <div className="min-w-0">
+        <a
+          href={doc.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-medium underline decoration-black/20 underline-offset-2 hover:decoration-black [overflow-wrap:anywhere]"
+        >
+          {doc.fileName}
+        </a>
+        <p className="text-xs text-zinc-500">{doc.meta}</p>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+      </div>
+      {confirming ? (
+        <span className="flex items-center gap-3 text-xs">
+          <button type="button" disabled={pending} onClick={run} className="font-medium text-red-600 hover:underline">
+            Yes, remove
+          </button>
+          <button type="button" onClick={() => setConfirming(false)} className="text-zinc-500 hover:underline">
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} className="text-xs text-zinc-500 hover:text-red-600">
+          Remove
+        </button>
+      )}
+    </li>
+  );
+}
+
+// "Upload a document": picking the file(s) sends them straight away.
+function DocumentUpload({ upload }: { upload: (formData: FormData) => Promise<ActionResult> }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function submit(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await upload(formData);
+        if (result) setError(result.error);
+      } catch {
+        setError("Something went wrong. The file may be too large.");
+      }
+      formRef.current?.reset();
+    });
+  }
+
+  return (
+    <form ref={formRef} action={submit} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <input
+        ref={inputRef}
+        name="documents"
+        type="file"
+        multiple
+        accept={ACCEPTED_DOCUMENT_TYPES}
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Choose documents to upload"
+        onChange={() => formRef.current?.requestSubmit()}
+      />
+      <button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className={button("secondary", "sm")}>
+        {pending ? "Uploading…" : "Upload a document"}
+      </button>
+      <span className="text-xs text-zinc-500">PDF, photo or Word file, up to 10 MB each</span>
       {error && <p className="w-full text-xs text-red-600">{error}</p>}
     </form>
   );

@@ -129,6 +129,7 @@ model Organization {
   tasks                 Task[]
   taskComments          TaskComment[]
   taskAssignees         TaskAssignee[]
+  safetyDocuments       SafetyDocument[]
 }
 
 // A lead from the public "Register interest" page (src/app/signup/) --
@@ -211,6 +212,7 @@ model User {
   unavailability       CleanerUnavailability[]
   auditLogs            AuditLog[]
   taskAssignments      TaskAssignee[]
+  safetyDocuments      SafetyDocument[]
   createdTasks         Task[]                  @relation("TaskCreator")
   completedTasks       Task[]                  @relation("TaskCompleter")
   taskComments         TaskComment[]
@@ -1245,10 +1247,10 @@ model PropertyChecklistItem {
 // src/lib/schedule.ts). dueOn is lastCompletedOn plus intervalMonths, kept in
 // step on every save so reminders can find what is due with an index.
 model PropertySafetyCheck {
-  id                String       @id @default(cuid())
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                String           @id @default(cuid())
+  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId    String
-  property          Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property          Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId        String
   templateKey       String?
   title             String
@@ -1259,13 +1261,23 @@ model PropertySafetyCheck {
   note              String?
   // The check doesn't apply here (no gas supply, say). Hidden from reminders
   // and from the property's summary.
-  notApplicable     Boolean      @default(false)
+  notApplicable     Boolean          @default(false)
   // When staff were last told it is coming up / overdue. Cleared whenever a
   // new completion date is saved, so the next cycle reminds again.
   dueSoonNotifiedAt DateTime?
   overdueNotifiedAt DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  // When a task for the team to pick up was made for this cycle (see
+  // src/lib/safetyReminders.ts). Cleared with the two above, so the next cycle
+  // makes a fresh one, and set once so finishing the task by hand doesn't make
+  // it come back every few minutes.
+  // Which of the three advance reminders (3 months, 1 month, 1 week before) has
+  // been sent this cycle: 0 none, 1, 2 or 3. Cleared with the markers above.
+  reminderStage     Int              @default(0)
+  taskCreatedAt     DateTime?
+  documents         SafetyDocument[]
+  tasks             Task[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@unique([propertyId, templateKey])
   @@index([organizationId])
@@ -1296,28 +1308,32 @@ enum TaskStatus {
 // removing a login shouldn't erase the task, which just becomes unassigned.
 // dueOn is a calendar date at midnight UTC (see src/lib/dateOnly.ts).
 model Task {
-  id             String         @id @default(cuid())
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String               @id @default(cuid())
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
   title          String
   description    String?
-  priority       TaskPriority   @default(NORMAL)
-  status         TaskStatus     @default(TODO)
-  createdBy      User?          @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  priority       TaskPriority         @default(NORMAL)
+  status         TaskStatus           @default(TODO)
+  createdBy      User?                @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdById    String?
-  property       Property?      @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  property       Property?            @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   propertyId     String?
   dueOn          DateTime?
   completedAt    DateTime?
-  completedBy    User?          @relation("TaskCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  completedBy    User?                @relation("TaskCompleter", fields: [completedById], references: [id], onDelete: SetNull)
   completedById  String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  // Set on a task made automatically from a health and safety date.
+  safetyCheck    PropertySafetyCheck? @relation(fields: [safetyCheckId], references: [id], onDelete: SetNull)
+  safetyCheckId  String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
   comments       TaskComment[]
   assignees      TaskAssignee[]
 
   @@index([organizationId])
   @@index([propertyId])
+  @@index([safetyCheckId])
 }
 
 // Who a task is with. A task can be given to one person or several (the whole
@@ -1352,4 +1368,31 @@ model TaskComment {
 
   @@index([organizationId])
   @@index([taskId, createdAt])
+}
+
+// A certificate, report or photo kept against a health and safety check, so it
+// can be found again years later. The file itself is on disk under
+// storage/safety-documents (see src/lib/safetyDocuments.ts) and is only served
+// to signed-in Admin and Office staff of the same company. completedOn is the
+// date the check was recorded as completed that this document belongs to, so a
+// property's history reads year by year.
+model SafetyDocument {
+  id             String              @id @default(cuid())
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  check          PropertySafetyCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  checkId        String
+  // The name it was uploaded with, for showing and for the download.
+  fileName       String
+  // Where it is on disk, relative to the storage folder.
+  path           String
+  contentType    String
+  sizeBytes      Int
+  completedOn    DateTime?
+  uploadedBy     User?               @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedById   String?
+  createdAt      DateTime            @default(now())
+
+  @@index([organizationId])
+  @@index([checkId, createdAt])
 }

@@ -265,6 +265,44 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
   refresh();
 }
 
+// "Pick this up": a task given to the whole team (or to nobody) becomes yours
+// alone, so the rest of the team can see someone has it. Only for those, so one
+// person can't take a task that was given to specific people.
+export async function claimTask(id: string): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const task = await db.task.findUnique({
+    where: { id },
+    select: { title: true, status: true, assignees: { select: { userId: true } } },
+  });
+  if (!task) return { error: "That task no longer exists" };
+  if (task.status === "DONE") return { error: "That task is already done" };
+
+  const team = await teamSize(db);
+  const open = task.assignees.length === 0 || (team > 1 && task.assignees.length === team);
+  if (!open) return { error: "That task was given to specific people" };
+
+  await db.task.update({
+    where: { id },
+    data: {
+      assignees: {
+        deleteMany: { userId: { not: session.user.id } },
+        ...(task.assignees.some((a) => a.userId === session.user.id)
+          ? {}
+          : { create: [{ userId: session.user.id, organizationId: session.user.organizationId }] }),
+      },
+    },
+  });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Task",
+    entityId: id,
+    summary: `${session.user.name ?? "Someone"} picked up "${task.title}"`,
+  });
+
+  refresh();
+}
+
 // An update on a task. Whoever it is with and whoever asked for it are told,
 // unless they wrote it themselves.
 export async function addTaskComment(id: string, formData: FormData): Promise<ActionResult> {

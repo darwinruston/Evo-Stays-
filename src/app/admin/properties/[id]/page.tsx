@@ -34,6 +34,8 @@ import {
   addPropertyChecklistItem,
   removePropertyChecklistItem,
   saveSafetyCheck,
+  uploadSafetyDocuments,
+  removeSafetyDocument,
   setSafetyCheckApplicable,
   addCustomSafetyCheck,
   removeCustomSafetyCheck,
@@ -46,6 +48,7 @@ import {
   safetyStatusLabel,
 } from "@/lib/safetyChecks";
 import { formatDateOnly, toDateInputValue, todayDateOnly } from "@/lib/dateOnly";
+import { documentKind, formatBytes } from "@/lib/documentTypes";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
 import { CHECKLIST_ROOM_MAX, CHECKLIST_TEXT_MAX, STANDARD_ROOMS } from "@/lib/cleaningChecklist";
 import { setLaundryLoadCollected } from "../../laundry/actions";
@@ -98,7 +101,15 @@ export default async function PropertyDetailPage({
         include: { cleaner: { select: { id: true, name: true } } },
       },
       checklistItems: { orderBy: { createdAt: "asc" } },
-      safetyChecks: { orderBy: { createdAt: "asc" } },
+      safetyChecks: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          documents: {
+            orderBy: { createdAt: "desc" },
+            include: { uploadedBy: { select: { name: true } } },
+          },
+        },
+      },
     },
   });
   if (!property) notFound();
@@ -192,6 +203,24 @@ export default async function PropertyDetailPage({
   const safetyAttention = safetyEntries.filter((e) => e.state === "overdue" || e.state === "due-soon").length;
   const safetyNotRecorded = safetyEntries.filter((e) => e.state === "not-recorded").length;
   const safetyToday = toDateInputValue(todayDateOnly());
+  // Documents kept against each check, newest first, labelled for showing.
+  const documentsByRef = new Map(
+    property.safetyChecks.map((row) => [
+      `id:${row.id}`,
+      row.documents.map((d) => ({
+        id: d.id,
+        fileName: d.fileName,
+        href: `/api/safety-documents/${d.id}`,
+        meta: [
+          `${documentKind(d.contentType)}, ${formatBytes(d.sizeBytes)}`,
+          `Added ${formatDateOnly(d.createdAt)}${d.uploadedBy ? ` by ${d.uploadedBy.name}` : ""}`,
+          d.completedOn ? `For the check completed ${formatDateOnly(d.completedOn)}` : null,
+        ]
+          .filter(Boolean)
+          .join(". "),
+      })),
+    ]),
+  );
 
   const allTabs: { key: TabKey; label: string; alert?: number | "dot" }[] = [
     { key: "overview", label: "Overview", alert: openIssues.length || undefined },
@@ -601,7 +630,10 @@ export default async function PropertyDetailPage({
                 intervalMonths={entry.intervalMonths}
                 note={entry.note}
                 today={safetyToday}
+                documents={documentsByRef.get(entry.ref) ?? []}
                 save={saveSafetyCheck.bind(null, property.id, entry.ref)}
+                upload={uploadSafetyDocuments.bind(null, property.id, entry.ref)}
+                removeDocument={removeSafetyDocument.bind(null, property.id)}
                 setApplicable={setSafetyCheckApplicable.bind(null, property.id, entry.ref)}
                 remove={
                   entry.custom ? removeCustomSafetyCheck.bind(null, property.id, entry.ref.slice(3)) : undefined

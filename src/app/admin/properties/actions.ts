@@ -26,6 +26,13 @@ import {
   templatesFor,
 } from "@/lib/safetyChecks";
 import { formatDateOnly, parseDateOnly, todayDateOnly } from "@/lib/dateOnly";
+import {
+  checkDocumentFiles,
+  deleteSafetyDocumentFiles,
+  pickedFiles,
+  saveSafetyDocuments,
+} from "@/lib/safetyDocuments";
+import { closeSafetyTasks } from "@/lib/safetyTasks";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -666,6 +673,9 @@ export async function saveSafetyCheck(propertyId: string, ref: string, formData:
   }
   const note = str(formData, "note");
   if (note && note.length > SAFETY_NOTE_MAX) return { error: `Keep the note under ${SAFETY_NOTE_MAX} characters` };
+  const files = pickedFiles(formData, "documents");
+  const fileError = checkDocumentFiles(files);
+  if (fileError) return { error: fileError };
 
   const property = await db.property.findUnique({
     where: { id: propertyId },
@@ -676,6 +686,7 @@ export async function saveSafetyCheck(propertyId: string, ref: string, formData:
   if (!check) return { error: "That check could not be found" };
 
   const interval = months ?? check.intervalMonths;
+  const intervalChanged = months !== null && months !== check.intervalMonths;
   const last = completedOn ?? check.lastCompletedOn;
   await db.propertySafetyCheck.update({
     where: { id: check.id },
@@ -686,13 +697,40 @@ export async function saveSafetyCheck(propertyId: string, ref: string, formData:
       // Doing it means it applies; a note is replaced only when one is sent.
       notApplicable: false,
       ...(formData.has("note") ? { note } : {}),
-      ...(completedOn ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null } : {}),
-      // A shorter or longer interval moves the due date, so remind afresh.
-      ...(months !== null && months !== check.intervalMonths
-        ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null }
+      // A new date, or a different interval (which moves the due date), starts
+      // the reminders and the team's task afresh.
+      ...(completedOn || intervalChanged
+        ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null, reminderStage: 0, taskCreatedAt: null }
         : {}),
     },
   });
+  if (completedOn || intervalChanged) {
+    await closeSafetyTasks(
+      db,
+      check.id,
+      { id: session.user.id, name: session.user.name ?? "Someone" },
+      completedOn ? "the new date has been recorded" : "how often it repeats was changed",
+    );
+  }
+  const saved = await saveSafetyDocuments(
+    db,
+    {
+      organizationId: session.user.organizationId,
+      checkId: check.id,
+      propertyId,
+      uploadedById: session.user.id,
+      completedOn: completedOn ?? check.lastCompletedOn,
+    },
+    files,
+  );
+  if (saved > 0) {
+    await logAudit(db, {
+      actorId: session.user.id,
+      entityType: "Property",
+      entityId: propertyId,
+      summary: `Added ${saved === 1 ? "a document" : `${saved} documents`} to ${check.title} at ${propertyDisplayName(property)}`,
+    });
+  }
 
   if (completedOn) {
     await logAudit(db, {
@@ -721,6 +759,9 @@ export async function setSafetyCheckApplicable(
   const check = await resolveSafetyCheck(db, session.user.organizationId, property, ref);
   if (!check) return { error: "That check could not be found" };
   await db.propertySafetyCheck.update({ where: { id: check.id }, data: { notApplicable: !applicable } });
+  if (!applicable) {
+    await closeSafetyTasks(db, check.id, { id: session.user.id, name: session.user.name ?? "Someone" }, "it is not needed here");
+  }
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }
@@ -764,7 +805,74 @@ export async function addCustomSafetyCheck(propertyId: string, formData: FormDat
 export async function removeCustomSafetyCheck(propertyId: string, checkId: string): Promise<ActionResult> {
   const { db } = await requireStaff();
 
-  await db.propertySafetyCheck.deleteMany({ where: { id: checkId, propertyId, templateKey: null } });
+  // Its documents go with it (the rows cascade), so the files are removed too.
+  const documents = await db.safetyDocument.findMany({
+    where: { checkId, check: { propertyId, templateKey: null } },
+    select: { path: true },
+  });
+  const removed = await db.propertySafetyCheck.deleteMany({ where: { id: checkId, propertyId, templateKey: null } });
+  if (removed.count > 0) await deleteSafetyDocumentFiles(documents.map((d) => d.path));
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+// Keeps certificates and reports against a check, for reference years later.
+// Staff only; the files are served back through /api/safety-documents/[id].
+export async function uploadSafetyDocuments(propertyId: string, ref: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const files = pickedFiles(formData, "documents");
+  if (files.length === 0) return { error: "Choose a file first" };
+  const fileError = checkDocumentFiles(files);
+  if (fileError) return { error: fileError };
+
+  const property = await db.property.findUnique({
+    where: { id: propertyId },
+    select: { id: true, nickname: true, name: true, address: true, management: true },
+  });
+  if (!property) return { error: "Property not found" };
+  const check = await resolveSafetyCheck(db, session.user.organizationId, property, ref);
+  if (!check) return { error: "That check could not be found" };
+
+  const saved = await saveSafetyDocuments(
+    db,
+    {
+      organizationId: session.user.organizationId,
+      checkId: check.id,
+      propertyId,
+      uploadedById: session.user.id,
+      completedOn: check.lastCompletedOn,
+    },
+    files,
+  );
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Property",
+    entityId: propertyId,
+    summary: `Added ${saved === 1 ? "a document" : `${saved} documents`} to ${check.title} at ${propertyDisplayName(property)}`,
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+export async function removeSafetyDocument(propertyId: string, documentId: string): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  // Through the property, so a crafted id can't reach another property's file.
+  const doc = await db.safetyDocument.findFirst({
+    where: { id: documentId, check: { propertyId } },
+    select: { id: true, path: true, fileName: true, check: { select: { title: true, property: { select: { nickname: true, name: true, address: true } } } } },
+  });
+  if (!doc) return;
+
+  await db.safetyDocument.delete({ where: { id: doc.id } });
+  await deleteSafetyDocumentFiles([doc.path]);
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Property",
+    entityId: propertyId,
+    summary: `Removed ${doc.fileName} from ${doc.check.title} at ${propertyDisplayName(doc.check.property)}`,
+  });
 
   revalidatePath(`/admin/properties/${propertyId}`);
 }

@@ -8,7 +8,7 @@ import { isOverdue } from "@/lib/tasks";
 import { Avatar } from "@/components/Avatar";
 import { TaskCommentForm } from "@/components/TaskCommentForm";
 import { TaskDetail } from "@/components/TaskDetail";
-import { addTaskComment, deleteTask, setTaskStatus, updateTask } from "../actions";
+import { addTaskComment, claimTask, deleteTask, setTaskStatus, updateTask } from "../actions";
 
 export const metadata = { title: "Task" };
 
@@ -46,7 +46,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
     .map((p) => ({ id: p.id, name: propertyDisplayName(p) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const createdLine = `Created ${formatDateTime(task.createdAt)}${task.createdBy ? ` by ${task.createdBy.name}` : ""}`;
+  const createdLine = `Created ${formatDateTime(task.createdAt)}${task.createdBy ? ` by ${task.createdBy.name}` : task.safetyCheckId ? " automatically" : ""}`;
   const completedLine =
     task.status === "DONE" && task.completedAt
       ? `Completed ${formatDateTime(task.completedAt)}${task.completedBy ? ` by ${task.completedBy.name}` : ""}`
@@ -81,12 +81,16 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
             propertyId: task.propertyId ?? "",
           },
           canDelete: session.user.role === "ADMIN" || task.createdById === session.user.id,
+          canPickUp:
+            task.assignees.length === 0 || (people.length > 1 && task.assignees.length === people.length),
+          safetyHref: task.safetyCheckId && task.propertyId ? `/admin/properties/${task.propertyId}?tab=safety` : null,
         }}
         staff={people}
         properties={properties}
         setStatus={setTaskStatus.bind(null, task.id)}
         update={updateTask.bind(null, task.id)}
         remove={deleteTask.bind(null, task.id)}
+        claim={claimTask.bind(null, task.id)}
       >
         <section className="flex flex-col gap-4" aria-labelledby="updates-heading">
           <h2 id="updates-heading" className="text-xs font-medium tracking-wide text-zinc-500 uppercase">

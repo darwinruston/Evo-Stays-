@@ -154,13 +154,30 @@ export function dueDateFor(lastCompletedOn: Date, intervalMonths: number): Date 
   return addMonths(lastCompletedOn, intervalMonths);
 }
 
-// How far ahead staff are told a check is coming up: a week for something
-// that repeats monthly, a month for the yearly ones, three months for the
-// five and ten year certificates that take time to arrange.
+// The three advance reminders, widest first: three months, a month and a week
+// before a check is due. A stage only applies to a check that repeats less
+// often than that lead, so a monthly check is not announced three months ahead
+// of a date that is only one month away.
+export const REMINDER_STAGES: { stage: 1 | 2 | 3; days: number; label: string }[] = [
+  { stage: 1, days: 90, label: "3 months" },
+  { stage: 2, days: 30, label: "a month" },
+  { stage: 3, days: 7, label: "a week" },
+];
+
+function applicableStages(intervalMonths: number) {
+  return REMINDER_STAGES.filter((s) => s.days < intervalMonths * 30);
+}
+
+// The furthest ahead a check is flagged as coming up.
 export function reminderLeadDays(intervalMonths: number): number {
-  if (intervalMonths <= 3) return 7;
-  if (intervalMonths < 24) return 30;
-  return 90;
+  return applicableStages(intervalMonths)[0]?.days ?? 7;
+}
+
+// The latest reminder stage a check has reached with this many days to go:
+// 0 if it is still further off than the first, otherwise 1, 2 or 3.
+export function reminderStageFor(daysLeft: number, intervalMonths: number): 0 | 1 | 2 | 3 {
+  const reached = applicableStages(intervalMonths).filter((s) => daysLeft <= s.days);
+  return reached.length === 0 ? 0 : reached[reached.length - 1].stage;
 }
 
 export type SafetyState = "not-needed" | "not-recorded" | "ok" | "due-soon" | "overdue";

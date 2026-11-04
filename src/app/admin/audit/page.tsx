@@ -66,7 +66,7 @@ export default async function AuditPage({
                   <span className="shrink-0 text-xs text-zinc-500">{formatScheduledFor(entry.createdAt)}</span>
                 </div>
                 <p className="mt-1.5 text-sm">{entry.summary}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{entry.actor?.name ?? "Unknown"}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">{entry.actor?.name ?? "Automatic"}</p>
               </>
             );
             return (
