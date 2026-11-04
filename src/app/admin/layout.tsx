@@ -4,31 +4,11 @@ import { requireStaff } from "@/lib/authz";
 import { getOrgSetup } from "@/lib/modules";
 import { EvoTick } from "@/components/EvoTick";
 import { NavMenu } from "@/components/NavMenu";
+import { SectionTabs, type Section } from "@/components/SectionTabs";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { unreadNotificationCount } from "@/lib/notificationViews";
 import { prisma } from "@/lib/prisma";
 import { logoutAction } from "../logout/actions";
-
-// Day-to-day work areas -- left, right after the logo. Overview isn't
-// listed here: the logo already links to /admin, so it's reachable without
-// taking up a nav slot of its own.
-const NAV = [
-  { href: "/admin/properties", label: "Properties" },
-  { href: "/admin/cleans", label: "Cleans" },
-  { href: "/admin/issues", label: "Issues" },
-  { href: "/admin/stock", label: "Stock" },
-  { href: "/admin/invoices", label: "Invoices" },
-  { href: "/admin/laundry", label: "Laundry" },
-];
-
-// Clients and the Team are directories of people/organisations, not daily
-// tools -- grouped off on the right so the left stays purely operational.
-// Cleaners live on the Team page, with everyone else who signs in.
-const PROFILE_NAV = [
-  { href: "/admin/clients", label: "Clients" },
-  { href: "/admin/team", label: "Team" },
-  { href: "/admin/audit", label: "Activity" },
-];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { session, db } = await requireStaff();
@@ -53,24 +33,82 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // Tasks given to you and not yet done, shown on the Team tab.
     db.task.count({ where: { assignees: { some: { userId: session.user.id } }, status: { not: "DONE" } } }),
   ]);
-  const items = NAV.filter(
-    (item) =>
-      (item.href !== "/admin/stock" || modules.stock) &&
-      (item.href !== "/admin/invoices" || modules.invoicing) &&
-      (item.href !== "/admin/laundry" || modules.laundry),
-  ).map((item) =>
-    item.href === "/admin/issues"
-      ? { ...item, count: openIssues, countLabel: "open" }
-      : item.href === "/admin/laundry"
-        ? { ...item, count: linenProblems, countLabel: "linen problems" }
-        : item,
-  );
+  // The main headings, each with the pages that belong under it. Stock,
+  // Laundry and Invoices follow the company's own switches. A heading that
+  // ends up with one page shows no tab row.
+  const sections: (Section & { label: string; href: string; prefixes: string[]; count?: number; countLabel?: string })[] = [
+    {
+      key: "properties",
+      label: "Properties",
+      href: "/admin/properties",
+      prefixes: ["/admin/properties", "/admin/issues"],
+      count: openIssues,
+      countLabel: "open issues",
+      tabs: [
+        { href: "/admin/properties", label: "Properties" },
+        { href: "/admin/issues", label: "Issues", count: openIssues, countLabel: "open" },
+      ],
+    },
+    {
+      key: "cleaning",
+      label: "Cleaning",
+      href: "/admin/cleans",
+      prefixes: ["/admin/cleans", "/admin/stock", "/admin/stock-items", "/admin/laundry", "/admin/laundry-facilities"],
+      count: linenProblems,
+      countLabel: "linen problems",
+      tabs: [
+        { href: "/admin/cleans", label: "Cleans" },
+        ...(modules.stock ? [{ href: "/admin/stock", label: "Stock" }] : []),
+        ...(modules.laundry
+          ? [{ href: "/admin/laundry", label: "Laundry", count: linenProblems, countLabel: "linen problems" }]
+          : []),
+      ],
+    },
+    {
+      key: "team",
+      label: "Team",
+      href: "/admin/team",
+      prefixes: ["/admin/team", "/admin/staff", "/admin/cleaners", "/admin/audit"],
+      count: myOpenTasks,
+      countLabel: "tasks to do",
+      tabs: [
+        { href: "/admin/team", label: "People" },
+        { href: "/admin/team/tasks", label: "Tasks", count: myOpenTasks, countLabel: "of your tasks to do", deep: true },
+        { href: "/admin/audit", label: "Activity" },
+      ],
+    },
+    {
+      key: "clients",
+      label: "Clients",
+      href: "/admin/clients",
+      prefixes: ["/admin/clients", "/admin/invoices"],
+      tabs: [
+        { href: "/admin/clients", label: "Clients" },
+        ...(modules.invoicing ? [{ href: "/admin/invoices", label: "Invoices" }] : []),
+      ],
+    },
+  ];
+  const items = sections.map((s) => ({
+    href: s.href,
+    label: s.label,
+    count: s.count,
+    countLabel: s.countLabel,
+    activePrefixes: s.prefixes,
+  }));
+  // Notifications are personal to whoever is signed in, so they sit apart from
+  // the shared work areas, with Settings for admins.
   const rightItems = [
-    { href: "/admin/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" },
-    ...PROFILE_NAV.map((item) =>
-      item.href === "/admin/team" ? { ...item, count: myOpenTasks, countLabel: "tasks to do" } : item,
-    ),
-    ...(session.user.role === "ADMIN" ? [{ href: "/admin/settings", label: "Settings" }] : []),
+    {
+      href: "/admin/notifications",
+      icon: "bell" as const,
+      label: "Notifications",
+      count: unread,
+      countLabel: "unread",
+      activePrefixes: ["/admin/notifications"],
+    },
+    ...(session.user.role === "ADMIN"
+      ? [{ href: "/admin/settings", label: "Settings", activePrefixes: ["/admin/settings"] }]
+      : []),
   ];
 
   // Only fetched when actually impersonating (see impersonateOrganization
@@ -101,6 +139,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           on desktop too, where the padding is a no-op either way, so the
           same fix applies without a breakpoint split. */}
       <main className="px-4 pt-10 pb-[calc(3rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-10">
+        <SectionTabs sections={sections.map((s) => ({ key: s.key, tabs: s.tabs }))} />
         {children}
       </main>
     </div>

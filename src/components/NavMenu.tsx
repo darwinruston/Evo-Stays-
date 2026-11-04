@@ -13,10 +13,26 @@ import { BellIcon } from "@/components/Icons";
 // `icon` swaps the label for a glyph in the flat row (the label stays as the
 // accessible name, and shows as text again in the hamburger dropdown, where
 // there's room and an unlabelled icon would be less clear).
-type NavItem = { href: string; label: string; count?: number; countLabel?: string; icon?: "bell" };
+//
+// `activePrefixes` marks the item as current on those pages: "Cleaning" is
+// current on the Cleans, Stock and Laundry pages, not just its own link. Left
+// out, the item never shows as current (the cleaner menu does this).
+type NavItem = {
+  href: string;
+  label: string;
+  count?: number;
+  countLabel?: string;
+  icon?: "bell";
+  activePrefixes?: string[];
+};
 
 const linkClass =
   "rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-black/5 hover:text-zinc-950";
+const currentClass = "bg-black/[0.06] font-medium text-zinc-950";
+
+function isCurrent(item: NavItem, pathname: string): boolean {
+  return (item.activePrefixes ?? []).some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
 const signOutClass = button("secondary", "sm");
 
@@ -47,6 +63,9 @@ function NavLink({
   iconOnly?: boolean;
   onNavigate?: () => void;
 }) {
+  const pathname = usePathname();
+  const current = isCurrent(item, pathname);
+  const classes = `${linkClass} ${current ? currentClass : ""}`;
   if (item.icon && iconOnly) {
     return (
       <Link
@@ -54,7 +73,8 @@ function NavLink({
         aria-label={item.label}
         title={item.label}
         onClick={onNavigate}
-        className={`${linkClass} relative inline-flex items-center`}
+        aria-current={current ? "page" : undefined}
+        className={`${classes} relative inline-flex items-center`}
       >
         <BellIcon className="h-5 w-5" />
         <CountBadge item={item} className="absolute -right-0.5 -top-0.5 min-w-4 px-1 text-[10px] leading-4" />
@@ -62,7 +82,12 @@ function NavLink({
     );
   }
   return (
-    <Link href={item.href} onClick={onNavigate} className={`${linkClass} inline-flex items-center gap-1.5`}>
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={current ? "page" : undefined}
+      className={`${classes} inline-flex items-center gap-1.5`}
+    >
       {item.icon && <BellIcon className="h-4 w-4" />}
       {item.label}
       <CountBadge item={item} className="" />
