@@ -8,13 +8,13 @@ datasource db {
   // src/lib/prisma.ts for the scoped client this is paired with, and the RLS
   // policies applied separately as raw SQL). Local dev runs against a
   // Postgres container -- see README.
-  provider = "postgresql"
+  provider  = "postgresql"
   // The app's own runtime role -- deliberately NOT the table owner and
   // NOT a superuser. Postgres silently bypasses RLS (even FORCE ROW LEVEL
   // SECURITY) for a superuser or any role with BYPASSRLS, so if this were
   // ever a superuser connection, every RLS policy in the RLS migration
   // would do nothing and nobody would notice until it mattered.
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   // A separate, privileged connection used only by `prisma migrate` (DDL:
   // creating tables, adding columns, the RLS policies themselves) -- the
   // restricted runtime role above can't do any of that by design. Prisma
@@ -49,13 +49,13 @@ enum BusinessType {
 // applies the exact same way regardless of how deep the relation chain back
 // to Organisation actually is. See src/lib/prisma.ts.
 model Organization {
-  id        String           @id @default(cuid())
-  name      String
-  plan      OrganizationPlan @default(TRIAL)
+  id                    String           @id @default(cuid())
+  name                  String
+  plan                  OrganizationPlan @default(TRIAL)
   // Only meaningful once plan is PAID -- null on a trial organisation, and
   // left as whatever it was last set to if an organisation is ever moved
   // back to Trial, so re-enabling Paid doesn't lose the agreed figure.
-  monthlyPriceGBP Float?
+  monthlyPriceGBP       Float?
   // True for exactly one row: the technical home of the platform owner's
   // own User (every User needs an organizationId, and the owner is no
   // exception -- see requirePlatformOwner in src/lib/authz.ts). Not a real
@@ -63,14 +63,14 @@ model Organization {
   // src/app/owner/page.tsx) -- the owner would otherwise see their own
   // account's technical housekeeping staring back at them in a list of
   // customers.
-  isPlatform Boolean  @default(false)
+  isPlatform            Boolean          @default(false)
   // Informational only -- nothing automatically suspends an organisation
   // when this passes. Shown on the Organisations page as a due-soon/overdue
   // flag; whether to actually cut access off afterwards is still the
   // owner's own call, made explicitly via `suspendedAt` below. Null means
   // no trial end date has been set (an indefinite trial, today's default
   // behaviour for every existing organisation).
-  trialEndsAt DateTime?
+  trialEndsAt           DateTime?
   // Set (to when) to cut off every user in this organisation from signing
   // in or reaching any page -- see requireStaff/requireAdmin/requireCleaner
   // in src/lib/authz.ts, which all check this on every request rather than
@@ -78,7 +78,7 @@ model Organization {
   // still be caught. Null means active, same "nullable timestamp doubles as
   // the toggle and the record of when" convention as Issue.resolvedAt,
   // Invoice.paidAt and LaundryLoad.collectedAt elsewhere in this schema.
-  suspendedAt DateTime?
+  suspendedAt           DateTime?
   // Null until an admin has answered (or skipped) the first-run setup
   // questions, which is what sends a brand-new company's admin to them (see
   // src/app/admin/layout.tsx). Organisations that existed before the
@@ -89,42 +89,43 @@ model Organization {
   // anyone can change them later from Settings; a switched-off part is
   // hidden from the menus and refused on the server too (see
   // src/lib/modules.ts).
-  laundryEnabled   Boolean @default(true)
-  stockEnabled     Boolean @default(true)
-  invoicingEnabled Boolean @default(true)
+  laundryEnabled        Boolean          @default(true)
+  stockEnabled          Boolean          @default(true)
+  invoicingEnabled      Boolean          @default(true)
   // Bookings coming in from a PMS or calendar links, as opposed to cleans
   // being added by hand.
-  syncEnabled Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  syncEnabled           Boolean          @default(true)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
-  users                     User[]
-  auditLogs                 AuditLog[]
-  notifications             Notification[]
-  clients                   Client[]
-  properties                Property[]
-  propertyImages            PropertyImage[]
-  cleans                    Clean[]
-  linenVisits               LinenVisit[]
-  pushSubscriptions         PushSubscription[]
-  cleanLogs                 CleanLog[]
-  cleanPhotos               CleanPhoto[]
-  stockItems                StockItem[]
-  propertyStockLevels       PropertyStockLevel[]
-  propertyCleaners          PropertyCleaner[]
-  cleanerUnavailability     CleanerUnavailability[]
-  stockUsageLogs            StockUsageLog[]
-  billingSettings           BillingSettings?
-  invoices                  Invoice[]
-  invoiceLines              InvoiceLine[]
-  laundryLoads              LaundryLoad[]
-  laundryFacilities         LaundryFacility[]
-  calendarFeeds             PropertyCalendarFeed[]
-  syncedBookingEvents       SyncedBookingEvent[]
-  syncedPmsReservations     SyncedPmsReservation[]
-  issues                    Issue[]
-  issuePhotos               IssuePhoto[]
-  checklistItems            PropertyChecklistItem[]
+  users                 User[]
+  auditLogs             AuditLog[]
+  notifications         Notification[]
+  clients               Client[]
+  properties            Property[]
+  propertyImages        PropertyImage[]
+  cleans                Clean[]
+  linenVisits           LinenVisit[]
+  pushSubscriptions     PushSubscription[]
+  cleanLogs             CleanLog[]
+  cleanPhotos           CleanPhoto[]
+  stockItems            StockItem[]
+  propertyStockLevels   PropertyStockLevel[]
+  propertyCleaners      PropertyCleaner[]
+  cleanerUnavailability CleanerUnavailability[]
+  stockUsageLogs        StockUsageLog[]
+  billingSettings       BillingSettings?
+  invoices              Invoice[]
+  invoiceLines          InvoiceLine[]
+  laundryLoads          LaundryLoad[]
+  laundryFacilities     LaundryFacility[]
+  calendarFeeds         PropertyCalendarFeed[]
+  syncedBookingEvents   SyncedBookingEvent[]
+  syncedPmsReservations SyncedPmsReservation[]
+  issues                Issue[]
+  issuePhotos           IssuePhoto[]
+  checklistItems        PropertyChecklistItem[]
+  propertySafetyChecks  PropertySafetyCheck[]
 }
 
 // A lead from the public "Register interest" page (src/app/signup/) --
@@ -160,55 +161,55 @@ enum Role {
 }
 
 model User {
-  id             String        @id @default(cuid())
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  name           String
+  id                   String                  @id @default(cuid())
+  organization         Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId       String
+  name                 String
   // Globally unique across the whole platform, not per-organization --
   // login has no "which company" picker, so an email has to resolve to
   // exactly one account.
-  email          String        @unique
-  passwordHash   String
-  role           Role          @default(CLEANER)
+  email                String                  @unique
+  passwordHash         String
+  role                 Role                    @default(CLEANER)
   // Only meaningful for CLEANER. Snapshotted onto Invoice.hourlyRate at
   // generation time (see src/lib/invoices.ts), so changing this later never
   // rewrites a past invoice.
-  hourlyRate     Float?
+  hourlyRate           Float?
   // Only meaningful for CLEANER. Caps how far into the future "My cleans"
   // (src/app/cleaner/page.tsx) shows work -- some cleaners want to see their
   // whole run of upcoming bookings, others find a long tail of far-future
   // dates just noise. Null (the default) shows everything, same as an unset
   // Property.syncHorizonDays never cutting anything off. Never bounds the
   // past -- overdue and completed work always still shows.
-  scheduleHorizonDays Int?
+  scheduleHorizonDays  Int?
   // Whether notifications (see Notification below) are also emailed, on top
   // of always appearing in the app. Only has any effect once SMTP is
   // configured -- see src/lib/email.ts.
-  emailNotifications Boolean   @default(true)
+  emailNotifications   Boolean                 @default(true)
   // Stamped into the login session (see src/auth.ts) and re-checked on every
   // request. Bumped whenever the password changes, which signs that person
   // out everywhere -- otherwise a reset would leave an old session working
   // until it expired on its own.
-  sessionVersion Int           @default(0)
+  sessionVersion       Int                     @default(0)
   // Only meaningful for LINEN: which laundry/linen company this login
   // belongs to, and therefore whose delivery schedule it sees.
-  laundryFacility   LaundryFacility? @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
-  laundryFacilityId String?
-  notifications  Notification[]
-  pushSubscriptions PushSubscription[]
-  reportedIssues Issue[]       @relation("IssueReporter")
-  resolvedIssues Issue[]       @relation("IssueResolver")
-  assignedCleans Clean[]       @relation("CleanAssignee")
-  createdCleans  Clean[]       @relation("CleanCreator")
-  cleanLogs      CleanLog[]
-  invoices       Invoice[]
-  laundryLoads   LaundryLoad[]
+  laundryFacility      LaundryFacility?        @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
+  laundryFacilityId    String?
+  notifications        Notification[]
+  pushSubscriptions    PushSubscription[]
+  reportedIssues       Issue[]                 @relation("IssueReporter")
+  resolvedIssues       Issue[]                 @relation("IssueResolver")
+  assignedCleans       Clean[]                 @relation("CleanAssignee")
+  createdCleans        Clean[]                 @relation("CleanCreator")
+  cleanLogs            CleanLog[]
+  invoices             Invoice[]
+  laundryLoads         LaundryLoad[]
   designatedProperties PropertyCleaner[]
-  unavailability CleanerUnavailability[]
-  auditLogs      AuditLog[]
-  passwordResetTokens PasswordResetToken[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  unavailability       CleanerUnavailability[]
+  auditLogs            AuditLog[]
+  passwordResetTokens  PasswordResetToken[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 
   @@index([organizationId])
 }
@@ -229,13 +230,13 @@ model User {
 // convention as Organisation.suspendedAt) make a token single-use and
 // short-lived.
 model PasswordResetToken {
-  id         String    @id @default(cuid())
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
@@ -258,12 +259,12 @@ model AuditLog {
   id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
-  actorId    String?
-  entityType String
-  entityId   String
-  summary    String
-  createdAt  DateTime @default(now())
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorId        String?
+  entityType     String
+  entityId       String
+  summary        String
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId])
   @@index([entityType, entityId])
@@ -298,6 +299,10 @@ enum NotificationKind {
   // To staff: the assigned cleaner hasn't confirmed what time they'll arrive
   // and the clean is now close (see checkUnconfirmedArrivals).
   ARRIVAL_UNCONFIRMED
+  // To staff: a property's health and safety check (gas safety, electrical
+  // report...) is coming up for renewal, or has passed its date (see
+  // PropertySafetyCheck and src/lib/safetyReminders.ts).
+  SAFETY_CHECK_DUE
 }
 
 // One thing a specific person should know about, shown in their in-app
@@ -313,17 +318,17 @@ model Notification {
   id             String           @id @default(cuid())
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  kind      NotificationKind
-  title     String
-  body      String?
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  kind           NotificationKind
+  title          String
+  body           String?
   // Where following the notification should land -- a path inside the
   // recipient's own area (/cleaner/... or /admin/...). Null when there's
   // nowhere useful to go (e.g. a clean that's no longer theirs).
-  href      String?
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
+  href           String?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
 
   @@index([organizationId])
   @@index([userId, readAt])
@@ -355,15 +360,15 @@ model Client {
   id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  name       String
-  email      String?
-  phone      String?
-  notes      String?
+  name           String
+  email          String?
+  phone          String?
+  notes          String?
   // Profile photo -- see src/lib/profilePhotos.ts. Optional; shows an
   // initials placeholder until one is set.
-  photoPath  String?
+  photoPath      String?
   // Null means no PMS connected for this client. See pmsCredentials below.
-  pmsProvider PmsProvider?
+  pmsProvider    PmsProvider?
   // AES-256-GCM ciphertext (see src/lib/encryption.ts) of a JSON-stringified
   // Record<string,string>, never plaintext -- a live credential grants
   // ongoing read access to this client's whole PMS account, not just one
@@ -374,9 +379,9 @@ model Client {
   // for the exact keys it expects. One credential set per client, covering
   // every property under it -- see Property.pmsListingId.
   pmsCredentials String?
-  properties Property[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  properties     Property[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([organizationId])
 }
@@ -393,53 +398,53 @@ enum PropertyType {
 // bath count, and how many guests it sleeps -- rather than floor area, which
 // is what the sibling app's quoting model needed.
 model Property {
-  id               String               @id @default(cuid())
-  organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId   String
-  client           Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId         String
+  id                 String                  @id @default(cuid())
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId     String
+  client             Client                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId           String
   // The listing name ("Riverside Loft") -- often synced straight from the
   // connected PMS, so it's a guest-facing marketing title, not necessarily
   // something staff and cleaners recognise the property by at a glance.
-  name             String?
+  name               String?
   // A short internal name staff actually call the property by ("The Blue
   // House") -- takes over from `name` everywhere a property is displayed to
   // staff or cleaners (see propertyDisplayName in src/lib/address.ts),
   // including on clean tasks. `name` and the address stay untouched
   // underneath, so a PMS re-sync never overwrites this.
-  nickname         String?
-  address          String
+  nickname           String?
+  address            String
   // Set when the address was picked from an autocomplete rather than typed
   // freehand. Null if never matched to a location.
-  latitude         Float?
-  longitude        Float?
+  latitude           Float?
+  longitude          Float?
   // The linen company that delivers to and collects from this property.
   // Null means none: it doesn't appear on any linen schedule.
-  laundryFacility   LaundryFacility? @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
-  laundryFacilityId String?
-  type             PropertyType         @default(APARTMENT)
-  bedrooms         Int?
-  bathrooms        Int?
-  maxOccupancy     Int?
+  laundryFacility    LaundryFacility?        @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
+  laundryFacilityId  String?
+  type               PropertyType            @default(APARTMENT)
+  bedrooms           Int?
+  bathrooms          Int?
+  maxOccupancy       Int?
   // Extra sleeping capacity already counted into maxOccupancy but not from
   // a bedroom -- a double sofa bed sleeping 2, say. Null/0 means no sofa
   // bed. A changeover needs it prepared when the booking's guest count runs
   // higher than maxOccupancy minus this, i.e. more guests than the
   // bedrooms alone sleep. See cleanPrep in src/lib/cleanPrep.ts.
-  sofaBedSleeps    Int?
+  sofaBedSleeps      Int?
   // Preset access-point keys (e.g. ["KEY_SAFE","LIFT"]) -- a JSON string
   // array since SQLite/Prisma has no native scalar list type here.
-  accessOptions    Json?
+  accessOptions      Json?
   // Free text for anything the presets don't cover: key safe codes, alarm
   // codes, parking, which bin day. The cleaner reads this on site.
-  accessNotes      String?
-  notes            String?
+  accessNotes        String?
+  notes              String?
   // Floor on billable hours per visit, e.g. 2 -- a cleaner who finishes in
   // 40 minutes because the property was left tidy still gets paid for the
   // minimum, so there's no incentive to rush. Null means the toggle is off
   // and invoices bill actual check-in/check-out time only. See
   // generateInvoices in src/lib/invoices.ts.
-  minBillableHours Float?
+  minBillableHours   Float?
   // How far into the future calendar sync will create cleans for this
   // property's feeds, e.g. 31 -- a booking checking out further out than
   // that is simply skipped on this sync and picked up on a later one once
@@ -447,13 +452,13 @@ model Property {
   // year out. Null means no limit. Applies to every feed under this
   // property (one property can list on several platforms). See
   // syncCalendarFeed in src/lib/icalSync.ts.
-  syncHorizonDays  Int?
+  syncHorizonDays    Int?
   // The listing's standard guest check-in time, "HH:MM" (e.g. "15:00").
   // Only used when a synced booking arrives without a real time of its own
   // -- an all-day iCal event, or a PMS's date-only checkIn -- so a
   // same-day turnover can still show a "finish by" deadline instead of just
   // "guests arrive today". Null means unknown. See src/lib/turnover.ts.
-  checkInTime      String?
+  checkInTime        String?
   // Which PMS pmsListingId below belongs to -- denormalised from
   // Client.pmsProvider at link/import time rather than joined through the
   // client on every read, and load-bearing, not just a convenience: listing
@@ -461,7 +466,7 @@ model Property {
   // uniqueness constraint below needs the provider in it too, or two
   // clients on two different providers could coincidentally collide on the
   // same opaque id.
-  pmsProvider      PmsProvider?
+  pmsProvider        PmsProvider?
   // The PMS listing this property maps to -- a listing already aggregates
   // every channel (Airbnb, Vrbo, ...) into one reservation feed, unlike iCal
   // where each channel publishes its own separate URL, so this is a single
@@ -472,20 +477,21 @@ model Property {
   // well past 2^53 (rules out a JS number without silent rounding) and past
   // 32-bit INT range too. Never used numerically, only as an opaque id sent
   // back to the provider, so there's no reason it needs to be one.
-  pmsListingId     String?
-  pmsLastSyncedAt  DateTime?
-  pmsLastSyncError String?
-  images           PropertyImage[]
-  cleans           Clean[]
-  stockLevels      PropertyStockLevel[]
-  invoices         Invoice[]
-  calendarFeeds    PropertyCalendarFeed[]
-  pmsReservations  SyncedPmsReservation[]
+  pmsListingId       String?
+  pmsLastSyncedAt    DateTime?
+  pmsLastSyncError   String?
+  images             PropertyImage[]
+  cleans             Clean[]
+  stockLevels        PropertyStockLevel[]
+  invoices           Invoice[]
+  calendarFeeds      PropertyCalendarFeed[]
+  pmsReservations    SyncedPmsReservation[]
   designatedCleaners PropertyCleaner[]
-  issues           Issue[]
-  checklistItems   PropertyChecklistItem[]
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  issues             Issue[]
+  checklistItems     PropertyChecklistItem[]
+  safetyChecks       PropertySafetyCheck[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 
   @@unique([organizationId, pmsProvider, pmsListingId])
   @@index([clientId])
@@ -498,11 +504,11 @@ model PropertyImage {
   id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId String
-  path       String
-  isPrimary  Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  property       Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  path           String
+  isPrimary      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId])
   @@index([propertyId])
@@ -522,59 +528,59 @@ enum CleanStatus {
 // property only where they hold a Clean (see cleanerPropertyWhere in
 // src/lib/authz.ts), since access notes carry key safe codes.
 model Clean {
-  id             String      @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  property     Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId   String
+  id                        String                @id @default(cuid())
+  organization              Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId            String
+  property                  Property              @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId                String
   // Null when auto-assignment found nobody -- shows as "Unassigned" until
   // an admin picks someone.
-  assignedTo   User?       @relation("CleanAssignee", fields: [assignedToId], references: [id])
-  assignedToId String?
-  createdBy    User        @relation("CleanCreator", fields: [createdById], references: [id])
-  createdById  String
-  instructions String?
-  status       CleanStatus @default(PENDING)
+  assignedTo                User?                 @relation("CleanAssignee", fields: [assignedToId], references: [id])
+  assignedToId              String?
+  createdBy                 User                  @relation("CleanCreator", fields: [createdById], references: [id])
+  createdById               String
+  instructions              String?
+  status                    CleanStatus           @default(PENDING)
   // Null means created but not yet given a slot.
-  scheduledFor DateTime?
+  scheduledFor              DateTime?
   // How many guests just stayed -- the input the stock estimate is built
   // from (see src/lib/stockEstimate.ts). Optional: without it there's simply
   // no estimate, the same as an item with no usagePerGuestNight configured.
-  guestCount   Int?
+  guestCount                Int?
   // Set on check-in; copied onto the CleanLog at check-out (the log doesn't
   // exist yet at check-in time).
-  arrivedAt    DateTime?
-  log          CleanLog?
+  arrivedAt                 DateTime?
+  log                       CleanLog?
   // Set only when this clean was auto-created by a calendar sync rather
   // than scheduled by hand -- see PropertyCalendarFeed/SyncedBookingEvent.
   // Required by Prisma to declare the relation on both sides; nothing in
   // the app queries through it from this direction yet.
-  syncedBookingEvent SyncedBookingEvent?
+  syncedBookingEvent        SyncedBookingEvent?
   // Same as syncedBookingEvent above, but for a PMS-API-sourced reservation --
   // see SyncedPmsReservation.
-  syncedPmsReservation SyncedPmsReservation?
+  syncedPmsReservation      SyncedPmsReservation?
   // What the linen company has said about its visit here (a time it picked,
   // or a problem it flagged). See LinenVisit.
-  linenVisit   LinenVisit?
-  issues       Issue[]
+  linenVisit                LinenVisit?
+  issues                    Issue[]
   // Set once people have been alerted that this clean is at risk of not
   // being finished before the next guests arrive (see checkAtRiskTurnovers
   // in src/lib/turnover.ts), so the scheduler doesn't re-alert on every
   // pass. Cleared whenever the clean is rescheduled -- a new date is a new
   // deadline, worth its own alert.
-  atRiskNotifiedAt DateTime?
+  atRiskNotifiedAt          DateTime?
   // The time the cleaner has said they'll arrive, on the clean's own day.
   // Null means not confirmed yet. Cleared whenever the clean is moved or
   // handed to someone else -- a new slot or a new person needs a fresh
   // confirmation. Separate from arrivedAt, which is when they actually
   // checked in.
-  plannedArrivalAt DateTime?
+  plannedArrivalAt          DateTime?
   // Set once staff have been told the arrival is still unconfirmed, so the
   // scheduler doesn't re-alert on every pass. Cleared alongside
   // plannedArrivalAt.
   arrivalReminderNotifiedAt DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
 
   @@index([organizationId])
   @@index([propertyId])
@@ -589,25 +595,25 @@ model CleanLog {
   id             String          @id @default(cuid())
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  clean         Clean           @relation(fields: [cleanId], references: [id], onDelete: Cascade)
-  cleanId       String          @unique
-  recordedBy    User            @relation(fields: [recordedById], references: [id])
-  recordedById  String
-  note          String?
-  arrivedAt     DateTime?
-  departedAt    DateTime?
-  photos        CleanPhoto[]
-  stockUsage    StockUsageLog[]
+  clean          Clean           @relation(fields: [cleanId], references: [id], onDelete: Cascade)
+  cleanId        String          @unique
+  recordedBy     User            @relation(fields: [recordedById], references: [id])
+  recordedById   String
+  note           String?
+  arrivedAt      DateTime?
+  departedAt     DateTime?
+  photos         CleanPhoto[]
+  stockUsage     StockUsageLog[]
   // At most one -- a visit can only ever be billed once, even across
   // separate invoice generation runs. See src/lib/invoices.ts.
-  invoiceLine   InvoiceLine?
+  invoiceLine    InvoiceLine?
   // Which laundrette drop-off this visit's dirty linen went out in, if any
   // -- a visit belongs to at most one load. SetNull (not Cascade) so
   // deleting a load frees its logs back to unlinked rather than losing the
   // visit record itself.
-  laundryLoad   LaundryLoad?    @relation(fields: [laundryLoadId], references: [id], onDelete: SetNull)
-  laundryLoadId String?
-  createdAt     DateTime        @default(now())
+  laundryLoad    LaundryLoad?    @relation(fields: [laundryLoadId], references: [id], onDelete: SetNull)
+  laundryLoadId  String?
+  createdAt      DateTime        @default(now())
 
   @@index([organizationId])
 }
@@ -621,14 +627,14 @@ enum PhotoStage {
 // storage/property-photos/{propertyId}/ root as PropertyImage, so the single
 // access check in /api/photos covers both.
 model CleanPhoto {
-  id             String     @id @default(cuid())
+  id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  log       CleanLog   @relation(fields: [logId], references: [id], onDelete: Cascade)
-  logId     String
-  path      String
-  stage     PhotoStage
-  createdAt DateTime   @default(now())
+  log            CleanLog     @relation(fields: [logId], references: [id], onDelete: Cascade)
+  logId          String
+  path           String
+  stage          PhotoStage
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId])
   @@index([logId])
@@ -639,18 +645,18 @@ model CleanPhoto {
 // items with usage history are hidden rather than deleted, see the guard in
 // src/app/admin/stock-items/actions.ts.
 model StockItem {
-  id                 String               @id @default(cuid())
-  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId     String
-  name               String
+  id             String               @id @default(cuid())
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  name           String
   // Free label for what's being counted -- "roll", "bottle", "sachet". Shown
   // next to the number, never used in arithmetic.
-  unit               String?
-  active             Boolean              @default(true)
-  levels             PropertyStockLevel[]
-  usage              StockUsageLog[]
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  unit           String?
+  active         Boolean              @default(true)
+  levels         PropertyStockLevel[]
+  usage          StockUsageLog[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -669,13 +675,13 @@ model PropertyStockLevel {
   id             String         @id @default(cuid())
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  property    Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId  String
-  stockItem   StockItem      @relation(fields: [stockItemId], references: [id])
-  stockItemId String
-  band        StockLevelBand
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  stockItem      StockItem      @relation(fields: [stockItemId], references: [id])
+  stockItemId    String
+  band           StockLevelBand
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@unique([propertyId, stockItemId])
   @@index([organizationId])
@@ -699,18 +705,18 @@ model PropertyCleaner {
   id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId String
-  cleaner    User     @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
-  cleanerId  String
+  property       Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  cleaner        User         @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  cleanerId      String
   // A flat fee agreed for this cleaner doing this property -- "always £80
   // for Saltdean", however long the visit takes. When set, invoices bill
   // this per completed visit instead of hours x hourly rate (see
   // generateInvoices in src/lib/invoices.ts). Null means paid by the hour.
   // Only affects invoices generated after it's set: each line snapshots the
   // fee it was billed at (InvoiceLine.flatFee).
-  flatFee    Float?
-  createdAt  DateTime @default(now())
+  flatFee        Float?
+  createdAt      DateTime     @default(now())
 
   @@unique([propertyId, cleanerId])
   @@index([organizationId])
@@ -727,12 +733,12 @@ model CleanerUnavailability {
   id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  cleaner   User     @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
-  cleanerId String
+  cleaner        User         @relation(fields: [cleanerId], references: [id], onDelete: Cascade)
+  cleanerId      String
   // Local midnight of the blocked day -- compared via dayBounds, the same
   // convention autoAssignCleaner already uses for same-day load.
-  date      DateTime
-  createdAt DateTime @default(now())
+  date           DateTime
+  createdAt      DateTime     @default(now())
 
   @@unique([cleanerId, date])
   @@index([organizationId])
@@ -746,12 +752,12 @@ model StockUsageLog {
   id             String         @id @default(cuid())
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  log         CleanLog       @relation(fields: [logId], references: [id], onDelete: Cascade)
-  logId       String
-  stockItem   StockItem      @relation(fields: [stockItemId], references: [id])
-  stockItemId String
-  band        StockLevelBand
-  createdAt   DateTime       @default(now())
+  log            CleanLog       @relation(fields: [logId], references: [id], onDelete: Cascade)
+  logId          String
+  stockItem      StockItem      @relation(fields: [stockItemId], references: [id])
+  stockItemId    String
+  band           StockLevelBand
+  createdAt      DateTime       @default(now())
 
   @@unique([logId, stockItemId])
   @@index([organizationId])
@@ -786,22 +792,22 @@ model Invoice {
   id             String        @id @default(cuid())
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  cleaner     User          @relation(fields: [cleanerId], references: [id])
-  cleanerId   String
-  property    Property      @relation(fields: [propertyId], references: [id])
-  propertyId  String
-  periodStart DateTime
-  periodEnd   DateTime
+  cleaner        User          @relation(fields: [cleanerId], references: [id])
+  cleanerId      String
+  property       Property      @relation(fields: [propertyId], references: [id])
+  propertyId     String
+  periodStart    DateTime
+  periodEnd      DateTime
   // Copied from User.hourlyRate at generation time -- see the model comment
   // there for why.
-  hourlyRate  Float
-  totalHours  Float
-  totalAmount Float
+  hourlyRate     Float
+  totalHours     Float
+  totalAmount    Float
   // Pure record-keeping: an admin-set flag for "have we been paid for
   // this", not anything that processes an actual payment.
-  paidAt      DateTime?
-  lines       InvoiceLine[]
-  createdAt   DateTime      @default(now())
+  paidAt         DateTime?
+  lines          InvoiceLine[]
+  createdAt      DateTime      @default(now())
 
   @@index([organizationId])
   @@index([cleanerId])
@@ -814,17 +820,17 @@ model Invoice {
 // That uniqueness is what makes generation safe to re-run: it only ever
 // picks up CleanLogs with no InvoiceLine yet.
 model InvoiceLine {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  invoiceId  String
-  cleanLog   CleanLog @relation(fields: [cleanLogId], references: [id])
-  cleanLogId String   @unique
-  arrivedAt  DateTime
-  departedAt DateTime
-  hours      Float
-  amount     Float
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId      String
+  cleanLog       CleanLog     @relation(fields: [cleanLogId], references: [id])
+  cleanLogId     String       @unique
+  arrivedAt      DateTime
+  departedAt     DateTime
+  hours          Float
+  amount         Float
   // True once staff have overridden the billed hours away from what
   // arrivedAt/departedAt (and any per-property minimum) would compute --
   // e.g. a visit with an obviously bad checkout timestamp. arrivedAt/
@@ -834,8 +840,8 @@ model InvoiceLine {
   // (see PropertyCleaner.flatFee): the agreed amount, snapshotted here so a
   // later change to the fee never rewrites an invoice already generated.
   // hours/arrivedAt/departedAt are still recorded as the real visit.
-  flatFee    Float?
-  adjusted   Boolean  @default(false)
+  flatFee        Float?
+  adjusted       Boolean      @default(false)
 
   @@index([organizationId])
   @@index([invoiceId])
@@ -853,26 +859,26 @@ model LaundryLoad {
   // Nullable -- the laundry company now invoices monthly rather than per
   // load, so there's no longer a per-load cost to enter. Kept (not dropped)
   // so loads recorded before that change keep showing what they cost.
-  cost         Float?
+  cost           Float?
   // Which launderette/facility the linen actually went to -- picked from
   // the LaundryFacility catalogue rather than typed fresh each time, since
   // a business only ever uses a handful of these on repeat.
-  facility     LaundryFacility @relation(fields: [facilityId], references: [id])
-  facilityId   String
+  facility       LaundryFacility @relation(fields: [facilityId], references: [id])
+  facilityId     String
   // Nullable -- the laundry company now collects from and drops back off at
   // the property directly, so there's no paper ticket to photograph any
   // more. Same reasoning as cost above: kept for loads recorded before the
   // change, just never set going forward.
-  receiptPath  String?
-  recordedBy   User            @relation(fields: [recordedById], references: [id])
-  recordedById String
-  logs         CleanLog[]
-  createdAt    DateTime        @default(now())
+  receiptPath    String?
+  recordedBy     User            @relation(fields: [recordedById], references: [id])
+  recordedById   String
+  logs           CleanLog[]
+  createdAt      DateTime        @default(now())
   // Null while the linen is still out at the laundrette -- that's what
   // makes a property's "currently out" section self-closing: once this is
   // set, the load just drops out of that filtered view instead of needing
   // to be manually cleared away.
-  collectedAt  DateTime?
+  collectedAt    DateTime?
 
   @@index([organizationId])
   @@index([recordedById])
@@ -928,11 +934,11 @@ model PushSubscription {
 // suggested time stands), and/or a problem it flagged for the office. One row
 // per clean, created only when the linen company first does something.
 model LinenVisit {
-  id             String       @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  clean          Clean        @relation(fields: [cleanId], references: [id], onDelete: Cascade)
-  cleanId        String       @unique
+  id              String       @id @default(cuid())
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String
+  clean           Clean        @relation(fields: [cleanId], references: [id], onDelete: Cascade)
+  cleanId         String       @unique
   // Null means "use the suggested time". Checked against the window every
   // time the schedule is built: if the cleaner's arrival moves and this no
   // longer fits, it's shown as needing to be chosen again, not silently used.
@@ -956,12 +962,12 @@ model LinenVisit {
 // deactivated (dropped from the picker for new loads) rather than deleted,
 // since past loads still need to display which one they went to.
 model LaundryFacility {
-  id             String        @id @default(cuid())
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  name      String
-  active    Boolean       @default(true)
-  loads     LaundryLoad[]
+  id                  String        @id @default(cuid())
+  organization        Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId      String
+  name                String
+  active              Boolean       @default(true)
+  loads               LaundryLoad[]
   // Where the van sets off from each morning (any address, found on the map
   // from its postcode, only used to estimate drive times) and how a day is
   // planned. The van comes AFTER the cleaner has arrived, to collect that
@@ -977,21 +983,21 @@ model LaundryFacility {
   // hour to go. How long a clean takes is learned per property from past
   // visits (see src/lib/cleanDuration.ts), starting from defaultCleanMinutes.
   // stopMinutes is how long each visit takes. See src/lib/linenRoute.ts.
-  depotAddress     String?
-  depotLatitude    Float?
-  depotLongitude   Float?
-  dayStartMinutes  Int      @default(390)
-  handoverPercent  Int      @default(15)
-  minHandoverMinutes Int    @default(10)
-  cleanLeadPercent Int      @default(33)
-  minLeadMinutes   Int      @default(15)
-  defaultCleanMinutes Int   @default(90)
-  stopMinutes      Int      @default(15)
+  depotAddress        String?
+  depotLatitude       Float?
+  depotLongitude      Float?
+  dayStartMinutes     Int           @default(390)
+  handoverPercent     Int           @default(15)
+  minHandoverMinutes  Int           @default(10)
+  cleanLeadPercent    Int           @default(33)
+  minLeadMinutes      Int           @default(15)
+  defaultCleanMinutes Int           @default(90)
+  stopMinutes         Int           @default(15)
   // The properties this company supplies, and the logins it signs in with.
-  properties Property[]
-  linenUsers User[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  properties          Property[]
+  linenUsers          User[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -1000,18 +1006,18 @@ model LaundryFacility {
 // One row per platform a property is listed on (Airbnb, Vrbo, ...) --
 // each publishes its own separate iCal URL for the same physical unit.
 model PropertyCalendarFeed {
-  id             String    @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String               @id @default(cuid())
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  property       Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property       Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId     String
   label          String
   url            String
   lastSyncedAt   DateTime?
   lastSyncError  String?
   events         SyncedBookingEvent[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@index([organizationId])
   @@index([propertyId])
@@ -1020,19 +1026,19 @@ model PropertyCalendarFeed {
 // One row per iCal VEVENT ever seen on a feed, keyed by [feedId, externalUid]
 // so re-syncing is idempotent -- a UID already seen is updated, not re-created.
 model SyncedBookingEvent {
-  id             String                @id @default(cuid())
-  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String               @id @default(cuid())
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  feed           PropertyCalendarFeed  @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  feed           PropertyCalendarFeed @relation(fields: [feedId], references: [id], onDelete: Cascade)
   feedId         String
   externalUid    String
   checkIn        DateTime
   checkOut       DateTime
-  clean          Clean?                @relation(fields: [cleanId], references: [id], onDelete: SetNull)
-  cleanId        String?               @unique
-  cancelled      Boolean               @default(false)
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  clean          Clean?               @relation(fields: [cleanId], references: [id], onDelete: SetNull)
+  cleanId        String?              @unique
+  cancelled      Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@unique([feedId, externalUid])
   @@index([organizationId])
@@ -1048,28 +1054,28 @@ model SyncedBookingEvent {
 // below already prevents cross-provider id collisions, so it isn't
 // repeated on this table.
 model SyncedPmsReservation {
-  id                     String    @id @default(cuid())
-  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId         String
-  property               Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId             String
+  id                    String       @id @default(cuid())
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId        String
+  property              Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId            String
   // String, not Int -- same reasoning as Property.pmsListingId. Some
   // provider ids in the wild run well past 32-bit INT range.
-  externalReservationId  String
+  externalReservationId String
   // Raw provider status string ("accepted", "pending", "denied",
   // "cancelled_by_host", "cancelled_by_guest", "no_show", ...), stored as-is
   // rather than a Prisma enum so a status value a provider adds later
   // doesn't fail an insert -- see each adapter's outcome-classification in
   // src/lib/pms/.
-  status                 String
-  checkIn                DateTime
-  checkOut               DateTime
-  guests                 Int?
-  clean                  Clean?    @relation(fields: [cleanId], references: [id], onDelete: SetNull)
-  cleanId                String?   @unique
-  cancelled              Boolean   @default(false)
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  status                String
+  checkIn               DateTime
+  checkOut              DateTime
+  guests                Int?
+  clean                 Clean?       @relation(fields: [cleanId], references: [id], onDelete: SetNull)
+  cleanId               String?      @unique
+  cancelled             Boolean      @default(false)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
   @@unique([propertyId, externalReservationId])
   @@index([organizationId])
@@ -1126,34 +1132,34 @@ enum IssueStatus {
 // The clean link is SetNull too: deleting a clean doesn't make the broken
 // boiler it turned up any less broken.
 model Issue {
-  id             String        @id @default(cuid())
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  property       Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId     String
-  clean          Clean?        @relation(fields: [cleanId], references: [id], onDelete: SetNull)
-  cleanId        String?
-  reportedBy     User?         @relation("IssueReporter", fields: [reportedById], references: [id], onDelete: SetNull)
-  reportedById   String?
-  category       IssueCategory
-  severity       IssueSeverity
+  id                 String        @id @default(cuid())
+  organization       Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId     String
+  property           Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId         String
+  clean              Clean?        @relation(fields: [cleanId], references: [id], onDelete: SetNull)
+  cleanId            String?
+  reportedBy         User?         @relation("IssueReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  reportedById       String?
+  category           IssueCategory
+  severity           IssueSeverity
   // Why the system gave it that severity, in words staff can check at a
   // glance ("No water: guests can't stay without it"). Kept even after a
   // staff override, as the record of what the automatic assessment said.
-  severityReason String?
+  severityReason     String?
   // True once staff have changed the severity by hand -- triage is theirs to
   // correct; the audit log records who and when.
-  severityOverridden Boolean   @default(false)
-  description    String
-  status         IssueStatus   @default(OPEN)
+  severityOverridden Boolean       @default(false)
+  description        String
+  status             IssueStatus   @default(OPEN)
   // What was done about it -- set (optionally) when marking it resolved.
-  resolutionNote String?
-  resolvedAt     DateTime?
-  resolvedBy     User?         @relation("IssueResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
-  resolvedById   String?
-  photos         IssuePhoto[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  resolutionNote     String?
+  resolvedAt         DateTime?
+  resolvedBy         User?         @relation("IssueResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedById       String?
+  photos             IssuePhoto[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   @@index([organizationId])
   @@index([propertyId, status])
@@ -1165,13 +1171,13 @@ model Issue {
 // storage/property-photos/{propertyId}/ root as every other property photo,
 // so /api/photos's single per-property access check covers these too.
 model IssuePhoto {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  issueId   String
-  path      String
-  createdAt DateTime @default(now())
+  issue          Issue        @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueId        String
+  path           String
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId])
   @@index([issueId])
@@ -1185,15 +1191,58 @@ model IssuePhoto {
 // than replacing that. An item whose room matches a standard room joins
 // that room's card; any other room becomes a card of its own.
 model PropertyChecklistItem {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId String
-  room       String
-  text       String
-  createdAt  DateTime @default(now())
+  property       Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  room           String
+  text           String
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId])
   @@index([propertyId])
+}
+
+// A health and safety check a property needs repeating -- a gas safety
+// certificate, an electrical report, an insurance renewal. The manager records
+// the date it was last done; Evo Stays works out when it is next due and tells
+// staff beforehand (see src/lib/safetyReminders.ts).
+//
+// The standard checks a short let usually needs live in code
+// (src/lib/safetyChecks.ts) and a row only exists once someone has touched one
+// for this property, so a property nobody has set up has nothing to nag about.
+// templateKey says which standard check a row is; null means the manager added
+// it themselves.
+//
+// Dates are calendar dates, stored at midnight UTC (see isDateOnly in
+// src/lib/schedule.ts). dueOn is lastCompletedOn plus intervalMonths, kept in
+// step on every save so reminders can find what is due with an index.
+model PropertySafetyCheck {
+  id                String       @id @default(cuid())
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId    String
+  property          Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId        String
+  templateKey       String?
+  title             String
+  intervalMonths    Int
+  lastCompletedOn   DateTime?
+  dueOn             DateTime?
+  // Anything worth keeping with the date: who did it, the certificate number.
+  note              String?
+  // The check doesn't apply here (no gas supply, say). Hidden from reminders
+  // and from the property's summary.
+  notApplicable     Boolean      @default(false)
+  // When staff were last told it is coming up / overdue. Cleared whenever a
+  // new completion date is saved, so the next cycle reminds again.
+  dueSoonNotifiedAt DateTime?
+  overdueNotifiedAt DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@unique([propertyId, templateKey])
+  @@index([organizationId])
+  @@index([propertyId])
+  @@index([dueOn])
 }

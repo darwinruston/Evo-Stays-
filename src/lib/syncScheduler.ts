@@ -2,6 +2,7 @@ import { prisma, scopedDb } from "@/lib/prisma";
 import { runAllSyncs } from "@/lib/runAllSyncs";
 import { checkAtRiskTurnovers } from "@/lib/turnover";
 import { checkUnconfirmedArrivals } from "@/lib/arrival";
+import { checkSafetyReminders } from "@/lib/safetyReminders";
 
 const DEFAULT_INTERVAL_MINUTES = 30;
 // Far shorter than the sync interval: this one is a cheap local query, and
@@ -44,6 +45,9 @@ export function startSyncScheduler(): void {
           });
           await checkUnconfirmedArrivals(scopedDb(org.id)).catch((err) => {
             console.error(`[arrival check] run failed for organisation ${org.id}:`, err);
+          });
+          await checkSafetyReminders(scopedDb(org.id)).catch((err) => {
+            console.error(`[safety check] run failed for organisation ${org.id}:`, err);
           });
         }
       })

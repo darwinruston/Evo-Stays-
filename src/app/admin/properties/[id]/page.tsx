@@ -33,7 +33,21 @@ import {
   fetchPropertyPmsCoverPhoto,
   addPropertyChecklistItem,
   removePropertyChecklistItem,
+  saveSafetyCheck,
+  setSafetyCheckApplicable,
+  addCustomSafetyCheck,
+  removeCustomSafetyCheck,
 } from "../actions";
+import { AddSafetyCheckForm, SafetyCheckCard } from "@/components/SafetyCheckCard";
+import {
+  buildSafetyEntries,
+  describeInterval,
+  formatDateOnly,
+  safetyState,
+  safetyStatusLabel,
+  toDateInputValue,
+  todayDateOnly,
+} from "@/lib/safetyChecks";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
 import { CHECKLIST_ROOM_MAX, CHECKLIST_TEXT_MAX, STANDARD_ROOMS } from "@/lib/cleaningChecklist";
 import { setLaundryLoadCollected } from "../../laundry/actions";
@@ -51,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: property ? propertyDisplayName(property) : "Property" };
 }
 
-const TABS = ["overview", "checklist", "photos", "billing", "syncing"] as const;
+const TABS = ["overview", "checklist", "safety", "photos", "billing", "syncing"] as const;
 type TabKey = (typeof TABS)[number];
 
 export default async function PropertyDetailPage({
@@ -86,6 +100,7 @@ export default async function PropertyDetailPage({
         include: { cleaner: { select: { id: true, name: true } } },
       },
       checklistItems: { orderBy: { createdAt: "asc" } },
+      safetyChecks: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!property) notFound();
@@ -168,6 +183,18 @@ export default async function PropertyDetailPage({
     (property.pmsLastSyncError !== null || property.calendarFeeds.some((f) => f.lastSyncError !== null));
   const coverPath = property.images[0]?.path ?? null;
 
+  // Health and safety: the standard checks plus the manager's own, each with
+  // where it stands today. "Needs attention" is overdue or coming up; one
+  // that has simply never been recorded is shown but never counted as an
+  // alarm, since a property nobody has set up yet isn't a problem to chase.
+  const safetyEntries = buildSafetyEntries(property.safetyChecks).map((entry) => ({
+    entry,
+    ...safetyState(entry),
+  }));
+  const safetyAttention = safetyEntries.filter((e) => e.state === "overdue" || e.state === "due-soon").length;
+  const safetyNotRecorded = safetyEntries.filter((e) => e.state === "not-recorded").length;
+  const safetyToday = toDateInputValue(todayDateOnly());
+
   const allTabs: { key: TabKey; label: string; alert?: number | "dot" }[] = [
     { key: "overview", label: "Overview", alert: openIssues.length || undefined },
     {
@@ -175,6 +202,7 @@ export default async function PropertyDetailPage({
       label: modules.stock ? "Checklist & stock" : "Checklist",
       alert: lowStockCount || undefined,
     },
+    { key: "safety", label: "Health & safety", alert: safetyAttention || undefined },
     { key: "photos", label: "Photos" },
     { key: "billing", label: "Billing" },
     { key: "syncing", label: "Syncing", alert: syncFailing ? "dot" : undefined },
@@ -210,12 +238,17 @@ export default async function PropertyDetailPage({
                   {lowStockCount} running low
                 </Link>
               )}
+              {safetyAttention > 0 && (
+                <Link href="?tab=safety" className={badge("solid")}>
+                  {safetyAttention} safety {safetyAttention === 1 ? "check" : "checks"} due
+                </Link>
+              )}
               {syncFailing && (
                 <Link href="?tab=syncing" className={badge("solid")}>
                   Sync problem
                 </Link>
               )}
-              {openIssues.length === 0 && lowStockCount === 0 && !syncFailing && (
+              {openIssues.length === 0 && lowStockCount === 0 && !syncFailing && safetyAttention === 0 && (
                 <span className={badge("neutral")}>All good</span>
               )}
             </div>
@@ -533,6 +566,46 @@ export default async function PropertyDetailPage({
         )}
       </section>
       )}
+        </div>
+      )}
+
+      {tab === "safety" && (
+        <div className="flex flex-col gap-4">
+          <section className="flex flex-col gap-2">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+              Health and safety
+              <InfoTooltip text="The checks a short let usually needs repeating, such as gas safety and electrical reports. Record the date each was last done and Evo Stays works out when it is next due and reminds your team beforehand. This is a starting list: what a property needs depends on where it is, so mark anything that does not apply and add your own." />
+            </h2>
+            <p className="text-sm text-zinc-500">
+              {safetyNotRecorded > 0
+                ? `${safetyNotRecorded} of ${safetyEntries.filter((e) => e.state !== "not-needed").length} checks have no date recorded yet. Reminders start once a date is recorded.`
+                : "Every check here has a date recorded. You will be reminded before each one is due."}
+            </p>
+          </section>
+          <ul className="flex flex-col gap-3">
+            {safetyEntries.map(({ entry, state, days }) => (
+              <SafetyCheckCard
+                key={entry.ref}
+                title={entry.title}
+                what={entry.what}
+                statusLabel={safetyStatusLabel(state, days)}
+                attention={state === "overdue" || state === "due-soon"}
+                notNeeded={state === "not-needed"}
+                lastDone={entry.lastCompletedOn ? formatDateOnly(entry.lastCompletedOn) : null}
+                nextDue={entry.dueOn ? formatDateOnly(entry.dueOn) : null}
+                repeats={describeInterval(entry.intervalMonths)}
+                intervalMonths={entry.intervalMonths}
+                note={entry.note}
+                today={safetyToday}
+                save={saveSafetyCheck.bind(null, property.id, entry.ref)}
+                setApplicable={setSafetyCheckApplicable.bind(null, property.id, entry.ref)}
+                remove={
+                  entry.custom ? removeCustomSafetyCheck.bind(null, property.id, entry.ref.slice(3)) : undefined
+                }
+              />
+            ))}
+          </ul>
+          <AddSafetyCheckForm action={addCustomSafetyCheck.bind(null, property.id)} today={safetyToday} />
         </div>
       )}
 

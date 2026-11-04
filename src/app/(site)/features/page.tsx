@@ -43,6 +43,7 @@ const AREAS: Area[] = [
       "Access notes and key safe codes, shown only to the cleaners on that property",
       "Which cleaners look after it",
       "Open problems with photos, kept against the property until fixed",
+      "Health and safety checks, such as gas safety and electrical reports, with a reminder before each one runs out",
       "Every clean, with its checklist, photos and stock levels",
       "Bookings come in from your booking system, so you do not retype them",
     ],

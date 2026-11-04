@@ -30,6 +30,10 @@ const KEPT_TOGETHER = [
     body: "Problems cleaners find are logged with photos, ranked by urgency and kept against the property until fixed.",
   },
   {
+    title: "Health and safety",
+    body: "Gas safety, electrical reports, insurance and more. Record when each was done and your team is reminded before it runs out.",
+  },
+  {
     title: "Cleaning",
     body: "Every clean, who is doing it, the checklist and the photos, all on the property's own page.",
   },

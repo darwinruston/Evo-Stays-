@@ -15,6 +15,16 @@ import { decryptPmsCredentials } from "@/lib/pms/credentials";
 import { propertyDisplayName } from "@/lib/address";
 import { logAudit } from "@/lib/audit";
 import { CHECKLIST_ROOM_MAX, CHECKLIST_TEXT_MAX, normaliseRoom } from "@/lib/cleaningChecklist";
+import {
+  SAFETY_INTERVAL_MAX_MONTHS,
+  SAFETY_NOTE_MAX,
+  SAFETY_TITLE_MAX,
+  dueDateFor,
+  formatDateOnly,
+  parseDateOnly,
+  templateFor,
+  todayDateOnly,
+} from "@/lib/safetyChecks";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -582,4 +592,164 @@ export async function removePropertyChecklistItem(propertyId: string, itemId: st
 
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/cleaner", "layout");
+}
+
+// ---------------------------------------------------------------------------
+// Health and safety checks (see PropertySafetyCheck in schema.prisma)
+// ---------------------------------------------------------------------------
+
+// A check is named by "template:<key>" until someone first touches it for
+// this property (its row doesn't exist yet) and by "id:<id>" after. Resolves
+// either to a row, creating it from the standard list on first use, and always
+// through the property so a crafted id can't reach another property's check.
+async function resolveSafetyCheck(
+  db: ScopedPrismaClient,
+  organizationId: string,
+  propertyId: string,
+  ref: string,
+): Promise<{ id: string; title: string; intervalMonths: number; lastCompletedOn: Date | null } | null> {
+  const select = { id: true, title: true, intervalMonths: true, lastCompletedOn: true } as const;
+  if (ref.startsWith("id:")) {
+    return db.propertySafetyCheck.findFirst({ where: { id: ref.slice(3), propertyId }, select });
+  }
+  const template = ref.startsWith("template:") ? templateFor(ref.slice(9)) : null;
+  if (!template) return null;
+  const existing = await db.propertySafetyCheck.findFirst({ where: { propertyId, templateKey: template.key }, select });
+  if (existing) return existing;
+  return db.propertySafetyCheck.create({
+    data: {
+      organizationId,
+      propertyId,
+      templateKey: template.key,
+      title: template.title,
+      intervalMonths: template.intervalMonths,
+    },
+    select,
+  });
+}
+
+function intervalMonths(formData: FormData): number | null | "invalid" {
+  const raw = str(formData, "intervalMonths");
+  if (raw === null) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 1 && n <= SAFETY_INTERVAL_MAX_MONTHS ? n : "invalid";
+}
+
+// Records the date a check was last done and/or how often it repeats, and
+// works out when it is next due. Saving a new date also clears the "told staff"
+// markers, so the next cycle reminds again.
+export async function saveSafetyCheck(propertyId: string, ref: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const completedRaw = str(formData, "completedOn");
+  const completedOn = completedRaw ? parseDateOnly(completedRaw) : null;
+  if (completedRaw && !completedOn) return { error: "That is not a valid date" };
+  if (completedOn && completedOn.getTime() > todayDateOnly().getTime()) {
+    return { error: "Enter the date it was done, which cannot be in the future" };
+  }
+  const months = intervalMonths(formData);
+  if (months === "invalid") {
+    return { error: `How often must be a whole number of months, between 1 and ${SAFETY_INTERVAL_MAX_MONTHS}` };
+  }
+  const note = str(formData, "note");
+  if (note && note.length > SAFETY_NOTE_MAX) return { error: `Keep the note under ${SAFETY_NOTE_MAX} characters` };
+
+  const property = await db.property.findUnique({
+    where: { id: propertyId },
+    select: { id: true, nickname: true, name: true, address: true },
+  });
+  if (!property) return { error: "Property not found" };
+  const check = await resolveSafetyCheck(db, session.user.organizationId, propertyId, ref);
+  if (!check) return { error: "That check could not be found" };
+
+  const interval = months ?? check.intervalMonths;
+  const last = completedOn ?? check.lastCompletedOn;
+  await db.propertySafetyCheck.update({
+    where: { id: check.id },
+    data: {
+      intervalMonths: interval,
+      lastCompletedOn: last,
+      dueOn: last ? dueDateFor(last, interval) : null,
+      // Doing it means it applies; a note is replaced only when one is sent.
+      notApplicable: false,
+      ...(formData.has("note") ? { note } : {}),
+      ...(completedOn ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null } : {}),
+      // A shorter or longer interval moves the due date, so remind afresh.
+      ...(months !== null && months !== check.intervalMonths
+        ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null }
+        : {}),
+    },
+  });
+
+  if (completedOn) {
+    await logAudit(db, {
+      actorId: session.user.id,
+      entityType: "Property",
+      entityId: propertyId,
+      summary: `Recorded ${check.title} as done on ${formatDateOnly(completedOn)} at ${propertyDisplayName(property)}`,
+    });
+  }
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/properties");
+}
+
+// "Not needed here": no gas supply, say. Reversible, and the recorded date
+// stays so switching it back on doesn't lose the history.
+export async function setSafetyCheckApplicable(
+  propertyId: string,
+  ref: string,
+  applicable: boolean,
+): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const check = await resolveSafetyCheck(db, session.user.organizationId, propertyId, ref);
+  if (!check) return { error: "That check could not be found" };
+  await db.propertySafetyCheck.update({ where: { id: check.id }, data: { notApplicable: !applicable } });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+export async function addCustomSafetyCheck(propertyId: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const title = str(formData, "title");
+  if (!title) return { error: "Say what the check is" };
+  if (title.length > SAFETY_TITLE_MAX) return { error: `Keep the name under ${SAFETY_TITLE_MAX} characters` };
+  const months = intervalMonths(formData);
+  if (months === null || months === "invalid") {
+    return { error: `How often must be a whole number of months, between 1 and ${SAFETY_INTERVAL_MAX_MONTHS}` };
+  }
+  const completedRaw = str(formData, "completedOn");
+  const completedOn = completedRaw ? parseDateOnly(completedRaw) : null;
+  if (completedRaw && !completedOn) return { error: "That is not a valid date" };
+  if (completedOn && completedOn.getTime() > todayDateOnly().getTime()) {
+    return { error: "Enter the date it was done, which cannot be in the future" };
+  }
+
+  const property = await db.property.findUnique({ where: { id: propertyId }, select: { id: true } });
+  if (!property) return { error: "Property not found" };
+
+  await db.propertySafetyCheck.create({
+    data: {
+      organizationId: session.user.organizationId,
+      propertyId,
+      title,
+      intervalMonths: months,
+      lastCompletedOn: completedOn,
+      dueOn: completedOn ? dueDateFor(completedOn, months) : null,
+    },
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+// Only a check the manager added can be deleted. A standard one is switched
+// off with "Not needed here" instead, so it doesn't just come back.
+export async function removeCustomSafetyCheck(propertyId: string, checkId: string): Promise<ActionResult> {
+  const { db } = await requireStaff();
+
+  await db.propertySafetyCheck.deleteMany({ where: { id: checkId, propertyId, templateKey: null } });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
 }
