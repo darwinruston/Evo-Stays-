@@ -7,7 +7,6 @@ import type { ActionResult } from "@/lib/actionResult";
 import { TASK_PRIORITY_LABELS, TASK_STATUSES, TASK_STATUS_LABELS } from "@/lib/tasks";
 import { badge, button, card } from "@/lib/ui";
 import { Avatar } from "@/components/Avatar";
-import { StatusMark } from "@/components/TaskRow";
 import { TaskForm, type TaskFormValues } from "@/components/TaskForm";
 
 type Status = "TODO" | "IN_PROGRESS" | "DONE";
@@ -29,9 +28,13 @@ export type TaskDetailData = {
   canDelete: boolean;
 };
 
-// The task's own page: everything about it, the button that completes it, and
-// the controls to change or delete it. Delete asks a second time, so it can't
-// be one stray tap.
+const PANEL = "ring-1 ring-black/[0.04]";
+
+// The task's own page. The title and the button that completes it come first,
+// then the notes and the updates (passed in as children, because they are
+// plain server-rendered content); the facts about the task sit in a panel
+// beside them on a wide screen and between the two on a phone. Delete asks a
+// second time, so it can't be one stray tap.
 export function TaskDetail({
   task,
   staff,
@@ -39,6 +42,7 @@ export function TaskDetail({
   setStatus,
   update,
   remove,
+  children,
 }: {
   task: TaskDetailData;
   staff: { id: string; name: string }[];
@@ -46,6 +50,7 @@ export function TaskDetail({
   setStatus: (status: Status) => Promise<ActionResult>;
   update: (formData: FormData) => Promise<ActionResult>;
   remove: () => Promise<ActionResult>;
+  children: React.ReactNode;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -88,145 +93,159 @@ export function TaskDetail({
   }
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
-      <div className={card("flex flex-col gap-5 p-5")}>
-        <div className="flex items-start gap-3">
-          <StatusMark status={task.status} />
-          <div className="min-w-0 flex-1">
-            <h1 className={`text-xl font-semibold tracking-tight [overflow-wrap:anywhere] ${done ? "line-through" : ""}`}>
-              {task.title}
-            </h1>
-            <p className="mt-1 text-sm text-zinc-500">{TASK_STATUS_LABELS[task.status]}</p>
+    <div className="grid gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {/* Title and the main action */}
+      <header className="flex flex-col gap-5 lg:col-start-1">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={badge(done ? "solid" : task.status === "IN_PROGRESS" ? "outline" : "neutral")}>
+              {TASK_STATUS_LABELS[task.status]}
+            </span>
+            {task.overdue && <span className={badge("outline")}>Overdue</span>}
           </div>
+          <h1
+            className={`text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl ${
+              done ? "text-zinc-500 line-through decoration-zinc-300" : ""
+            }`}
+          >
+            {task.title}
+          </h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           {done ? (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => setStatus("TODO"))}
-              className={button("secondary", "md")}
-            >
+            <button type="button" disabled={pending} onClick={() => run(() => setStatus("TODO"))} className={button("secondary", "md")}>
               Reopen task
             </button>
           ) : (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => setStatus("DONE"))}
-              className={button("primary", "md")}
-            >
+            <button type="button" disabled={pending} onClick={() => run(() => setStatus("DONE"))} className={button("primary", "md")}>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2.2} className="h-4 w-4" aria-hidden="true">
+                <path d="M4 10.5 8 14l8-8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               Mark as complete
             </button>
           )}
-          {!done && (
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <span>Status</span>
-              <select
-                aria-label="Status"
-                value={task.status}
-                disabled={pending}
-                onChange={(e) => run(() => setStatus(e.target.value as Status))}
-                className="rounded-md border border-black/10 bg-surface px-2 py-1.5 text-base sm:text-sm"
-              >
-                {TASK_STATUSES.filter((s) => s !== "DONE").map((s) => (
-                  <option key={s} value={s}>
-                    {TASK_STATUS_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <button type="button" onClick={() => setEditing(true)} className={button("secondary", "md")}>
+            Edit task
+          </button>
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </header>
+
+      {/* The facts about the task */}
+      <aside className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <div className={card(`${PANEL} p-5`)}>
+          <h2 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Details</h2>
+          <dl className="mt-2 divide-y divide-black/5 text-sm">
+            <Row label="Status">
+              {done ? (
+                TASK_STATUS_LABELS.DONE
+              ) : (
+                <select
+                  aria-label="Status"
+                  value={task.status}
+                  disabled={pending}
+                  onChange={(e) => run(() => setStatus(e.target.value as Status))}
+                  className="-mr-2 rounded-md border border-transparent bg-transparent py-1 pr-1 pl-2 text-right text-base font-medium hover:border-black/10 sm:text-sm"
+                >
+                  {TASK_STATUSES.filter((s) => s !== "DONE").map((s) => (
+                    <option key={s} value={s}>
+                      {TASK_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Row>
+            <Row label="Importance">
+              <span className={badge(task.priority === "URGENT" ? "solid" : task.priority === "HIGH" ? "outline" : "neutral")}>
+                {TASK_PRIORITY_LABELS[task.priority]}
+              </span>
+            </Row>
+            <Row label="Assigned to">
+              {task.assignee ? (
+                <span className="inline-flex items-center gap-2">
+                  <Avatar name={task.assignee.name} size={22} />
+                  {task.assignee.name}
+                </span>
+              ) : (
+                <span className="font-normal text-zinc-500">Nobody yet</span>
+              )}
+            </Row>
+            <Row label="Due">
+              {task.dueLabel ? (
+                <span>
+                  {task.dueLabel}
+                  {task.overdue && <span className="ml-1.5 font-normal text-zinc-500">overdue</span>}
+                </span>
+              ) : (
+                <span className="font-normal text-zinc-500">No due date</span>
+              )}
+            </Row>
+            <Row label="Property">
+              {task.property ? (
+                <Link href={`/admin/properties/${task.property.id}`} className="underline decoration-black/20 underline-offset-2 hover:decoration-black">
+                  {task.property.name}
+                </Link>
+              ) : (
+                <span className="font-normal text-zinc-500">None</span>
+              )}
+            </Row>
+          </dl>
+
+          <div className="mt-2 flex flex-col gap-1 border-t border-black/5 pt-4 text-xs text-zinc-500">
+            <p>{task.createdLine}</p>
+            {task.completedLine && <p>{task.completedLine}</p>}
+          </div>
+
+          {task.canDelete && (
+            <div className="mt-4 text-xs">
+              {confirming ? (
+                <span className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => run(remove, () => router.push("/admin/team/tasks"))}
+                    className="font-medium text-red-600 hover:underline"
+                  >
+                    Yes, delete this task
+                  </button>
+                  <button type="button" onClick={() => setConfirming(false)} className="text-zinc-500 hover:underline">
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirming(true)} className="text-zinc-500 hover:text-red-600">
+                  Delete task
+                </button>
+              )}
+            </div>
           )}
         </div>
-        {task.completedLine && <p className="-mt-2 text-sm text-zinc-500">{task.completedLine}</p>}
+      </aside>
 
-        <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-          <Detail label="Importance">
-            <span className={badge(task.priority === "URGENT" ? "solid" : task.priority === "HIGH" ? "outline" : "neutral")}>
-              {TASK_PRIORITY_LABELS[task.priority]}
-            </span>
-          </Detail>
-          <Detail label="Assigned to">
-            {task.assignee ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Avatar name={task.assignee.name} size={20} />
-                {task.assignee.name}
-              </span>
-            ) : (
-              "Nobody yet"
-            )}
-          </Detail>
-          <Detail label="Due">
-            {task.dueLabel ? (
-              <span className={task.overdue ? "font-medium" : ""}>
-                {task.dueLabel}
-                {task.overdue && " (overdue)"}
-              </span>
-            ) : (
-              "No due date"
-            )}
-          </Detail>
-          <Detail label="Property">
-            {task.property ? (
-              <Link href={`/admin/properties/${task.property.id}`} className="underline underline-offset-2 hover:text-zinc-600">
-                {task.property.name}
-              </Link>
-            ) : (
-              "Not about a property"
-            )}
-          </Detail>
-        </dl>
-
+      {/* Notes, then the updates */}
+      <div className="flex flex-col gap-8 lg:col-start-1">
         {task.description && (
-          <div>
-            <h2 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Notes</h2>
-            <p className="mt-1 text-sm whitespace-pre-line [overflow-wrap:anywhere]">{task.description}</p>
-          </div>
+          <section aria-labelledby="notes-heading">
+            <h2 id="notes-heading" className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+              Notes
+            </h2>
+            <div className={card(`${PANEL} mt-2 p-5`)}>
+              <p className="text-[15px] leading-relaxed whitespace-pre-line [overflow-wrap:anywhere]">{task.description}</p>
+            </div>
+          </section>
         )}
-
-        <p className="text-xs text-zinc-500">{task.createdLine}</p>
-
-        <div className="flex items-center gap-4 border-t border-black/5 pt-3 text-sm">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-zinc-600 underline decoration-dotted underline-offset-2 hover:text-zinc-900"
-          >
-            Edit
-          </button>
-          {task.canDelete &&
-            (confirming ? (
-              <span className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => run(remove, () => router.push("/admin/team/tasks"))}
-                  className="font-medium text-red-600 hover:underline"
-                >
-                  Yes, delete
-                </button>
-                <button type="button" onClick={() => setConfirming(false)} className="text-zinc-500 hover:underline">
-                  Cancel
-                </button>
-              </span>
-            ) : (
-              <button type="button" onClick={() => setConfirming(true)} className="text-red-600 hover:underline">
-                Delete
-              </button>
-            ))}
-        </div>
+        {children}
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }
 
-function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</dt>
-      <dd>{children}</dd>
+    <div className="flex min-h-11 items-center justify-between gap-4 py-2">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="text-right font-medium">{children}</dd>
     </div>
   );
 }

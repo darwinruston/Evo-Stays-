@@ -29,8 +29,8 @@ export function TaskCommentForm({ action }: { action: (formData: FormData) => Pr
   }
 
   return (
-    <form ref={formRef} action={submit} className={card("flex flex-col gap-3 p-4")}>
-      <label htmlFor="task-update" className="text-sm font-medium">
+    <form ref={formRef} action={submit} className={card("flex flex-col gap-3 p-4 ring-1 ring-black/[0.04]")}>
+      <label htmlFor="task-update" className="sr-only">
         Add an update
       </label>
       <textarea
@@ -39,12 +39,12 @@ export function TaskCommentForm({ action }: { action: (formData: FormData) => Pr
         rows={3}
         required
         maxLength={TASK_COMMENT_MAX}
-        placeholder="What has been done, what is in the way, or a question for whoever has it"
-        className={inputCompact}
+        placeholder="Add an update: what has been done, what is in the way, or a question for whoever has it"
+        className={`${inputCompact} resize-y`}
       />
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <div>
-        <button type="submit" disabled={pending} className={button("primary", "sm")}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 text-xs text-red-600">{error}</p>
+        <button type="submit" disabled={pending} className={`${button("primary", "sm")} shrink-0`}>
           {pending ? "Adding…" : "Add update"}
         </button>
       </div>

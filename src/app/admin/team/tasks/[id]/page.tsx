@@ -53,7 +53,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
       : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <Link href="/admin/team/tasks" className="text-sm text-zinc-500 hover:text-zinc-900">
         ← Tasks
       </Link>
@@ -86,32 +86,35 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
         setStatus={setTaskStatus.bind(null, task.id)}
         update={updateTask.bind(null, task.id)}
         remove={deleteTask.bind(null, task.id)}
-      />
-
-      <section className="flex max-w-2xl flex-col gap-3" aria-labelledby="updates-heading">
-        <h2 id="updates-heading" className="text-lg font-semibold tracking-tight">
-          Updates
-        </h2>
-        <TaskCommentForm action={addTaskComment.bind(null, task.id)} />
-        {task.comments.length === 0 ? (
-          <p className="text-sm text-zinc-500">No updates yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {task.comments.map((c) => (
-              <li key={c.id} className="flex gap-3">
-                <Avatar name={c.author?.name ?? "Former team member"} size={28} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm">
-                    <span className="font-medium">{c.author?.name ?? "Former team member"}</span>
-                    <span className="ml-2 text-xs text-zinc-500">{formatDateTime(c.createdAt)}</span>
-                  </p>
-                  <p className="mt-0.5 text-sm whitespace-pre-line [overflow-wrap:anywhere]">{c.body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      >
+        <section className="flex flex-col gap-4" aria-labelledby="updates-heading">
+          <h2 id="updates-heading" className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+            Updates{task.comments.length > 0 && ` (${task.comments.length})`}
+          </h2>
+          <TaskCommentForm action={addTaskComment.bind(null, task.id)} />
+          {task.comments.length === 0 ? (
+            <p className="text-sm text-zinc-500">No updates yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {task.comments.map((c) => {
+                const author = c.author?.name ?? "Former team member";
+                return (
+                  <li key={c.id} className="flex gap-3">
+                    <Avatar name={author} size={32} />
+                    <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-black/[0.035] px-4 py-3">
+                      <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                        <span className="font-medium">{author}</span>
+                        <span className="text-xs text-zinc-500">{formatDateTime(c.createdAt)}</span>
+                      </p>
+                      <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-line [overflow-wrap:anywhere]">{c.body}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </TaskDetail>
     </div>
   );
 }
