@@ -128,8 +128,8 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Link href="/admin/cleaners" className="text-sm text-zinc-500 hover:text-zinc-900">
-          ← Cleaners
+        <Link href="/admin/team" className="text-sm text-zinc-500 hover:text-zinc-900">
+          ← Team
         </Link>
         <div className="mt-2 flex items-start gap-4">
           <Avatar name={cleaner.name} size={56} />

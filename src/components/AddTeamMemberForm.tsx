@@ -28,19 +28,27 @@ const ROLES = [
 // Reveal-on-click, closing itself after a successful save like the other
 // reveal forms. The password is set by whoever is adding the person and
 // passed on to them: there is no invite email.
-export function AddTeamMemberForm({ action }: { action: (formData: FormData) => Promise<ActionResult> }) {
+export function AddTeamMemberForm({
+  action,
+  cleanersOnly = false,
+}: {
+  action: (formData: FormData) => Promise<ActionResult>;
+  // Office staff can add cleaners but not the roles with more access.
+  cleanersOnly?: boolean;
+}) {
   const { open, setOpen, error, pending, submit } = useRevealForm(action);
-  const [role, setRole] = useState<(typeof ROLES)[number]["value"]>("OFFICE");
+  const roles = cleanersOnly ? ROLES.filter((r) => r.value === "CLEANER") : ROLES;
+  const [role, setRole] = useState<(typeof ROLES)[number]["value"]>(roles[0].value);
 
   if (!open) {
     return (
       <button type="button" onClick={() => setOpen(true)} className={button("primary", "sm")}>
-        + Add team member
+        {cleanersOnly ? "+ Add cleaner" : "+ Add team member"}
       </button>
     );
   }
 
-  const chosen = ROLES.find((r) => r.value === role)!;
+  const chosen = roles.find((r) => r.value === role) ?? roles[0];
 
   return (
     <form action={submit} className={card("flex max-w-sm flex-col gap-3 p-4")}>
@@ -57,22 +65,28 @@ export function AddTeamMemberForm({ action }: { action: (formData: FormData) => 
         <input id="newMemberEmail" name="email" type="email" required className={input} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="newMemberRole" className="text-sm font-medium">
-          What will they do?
-        </label>
-        <select
-          id="newMemberRole"
-          name="role"
-          value={role}
-          onChange={(e) => setRole(e.target.value as typeof role)}
-          className={input}
-        >
-          {ROLES.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        {cleanersOnly ? (
+          <input type="hidden" name="role" value={chosen.value} />
+        ) : (
+          <>
+            <label htmlFor="newMemberRole" className="text-sm font-medium">
+              What will they do?
+            </label>
+            <select
+              id="newMemberRole"
+              name="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as typeof role)}
+              className={input}
+            >
+              {roles.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <p className="text-xs text-zinc-500">{chosen.does}</p>
       </div>
       <div className="flex flex-col gap-1.5">

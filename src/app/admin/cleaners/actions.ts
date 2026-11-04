@@ -19,32 +19,6 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-export async function createCleaner(formData: FormData) {
-  const { session, db } = await requireStaff();
-
-  const name = str(formData, "name");
-  const email = str(formData, "email");
-  const password = str(formData, "password");
-  if (!name || !email || !password) throw new Error("Name, email and password are all required");
-  if (password.length < 8) throw new Error("Password must be at least 8 characters");
-
-  const existing = await db.user.findUnique({ where: { email } });
-  if (existing) throw new Error("That email address already has a login");
-
-  await db.user.create({
-    data: {
-      organizationId: session.user.organizationId,
-      name,
-      email,
-      passwordHash: await bcrypt.hash(password, 10),
-      role: "CLEANER",
-    },
-  });
-
-  revalidatePath("/admin/cleaners");
-  redirect("/admin/cleaners");
-}
-
 // Name, email, and (optionally) password -- the details set once at
 // creation but otherwise had no edit path at all. Password is the same
 // "blank means leave it alone" convention as Client.pmsCredentials: a
@@ -100,7 +74,7 @@ export async function updateCleaner(id: string, formData: FormData): Promise<Act
   }
 
   revalidatePath(`/admin/cleaners/${id}`);
-  revalidatePath("/admin/cleaners");
+  revalidatePath("/admin/team");
 }
 
 function rate(formData: FormData, key: string): number | null {
@@ -421,7 +395,7 @@ export async function deleteCleaner(id: string) {
     summary: `Removed: ${cleaner.name}`,
   });
 
-  revalidatePath("/admin/cleaners");
+  revalidatePath("/admin/team");
   revalidatePath("/admin/cleans");
-  redirect("/admin/cleaners");
+  redirect("/admin/team");
 }

@@ -323,8 +323,8 @@ export default async function PropertyDetailPage({
         ) : (
           <p className="text-sm text-zinc-500">
             No cleaner designated yet, set one from the{" "}
-            <Link href="/admin/cleaners" className="underline underline-offset-2">
-              Cleaners
+            <Link href="/admin/team" className="underline underline-offset-2">
+              Team
             </Link>{" "}
             page.
           </p>

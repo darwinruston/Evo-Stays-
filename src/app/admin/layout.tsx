@@ -21,11 +21,12 @@ const NAV = [
   { href: "/admin/laundry", label: "Laundry" },
 ];
 
-// Clients and Cleaners are directories of people/organisations, not daily
+// Clients and the Team are directories of people/organisations, not daily
 // tools -- grouped off on the right so the left stays purely operational.
+// Cleaners live on the Team page, with everyone else who signs in.
 const PROFILE_NAV = [
   { href: "/admin/clients", label: "Clients" },
-  { href: "/admin/cleaners", label: "Cleaners" },
+  { href: "/admin/team", label: "Team" },
   { href: "/admin/audit", label: "Activity" },
 ];
 
@@ -64,12 +65,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   );
   const rightItems = [
     { href: "/admin/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" },
-    ...PROFILE_NAV.flatMap((item) =>
-      // Team sits beside Cleaners, for admins only: it's where logins are added.
-      item.href === "/admin/audit" && session.user.role === "ADMIN"
-        ? [{ href: "/admin/team", label: "Team" }, item]
-        : [item],
-    ),
+    ...PROFILE_NAV,
     ...(session.user.role === "ADMIN" ? [{ href: "/admin/settings", label: "Settings" }] : []),
   ];
 

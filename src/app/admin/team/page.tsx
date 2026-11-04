@@ -1,20 +1,27 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/authz";
+import { requireStaff } from "@/lib/authz";
 import { getOrgModules } from "@/lib/modules";
+import { weekBounds } from "@/lib/schedule";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 import { Avatar } from "@/components/Avatar";
 import { AddTeamMemberForm } from "@/components/AddTeamMemberForm";
 import { StaffRow } from "@/components/StaffRow";
-import { card } from "@/lib/ui";
+import { badge, card } from "@/lib/ui";
 import { createTeamMember, updateStaff, deleteStaff } from "./actions";
 
 export const metadata = { title: "Team" };
 
+// Open to every staff login: Office staff need the cleaners here (pay rates,
+// properties, days off) now that Cleaners no longer has a tab of its own. What
+// only an Admin can do (add or change Admin and Office logins) is left off
+// their view.
 export default async function TeamPage() {
-  const { session, db } = await requireAdmin();
+  const { session, db } = await requireStaff();
+  const isAdmin = session.user.role === "ADMIN";
   const modules = await getOrgModules(session.user.organizationId);
+  const { start, end } = weekBounds();
 
-  const [staff, cleaners, linen] = await Promise.all([
+  const [staff, cleaners, thisWeekByCleaner, linen] = await Promise.all([
     db.user.findMany({
       where: { role: { in: ["ADMIN", "OFFICE"] }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
       orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -23,7 +30,14 @@ export default async function TeamPage() {
     db.user.findMany({
       where: { role: "CLEANER" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, _count: { select: { assignedCleans: true } } },
+    }),
+    // One grouped query rather than a count per cleaner: the point of the
+    // list is comparing workload at a glance.
+    db.clean.groupBy({
+      by: ["assignedToId"],
+      where: { assignedToId: { not: null }, scheduledFor: { gte: start, lt: end }, status: { not: "CANCELLED" } },
+      _count: { _all: true },
     }),
     modules.laundry
       ? db.user.findMany({
@@ -33,6 +47,8 @@ export default async function TeamPage() {
         })
       : [],
   ]);
+
+  const thisWeek = new Map(thisWeekByCleaner.map((g) => [g.assignedToId as string, g._count._all]));
 
   return (
     <div className="flex flex-col gap-8">
@@ -47,7 +63,7 @@ export default async function TeamPage() {
             shows who changed what.
           </p>
         </div>
-        <AddTeamMemberForm action={createTeamMember} />
+        <AddTeamMemberForm action={createTeamMember} cleanersOnly={!isAdmin} />
       </div>
 
       <section className="flex flex-col gap-3">
@@ -58,18 +74,33 @@ export default async function TeamPage() {
           Admins can also manage the team and Settings. Office staff run the day-to-day but can&apos;t.
         </p>
         <ul className="flex max-w-2xl flex-col gap-2">
-          {staff.map((s) => (
-            <StaffRow
-              key={s.id}
-              name={s.name}
-              email={s.email}
-              role={s.role as "ADMIN" | "OFFICE"}
-              isSelf={s.id === session.user.id}
-              activityHref={`/admin/audit?actor=${s.id}`}
-              updateAction={updateStaff.bind(null, s.id)}
-              removeAction={deleteStaff.bind(null, s.id)}
-            />
-          ))}
+          {staff.map((s) =>
+            isAdmin ? (
+              <StaffRow
+                key={s.id}
+                name={s.name}
+                email={s.email}
+                role={s.role as "ADMIN" | "OFFICE"}
+                isSelf={s.id === session.user.id}
+                activityHref={`/admin/audit?actor=${s.id}`}
+                updateAction={updateStaff.bind(null, s.id)}
+                removeAction={deleteStaff.bind(null, s.id)}
+              />
+            ) : (
+              <li key={s.id} className={card("flex items-center justify-between gap-3 p-4")}>
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-medium">
+                    {s.name}
+                    <span className={badge(s.role === "ADMIN" ? "solid" : "neutral")}>
+                      {s.role === "ADMIN" ? "Admin" : "Office"}
+                    </span>
+                    {s.id === session.user.id && <span className="text-xs font-normal text-zinc-500">You</span>}
+                  </p>
+                  <p className="truncate text-sm text-zinc-500">{s.email}</p>
+                </div>
+              </li>
+            ),
+          )}
         </ul>
       </section>
 
@@ -85,20 +116,29 @@ export default async function TeamPage() {
           <p className="text-sm text-zinc-500">No cleaners yet. Add one with the button above.</p>
         ) : (
           <ul className="flex max-w-2xl flex-col gap-2">
-            {cleaners.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/admin/cleaners/${c.id}`}
-                  className={card("flex items-center gap-3 p-4 transition-colors hover:bg-black/[0.02]")}
-                >
-                  <Avatar name={c.name} size={36} />
-                  <div className="min-w-0">
-                    <p className="font-medium">{c.name}</p>
-                    <p className="truncate text-sm text-zinc-500">{c.email}</p>
-                  </div>
-                </Link>
-              </li>
-            ))}
+            {cleaners.map((c) => {
+              const week = thisWeek.get(c.id) ?? 0;
+              return (
+                <li key={c.id}>
+                  <Link
+                    href={`/admin/cleaners/${c.id}`}
+                    className={card("flex items-center gap-3 p-4 transition-colors hover:bg-black/[0.02]")}
+                  >
+                    <Avatar name={c.name} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{c.name}</p>
+                      <p className="truncate text-sm text-zinc-500">{c.email}</p>
+                    </div>
+                    <div className="shrink-0 text-right text-sm text-zinc-500">
+                      <p>
+                        {week} {week === 1 ? "clean" : "cleans"} this week
+                      </p>
+                      <p className="text-xs text-zinc-400">{c._count.assignedCleans} total</p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 import type { ScopedPrismaClient } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/authz";
+import { requireAdmin, requireStaff } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { SYSTEM_USER_ID_PREFIX, isSystemSyncUserId } from "@/lib/systemUser";
 import type { ActionResult } from "@/lib/actionResult";
@@ -45,13 +45,18 @@ async function otherAdminCount(db: ScopedPrismaClient, excludingId: string): Pro
 // Adds someone to the team with the role they will work in. A cleaner's pay
 // rate and properties are set afterwards on their own page.
 export async function createTeamMember(formData: FormData): Promise<ActionResult> {
-  const { session, db } = await requireAdmin();
+  // Office staff can add cleaners, as they always could; the other roles carry
+  // more access, so only an Admin can hand them out.
+  const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
   const email = str(formData, "email");
   const password = str(formData, "password");
   const role = newMemberRole(formData);
   if (!role) return { error: "Choose what they will do" };
+  if (role !== "CLEANER" && session.user.role !== "ADMIN") {
+    return { error: "Only an Admin can add Office or Admin logins" };
+  }
   if (!name || !email || !password) return { error: "Name, email and password are all required" };
   if (password.length < 8) return { error: "Password must be at least 8 characters" };
 
@@ -77,7 +82,6 @@ export async function createTeamMember(formData: FormData): Promise<ActionResult
   });
 
   revalidatePath("/admin/team");
-  if (role === "CLEANER") revalidatePath("/admin/cleaners");
 }
 
 // Name, email, role, and (optionally) a new password. Blank password means
