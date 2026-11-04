@@ -126,6 +126,7 @@ model Organization {
   issuePhotos           IssuePhoto[]
   checklistItems        PropertyChecklistItem[]
   propertySafetyChecks  PropertySafetyCheck[]
+  tasks                 Task[]
 }
 
 // A lead from the public "Register interest" page (src/app/signup/) --
@@ -207,6 +208,8 @@ model User {
   designatedProperties PropertyCleaner[]
   unavailability       CleanerUnavailability[]
   auditLogs            AuditLog[]
+  assignedTasks        Task[]                  @relation("TaskAssignee")
+  createdTasks         Task[]                  @relation("TaskCreator")
   passwordResetTokens  PasswordResetToken[]
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
@@ -303,6 +306,10 @@ enum NotificationKind {
   // report...) is coming up for renewal, or has passed its date (see
   // PropertySafetyCheck and src/lib/safetyReminders.ts).
   SAFETY_CHECK_DUE
+  // To a team member: a task has been given to them (see Task), or one they
+  // asked someone else to do has been finished.
+  TASK_ASSIGNED
+  TASK_COMPLETED
 }
 
 // One thing a specific person should know about, shown in their in-app
@@ -501,6 +508,7 @@ model Property {
   issues             Issue[]
   checklistItems     PropertyChecklistItem[]
   safetyChecks       PropertySafetyCheck[]
+  tasks              Task[]
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
@@ -1256,4 +1264,50 @@ model PropertySafetyCheck {
   @@index([organizationId])
   @@index([propertyId])
   @@index([dueOn])
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+// A piece of internal work for the team: fix the gate at a property, chase an
+// invoice, order more linen. Given to one team member (an Admin or Office
+// login) with an importance, and optionally tied to a property and a due
+// date. Distinct from an Issue, which is a problem found at a property by
+// someone on site; a task is something staff decide needs doing.
+//
+// assignedTo/createdBy are nullable with SetNull, like Issue.reportedBy:
+// removing a login shouldn't erase the task, which just becomes unassigned.
+// dueOn is a calendar date at midnight UTC (see src/lib/dateOnly.ts).
+model Task {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  title          String
+  description    String?
+  priority       TaskPriority @default(NORMAL)
+  status         TaskStatus   @default(TODO)
+  assignedTo     User?        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedToId   String?
+  createdBy      User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById    String?
+  property       Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyId     String?
+  dueOn          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([assignedToId, status])
+  @@index([propertyId])
 }

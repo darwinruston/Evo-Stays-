@@ -21,13 +21,11 @@ import {
   SAFETY_TITLE_MAX,
   dueDateFor,
   defaultIntervalFor,
-  formatDateOnly,
   isManagement,
-  parseDateOnly,
   templateByKey,
   templatesFor,
-  todayDateOnly,
 } from "@/lib/safetyChecks";
+import { formatDateOnly, parseDateOnly, todayDateOnly } from "@/lib/dateOnly";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);

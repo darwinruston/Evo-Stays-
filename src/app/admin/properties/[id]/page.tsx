@@ -42,12 +42,10 @@ import { AddSafetyCheckForm, SafetyCheckCard } from "@/components/SafetyCheckCar
 import {
   MANAGEMENT_LABELS,
   buildSafetyEntries,
-  formatDateOnly,
   safetyState,
   safetyStatusLabel,
-  toDateInputValue,
-  todayDateOnly,
 } from "@/lib/safetyChecks";
+import { formatDateOnly, toDateInputValue, todayDateOnly } from "@/lib/dateOnly";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
 import { CHECKLIST_ROOM_MAX, CHECKLIST_TEXT_MAX, STANDARD_ROOMS } from "@/lib/cleaningChecklist";
 import { setLaundryLoadCollected } from "../../laundry/actions";

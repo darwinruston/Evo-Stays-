@@ -1,14 +1,8 @@
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { propertyDisplayName } from "@/lib/address";
 import { notify, staffUserIds, type NotificationInput } from "@/lib/notify";
-import {
-  daysBetween,
-  formatDateOnly,
-  reminderLeadDays,
-  templatesFor,
-  todayDateOnly,
-  type Management,
-} from "@/lib/safetyChecks";
+import { daysBetween, formatDateOnly, todayDateOnly } from "@/lib/dateOnly";
+import { reminderLeadDays, templatesFor, type Management } from "@/lib/safetyChecks";
 
 // The longest lead any check has (see reminderLeadDays), so one query covers
 // them all and the per-check lead is applied afterwards.

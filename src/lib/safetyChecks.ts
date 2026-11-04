@@ -140,6 +140,8 @@ export function defaultIntervalFor(template: SafetyCheckTemplate, management: Ma
   return template.intervalFor?.[management] ?? template.intervalMonths;
 }
 
+import { addMonths, daysBetween, todayDateOnly } from "@/lib/dateOnly";
+
 export const SAFETY_INTERVAL_MAX_MONTHS = 240;
 export const SAFETY_TITLE_MAX = 80;
 export const SAFETY_NOTE_MAX = 300;
@@ -148,55 +150,8 @@ export function templateByKey(key: string | null): SafetyCheckTemplate | null {
   return SAFETY_CHECK_TEMPLATES.find((t) => t.key === key) ?? null;
 }
 
-// Dates in this feature are calendar dates held at midnight UTC, the same
-// convention as a date-only clean slot (see isDateOnly in src/lib/schedule.ts),
-// so they never shift a day with the server's timezone.
-export function parseDateOnly(raw: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (!match) return null;
-  const [, y, m, d] = match;
-  const date = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
-  // Rejects 2026-02-31 and the like, which Date would quietly roll forward.
-  return date.getUTCMonth() === Number(m) - 1 ? date : null;
-}
-
-export function todayDateOnly(now = new Date()): Date {
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-}
-
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-// For an <input type="date"> value.
-export function toDateInputValue(date: Date): string {
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// "12 Nov 25": how every date in the health and safety checks is shown.
-export function formatDateOnly(date: Date): string {
-  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${pad(date.getUTCFullYear() % 100)}`;
-}
-
-// Adds whole months, stopping at the end of a shorter month rather than
-// spilling into the next one (31 January plus one month is 28 February).
-export function addMonths(date: Date, months: number): Date {
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + months;
-  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(year, month, Math.min(date.getUTCDate(), lastDay)));
-}
-
 export function dueDateFor(lastCompletedOn: Date, intervalMonths: number): Date {
   return addMonths(lastCompletedOn, intervalMonths);
-}
-
-const DAY_MS = 86_400_000;
-
-export function daysBetween(from: Date, to: Date): number {
-  return Math.round((to.getTime() - from.getTime()) / DAY_MS);
 }
 
 // How far ahead staff are told a check is coming up: a week for something
