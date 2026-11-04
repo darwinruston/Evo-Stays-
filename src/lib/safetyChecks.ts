@@ -7,13 +7,41 @@
 // actually needs depends on where it is and how it is let, so every check can
 // be marked as not needed, have its interval changed, or be added to.
 
+// How a property is managed decides which checks it gets: a holiday let, a
+// home let on a tenancy and a shared house each have different ones.
+export type Management = "SHORT_LET" | "LONG_LET" | "HMO";
+
+export const MANAGEMENT_TYPES: Management[] = ["SHORT_LET", "LONG_LET", "HMO"];
+
+export const MANAGEMENT_LABELS: Record<Management, string> = {
+  SHORT_LET: "Short let",
+  LONG_LET: "Long let",
+  HMO: "HMO (shared house)",
+};
+
+export const MANAGEMENT_HINTS: Record<Management, string> = {
+  SHORT_LET: "holiday lets and short stays, with guests coming and going",
+  LONG_LET: "a home let to one household on a tenancy",
+  HMO: "a house shared by several unrelated tenants",
+};
+
+export function isManagement(value: unknown): value is Management {
+  return typeof value === "string" && (MANAGEMENT_TYPES as string[]).includes(value);
+}
+
 export type SafetyCheckTemplate = {
   key: string;
   title: string;
   // One plain line on what it is, shown under the title.
   what: string;
   intervalMonths: number;
+  // Which kinds of property get it.
+  appliesTo: Management[];
+  // Where the usual interval differs for one kind of property.
+  intervalFor?: Partial<Record<Management, number>>;
 };
+
+const ALL: Management[] = ["SHORT_LET", "LONG_LET", "HMO"];
 
 export const SAFETY_CHECK_TEMPLATES: SafetyCheckTemplate[] = [
   {
@@ -21,62 +49,102 @@ export const SAFETY_CHECK_TEMPLATES: SafetyCheckTemplate[] = [
     title: "Gas safety certificate",
     what: "Annual check of gas appliances and pipework by a Gas Safe engineer. Only if the property has gas.",
     intervalMonths: 12,
+    appliesTo: ALL,
   },
   {
     key: "electrical",
     title: "Electrical safety report (EICR)",
     what: "Inspection of the fixed electrics by a qualified electrician, usually every five years.",
     intervalMonths: 60,
+    appliesTo: ALL,
+  },
+  {
+    key: "hmo-licence",
+    title: "HMO licence",
+    what: "The council licence for a shared house, usually valid for up to five years.",
+    intervalMonths: 60,
+    appliesTo: ["HMO"],
   },
   {
     key: "fire-risk",
     title: "Fire risk assessment",
     what: "Written assessment of fire risks and escape routes, reviewed regularly.",
     intervalMonths: 12,
+    appliesTo: ["SHORT_LET", "HMO"],
+  },
+  {
+    key: "fire-alarm-system",
+    title: "Fire alarm system service",
+    what: "Service and test of the fire alarm system by a competent engineer.",
+    intervalMonths: 12,
+    appliesTo: ["HMO"],
+  },
+  {
+    key: "emergency-lighting",
+    title: "Emergency lighting test",
+    what: "Test of the emergency lighting on escape routes. Only if the property has it.",
+    intervalMonths: 12,
+    appliesTo: ["HMO"],
   },
   {
     key: "alarms",
     title: "Smoke and carbon monoxide alarms tested",
     what: "Test every alarm and replace flat batteries.",
     intervalMonths: 1,
+    intervalFor: { LONG_LET: 6 },
+    appliesTo: ALL,
   },
   {
     key: "fire-equipment",
     title: "Fire extinguishers and fire blanket",
     what: "Check they are in place, in date and serviced.",
     intervalMonths: 12,
+    appliesTo: ["SHORT_LET", "HMO"],
   },
   {
     key: "pat",
     title: "Portable appliance testing (PAT)",
-    what: "Test of the plug-in appliances guests use, such as kettles, toasters and lamps.",
+    what: "Test of the plug-in appliances tenants and guests use, such as kettles, toasters and lamps.",
     intervalMonths: 12,
+    appliesTo: ["SHORT_LET", "HMO"],
   },
   {
     key: "legionella",
     title: "Legionella risk assessment",
     what: "Assessment of the water system, reviewed every couple of years or when it changes.",
     intervalMonths: 24,
+    appliesTo: ALL,
   },
   {
     key: "insurance",
     title: "Building and liability insurance",
-    what: "The renewal date of the cover for the property and for guests.",
+    what: "The renewal date of the cover for the property.",
     intervalMonths: 12,
+    appliesTo: ALL,
   },
   {
     key: "epc",
     title: "Energy performance certificate (EPC)",
     what: "Rating of the property's energy efficiency, valid for ten years.",
     intervalMonths: 120,
+    appliesTo: ALL,
   },
 ];
+
+// The checks a property of this kind gets, in the order they are shown.
+export function templatesFor(management: Management): SafetyCheckTemplate[] {
+  return SAFETY_CHECK_TEMPLATES.filter((t) => t.appliesTo.includes(management));
+}
+
+export function defaultIntervalFor(template: SafetyCheckTemplate, management: Management): number {
+  return template.intervalFor?.[management] ?? template.intervalMonths;
+}
 
 export const SAFETY_INTERVAL_MAX_MONTHS = 240;
 export const SAFETY_TITLE_MAX = 80;
 export const SAFETY_NOTE_MAX = 300;
 
-export function templateFor(key: string | null): SafetyCheckTemplate | null {
+export function templateByKey(key: string | null): SafetyCheckTemplate | null {
   return SAFETY_CHECK_TEMPLATES.find((t) => t.key === key) ?? null;
 }
 
@@ -105,9 +173,11 @@ export function toDateInputValue(date: Date): string {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
-// dd/mm/yyyy.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// "12 Nov 25": how every date in the health and safety checks is shown.
 export function formatDateOnly(date: Date): string {
-  return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}/${date.getUTCFullYear()}`;
+  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${pad(date.getUTCFullYear() % 100)}`;
 }
 
 // Adds whole months, stopping at the end of a shorter month rather than
@@ -199,16 +269,19 @@ export type SafetyCheckEntry = {
   notApplicable: boolean;
 };
 
-export function buildSafetyEntries(rows: SafetyCheckRow[]): SafetyCheckEntry[] {
+// Rows for a standard check that this kind of property doesn't get (it was
+// changed from a short let to a long let, say) are left out rather than
+// deleted, so switching back brings the recorded dates back too.
+export function buildSafetyEntries(rows: SafetyCheckRow[], management: Management): SafetyCheckEntry[] {
   const byKey = new Map(rows.filter((r) => r.templateKey).map((r) => [r.templateKey as string, r]));
-  const standard = SAFETY_CHECK_TEMPLATES.map((t): SafetyCheckEntry => {
+  const standard = templatesFor(management).map((t): SafetyCheckEntry => {
     const row = byKey.get(t.key);
     return {
       ref: row ? `id:${row.id}` : `template:${t.key}`,
       title: t.title,
       what: t.what,
       custom: false,
-      intervalMonths: row?.intervalMonths ?? t.intervalMonths,
+      intervalMonths: row?.intervalMonths ?? defaultIntervalFor(t, management),
       lastCompletedOn: row?.lastCompletedOn ?? null,
       dueOn: row?.dueOn ?? null,
       note: row?.note ?? null,
@@ -231,13 +304,4 @@ export function buildSafetyEntries(rows: SafetyCheckRow[]): SafetyCheckEntry[] {
       }),
     );
   return [...standard, ...custom];
-}
-
-export function describeInterval(months: number): string {
-  if (months === 1) return "every month";
-  if (months % 12 === 0) {
-    const years = months / 12;
-    return years === 1 ? "every year" : `every ${years} years`;
-  }
-  return `every ${months} months`;
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma, PropertyType } from "@prisma/client";
+import { Prisma, PropertyManagement, PropertyType } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import type { ActionResult } from "@/lib/actionResult";
@@ -20,9 +20,12 @@ import {
   SAFETY_NOTE_MAX,
   SAFETY_TITLE_MAX,
   dueDateFor,
+  defaultIntervalFor,
   formatDateOnly,
+  isManagement,
   parseDateOnly,
-  templateFor,
+  templateByKey,
+  templatesFor,
   todayDateOnly,
 } from "@/lib/safetyChecks";
 
@@ -69,6 +72,13 @@ function propertyType(formData: FormData): PropertyType {
   return raw !== null && values.includes(raw) ? (raw as PropertyType) : PropertyType.APARTMENT;
 }
 
+// Validated rather than cast, like propertyType. Short let when missing or
+// unrecognised, which is what a property was before this was asked.
+function propertyManagement(formData: FormData): PropertyManagement {
+  const raw = str(formData, "management");
+  return isManagement(raw) ? raw : PropertyManagement.SHORT_LET;
+}
+
 function photoFiles(formData: FormData): File[] {
   return formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
 }
@@ -105,6 +115,7 @@ export async function createProperty(formData: FormData) {
       name: str(formData, "name"),
       nickname: str(formData, "nickname"),
       type: propertyType(formData),
+      management: propertyManagement(formData),
       bedrooms: int(formData, "bedrooms"),
       bathrooms: int(formData, "bathrooms"),
       maxOccupancy: int(formData, "maxOccupancy"),
@@ -161,6 +172,8 @@ export async function updateProperty(id: string, formData: FormData) {
       name: str(formData, "name"),
       nickname: str(formData, "nickname"),
       type: propertyType(formData),
+      // Left as it is when the form didn't offer the choice.
+      ...(formData.has("management") ? { management: propertyManagement(formData) } : {}),
       bedrooms: int(formData, "bedrooms"),
       bathrooms: int(formData, "bathrooms"),
       maxOccupancy: int(formData, "maxOccupancy"),
@@ -605,15 +618,17 @@ export async function removePropertyChecklistItem(propertyId: string, itemId: st
 async function resolveSafetyCheck(
   db: ScopedPrismaClient,
   organizationId: string,
-  propertyId: string,
+  property: { id: string; management: PropertyManagement },
   ref: string,
 ): Promise<{ id: string; title: string; intervalMonths: number; lastCompletedOn: Date | null } | null> {
+  const propertyId = property.id;
   const select = { id: true, title: true, intervalMonths: true, lastCompletedOn: true } as const;
   if (ref.startsWith("id:")) {
     return db.propertySafetyCheck.findFirst({ where: { id: ref.slice(3), propertyId }, select });
   }
-  const template = ref.startsWith("template:") ? templateFor(ref.slice(9)) : null;
-  if (!template) return null;
+  const template = ref.startsWith("template:") ? templateByKey(ref.slice(9)) : null;
+  // Only the checks this kind of property gets can be started from a ref.
+  if (!template || !templatesFor(property.management).includes(template)) return null;
   const existing = await db.propertySafetyCheck.findFirst({ where: { propertyId, templateKey: template.key }, select });
   if (existing) return existing;
   return db.propertySafetyCheck.create({
@@ -622,7 +637,7 @@ async function resolveSafetyCheck(
       propertyId,
       templateKey: template.key,
       title: template.title,
-      intervalMonths: template.intervalMonths,
+      intervalMonths: defaultIntervalFor(template, property.management),
     },
     select,
   });
@@ -645,7 +660,7 @@ export async function saveSafetyCheck(propertyId: string, ref: string, formData:
   const completedOn = completedRaw ? parseDateOnly(completedRaw) : null;
   if (completedRaw && !completedOn) return { error: "That is not a valid date" };
   if (completedOn && completedOn.getTime() > todayDateOnly().getTime()) {
-    return { error: "Enter the date it was done, which cannot be in the future" };
+    return { error: "Enter the date it was completed, which cannot be in the future" };
   }
   const months = intervalMonths(formData);
   if (months === "invalid") {
@@ -656,10 +671,10 @@ export async function saveSafetyCheck(propertyId: string, ref: string, formData:
 
   const property = await db.property.findUnique({
     where: { id: propertyId },
-    select: { id: true, nickname: true, name: true, address: true },
+    select: { id: true, nickname: true, name: true, address: true, management: true },
   });
   if (!property) return { error: "Property not found" };
-  const check = await resolveSafetyCheck(db, session.user.organizationId, propertyId, ref);
+  const check = await resolveSafetyCheck(db, session.user.organizationId, property, ref);
   if (!check) return { error: "That check could not be found" };
 
   const interval = months ?? check.intervalMonths;
@@ -686,7 +701,7 @@ export async function saveSafetyCheck(propertyId: string, ref: string, formData:
       actorId: session.user.id,
       entityType: "Property",
       entityId: propertyId,
-      summary: `Recorded ${check.title} as done on ${formatDateOnly(completedOn)} at ${propertyDisplayName(property)}`,
+      summary: `Recorded ${check.title} as completed on ${formatDateOnly(completedOn)} at ${propertyDisplayName(property)}`,
     });
   }
 
@@ -703,7 +718,9 @@ export async function setSafetyCheckApplicable(
 ): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
-  const check = await resolveSafetyCheck(db, session.user.organizationId, propertyId, ref);
+  const property = await db.property.findUnique({ where: { id: propertyId }, select: { id: true, management: true } });
+  if (!property) return { error: "Property not found" };
+  const check = await resolveSafetyCheck(db, session.user.organizationId, property, ref);
   if (!check) return { error: "That check could not be found" };
   await db.propertySafetyCheck.update({ where: { id: check.id }, data: { notApplicable: !applicable } });
 
@@ -724,7 +741,7 @@ export async function addCustomSafetyCheck(propertyId: string, formData: FormDat
   const completedOn = completedRaw ? parseDateOnly(completedRaw) : null;
   if (completedRaw && !completedOn) return { error: "That is not a valid date" };
   if (completedOn && completedOn.getTime() > todayDateOnly().getTime()) {
-    return { error: "Enter the date it was done, which cannot be in the future" };
+    return { error: "Enter the date it was completed, which cannot be in the future" };
   }
 
   const property = await db.property.findUnique({ where: { id: propertyId }, select: { id: true } });

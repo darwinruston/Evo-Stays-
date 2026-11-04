@@ -386,6 +386,14 @@ model Client {
   @@index([organizationId])
 }
 
+// How the property is let, which decides the health and safety checks it gets
+// (see SAFETY_CHECK_TEMPLATES in src/lib/safetyChecks.ts).
+enum PropertyManagement {
+  SHORT_LET
+  LONG_LET
+  HMO
+}
+
 enum PropertyType {
   APARTMENT
   HOUSE
@@ -422,7 +430,10 @@ model Property {
   // Null means none: it doesn't appear on any linen schedule.
   laundryFacility    LaundryFacility?        @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
   laundryFacilityId  String?
-  type               PropertyType            @default(APARTMENT)
+  type             PropertyType         @default(APARTMENT)
+  // Short let unless said otherwise, which is what every property was
+  // before this was asked.
+  management         PropertyManagement      @default(SHORT_LET)
   bedrooms           Int?
   bathrooms          Int?
   maxOccupancy       Int?

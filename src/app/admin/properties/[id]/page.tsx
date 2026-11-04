@@ -40,8 +40,8 @@ import {
 } from "../actions";
 import { AddSafetyCheckForm, SafetyCheckCard } from "@/components/SafetyCheckCard";
 import {
+  MANAGEMENT_LABELS,
   buildSafetyEntries,
-  describeInterval,
   formatDateOnly,
   safetyState,
   safetyStatusLabel,
@@ -187,7 +187,7 @@ export default async function PropertyDetailPage({
   // where it stands today. "Needs attention" is overdue or coming up; one
   // that has simply never been recorded is shown but never counted as an
   // alarm, since a property nobody has set up yet isn't a problem to chase.
-  const safetyEntries = buildSafetyEntries(property.safetyChecks).map((entry) => ({
+  const safetyEntries = buildSafetyEntries(property.safetyChecks, property.management).map((entry) => ({
     entry,
     ...safetyState(entry),
   }));
@@ -574,8 +574,15 @@ export default async function PropertyDetailPage({
           <section className="flex flex-col gap-2">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
               Health and safety
-              <InfoTooltip text="The checks a short let usually needs repeating, such as gas safety and electrical reports. Record the date each was last done and Evo Stays works out when it is next due and reminds your team beforehand. This is a starting list: what a property needs depends on where it is, so mark anything that does not apply and add your own." />
+              <InfoTooltip text="The checks this kind of property usually needs repeating, such as gas safety and electrical reports. Record the date each was completed and Evo Stays works out when it is next due and reminds your team beforehand. This is a starting list: what a property needs depends on where it is, so mark anything that does not apply and add your own." />
             </h2>
+            <p className="text-sm text-zinc-500">
+              Checks for: {MANAGEMENT_LABELS[property.management]}.{" "}
+              <Link href={`/admin/properties/${property.id}/edit`} className="underline underline-offset-2">
+                Change how it is managed
+              </Link>
+              .
+            </p>
             <p className="text-sm text-zinc-500">
               {safetyNotRecorded > 0
                 ? `${safetyNotRecorded} of ${safetyEntries.filter((e) => e.state !== "not-needed").length} checks have no date recorded yet. Reminders start once a date is recorded.`
@@ -593,7 +600,6 @@ export default async function PropertyDetailPage({
                 notNeeded={state === "not-needed"}
                 lastDone={entry.lastCompletedOn ? formatDateOnly(entry.lastCompletedOn) : null}
                 nextDue={entry.dueOn ? formatDateOnly(entry.dueOn) : null}
-                repeats={describeInterval(entry.intervalMonths)}
                 intervalMonths={entry.intervalMonths}
                 note={entry.note}
                 today={safetyToday}

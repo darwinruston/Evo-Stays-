@@ -1,7 +1,14 @@
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { propertyDisplayName } from "@/lib/address";
 import { notify, staffUserIds, type NotificationInput } from "@/lib/notify";
-import { daysBetween, formatDateOnly, reminderLeadDays, todayDateOnly } from "@/lib/safetyChecks";
+import {
+  daysBetween,
+  formatDateOnly,
+  reminderLeadDays,
+  templatesFor,
+  todayDateOnly,
+  type Management,
+} from "@/lib/safetyChecks";
 
 // The longest lead any check has (see reminderLeadDays), so one query covers
 // them all and the per-check lead is applied afterwards.
@@ -9,12 +16,13 @@ const WIDEST_LEAD_DAYS = 90;
 
 type DueCheck = {
   id: string;
+  templateKey: string | null;
   title: string;
   intervalMonths: number;
   dueOn: Date;
   dueSoonNotifiedAt: Date | null;
   overdueNotifiedAt: Date | null;
-  property: { id: string; nickname: string | null; name: string | null; address: string };
+  property: { id: string; nickname: string | null; name: string | null; address: string; management: Management };
 };
 
 function noticesFor(staffIds: string[], check: DueCheck, overdue: boolean): NotificationInput[] {
@@ -46,18 +54,24 @@ export async function checkSafetyReminders(db: ScopedPrismaClient, now = new Dat
     },
     select: {
       id: true,
+      templateKey: true,
       title: true,
       intervalMonths: true,
       dueOn: true,
       dueSoonNotifiedAt: true,
       overdueNotifiedAt: true,
-      property: { select: { id: true, nickname: true, name: true, address: true } },
+      property: { select: { id: true, nickname: true, name: true, address: true, management: true } },
     },
   })) as DueCheck[];
 
   const overdue: DueCheck[] = [];
   const dueSoon: DueCheck[] = [];
   for (const check of candidates) {
+    // A standard check this kind of property doesn't get (it was changed from
+    // a short let to a long let) is hidden on the page, so it stays quiet too.
+    if (check.templateKey && !templatesFor(check.property.management).some((t) => t.key === check.templateKey)) {
+      continue;
+    }
     const days = daysBetween(today, check.dueOn);
     if (days < 0) {
       if (!check.overdueNotifiedAt) overdue.push(check);

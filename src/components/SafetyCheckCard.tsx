@@ -14,7 +14,6 @@ export type SafetyCheckCardProps = {
   notNeeded: boolean;
   lastDone: string | null;
   nextDue: string | null;
-  repeats: string;
   intervalMonths: number;
   note: string | null;
   today: string;
@@ -52,11 +51,10 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
         <span className={badge(props.attention ? "solid" : "neutral")}>{props.statusLabel}</span>
       </div>
 
-      {!props.notNeeded && (
+      {!props.notNeeded && props.lastDone && (
         <p className="text-sm text-zinc-600">
-          {props.lastDone ? `Last done ${props.lastDone}` : "No date recorded yet"}
-          {props.nextDue && ` · next due ${props.nextDue}`}
-          {` · repeats ${props.repeats}`}
+          Completed {props.lastDone}
+          {props.nextDue && ` · Due ${props.nextDue}`}
         </p>
       )}
       {props.note && !props.notNeeded && <p className="text-sm text-zinc-500 [overflow-wrap:anywhere]">{props.note}</p>}
@@ -65,7 +63,7 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
         <form action={submit} className="flex flex-wrap items-end gap-3 rounded-lg bg-black/[0.03] p-3">
           <div className="flex flex-col gap-1">
             <label htmlFor={`${uid}-done`} className="text-xs text-zinc-500">
-              Date it was done
+              Date completed
             </label>
             <input
               id={`${uid}-done`}
@@ -129,7 +127,7 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
           ) : (
             <>
               <button type="button" onClick={() => setOpen(true)} className={button("secondary", "sm")}>
-                {props.lastDone ? "Record it done again" : "Record when it was done"}
+                {props.lastDone ? "Record it again" : "Record when it was completed"}
               </button>
               {props.remove ? (
                 <button
@@ -214,7 +212,7 @@ export function AddSafetyCheckForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="safety-done" className="text-sm font-medium">
-          Last done (optional)
+          Completed (optional)
         </label>
         <input id="safety-done" name="completedOn" type="date" max={today} className={`${inputCompact} w-40`} />
       </div>

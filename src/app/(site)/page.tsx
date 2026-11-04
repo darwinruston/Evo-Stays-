@@ -31,7 +31,7 @@ const KEPT_TOGETHER = [
   },
   {
     title: "Health and safety",
-    body: "Gas safety, electrical reports, insurance and more. Record when each was done and your team is reminded before it runs out.",
+    body: "Gas safety, electrical reports, insurance and more. Record when each was completed and your team is reminded before it runs out.",
   },
   {
     title: "Cleaning",

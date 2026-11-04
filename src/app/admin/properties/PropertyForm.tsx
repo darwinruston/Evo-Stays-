@@ -1,5 +1,6 @@
 import { ACCESS_OPTIONS, parseAccessOptions } from "@/lib/accessOptions";
 import { PROPERTY_TYPE_LABELS } from "@/lib/accessOptions";
+import { MANAGEMENT_HINTS, MANAGEMENT_LABELS, MANAGEMENT_TYPES } from "@/lib/safetyChecks";
 import { button, inputCompact } from "@/lib/ui";
 
 type PropertyFields = {
@@ -9,6 +10,7 @@ type PropertyFields = {
   nickname: string | null;
   address: string;
   type: string;
+  management: string;
   bedrooms: number | null;
   bathrooms: number | null;
   maxOccupancy: number | null;
@@ -134,6 +136,27 @@ export function PropertyForm({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="management" className="text-sm font-medium">
+          How is it managed?
+        </label>
+        <select
+          id="management"
+          name="management"
+          defaultValue={property?.management ?? "SHORT_LET"}
+          className={inputCompact}
+        >
+          {MANAGEMENT_TYPES.map((value) => (
+            <option key={value} value={value}>
+              {MANAGEMENT_LABELS[value]}: {MANAGEMENT_HINTS[value]}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-zinc-500">
+          This decides which health and safety checks the property gets. You can change it later.
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
