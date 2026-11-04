@@ -9,7 +9,7 @@ export type TaskFormValues = {
   title: string;
   description: string;
   priority: string;
-  assignedToId: string;
+  assigneeIds: string[];
   dueOn: string;
   propertyId: string;
 };
@@ -18,7 +18,7 @@ export const EMPTY_TASK: TaskFormValues = {
   title: "",
   description: "",
   priority: "NORMAL",
-  assignedToId: "",
+  assigneeIds: [],
   dueOn: "",
   propertyId: "",
 };
@@ -45,6 +45,18 @@ export function TaskForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Who it is with. Only ticked people are sent, as repeated "assigneeIds".
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(initial.assigneeIds));
+  const everyone = staff.length > 0 && picked.size === staff.length;
+
+  function toggle(id: string) {
+    setPicked((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function submit(formData: FormData) {
     setError(null);
@@ -93,18 +105,43 @@ export function TaskForm({
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="task-assignee" className="text-sm font-medium">
-            Assign to
-          </label>
-          <select id="task-assignee" name="assignedToId" defaultValue={initial.assignedToId} className={inputCompact}>
-            <option value="">Nobody yet</option>
+        <div role="group" aria-labelledby="task-assignees-label" className="flex flex-col gap-2 sm:col-span-2">
+          <div className="flex items-center justify-between gap-3">
+            <span id="task-assignees-label" className="text-sm font-medium">
+              Assign to
+            </span>
+            {staff.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setPicked(everyone ? new Set() : new Set(staff.map((s) => s.id)))}
+                className="text-xs text-zinc-600 underline decoration-dotted underline-offset-2 hover:text-zinc-900"
+              >
+                {everyone ? "Clear" : "Whole team"}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
             {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
+              <label key={s.id} className="cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="assigneeIds"
+                  value={s.id}
+                  checked={picked.has(s.id)}
+                  onChange={() => toggle(s.id)}
+                  className="peer sr-only"
+                />
+                <span className="inline-flex items-center rounded-full border border-black/10 bg-surface px-3 py-1.5 text-sm transition-colors hover:border-zinc-400 peer-checked:border-zinc-900 peer-checked:bg-zinc-900 peer-checked:text-white peer-focus-visible:ring-4 peer-focus-visible:ring-black/10">
+                  {s.name}
+                </span>
+              </label>
             ))}
-          </select>
+          </div>
+          <p className="text-xs text-zinc-500">
+            {picked.size === 0
+              ? "Nobody ticked: it stays unassigned."
+              : "Everyone ticked, apart from you, is told."}
+          </p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="task-priority" className="text-sm font-medium">
@@ -176,7 +213,7 @@ export function NewTask({
     <div className="max-w-xl">
       <TaskForm
         action={action}
-        initial={{ ...EMPTY_TASK, assignedToId: defaultAssigneeId }}
+        initial={{ ...EMPTY_TASK, assigneeIds: defaultAssigneeId ? [defaultAssigneeId] : [] }}
         staff={staff}
         properties={properties}
         submitLabel="Add task"

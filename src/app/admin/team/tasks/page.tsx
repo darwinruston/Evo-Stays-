@@ -42,11 +42,17 @@ export default async function TasksPage({
 
   const tasks = await db.task.findMany({
     where: {
-      ...(who === "me" ? { assignedToId: session.user.id } : who === "none" ? { assignedToId: null } : who === "all" ? {} : { assignedToId: who }),
+      ...(who === "me"
+        ? { assignees: { some: { userId: session.user.id } } }
+        : who === "none"
+          ? { assignees: { none: {} } }
+          : who === "all"
+            ? {}
+            : { assignees: { some: { userId: who } } }),
       ...(show === "open" ? { status: { not: "DONE" as const } } : show === "done" ? { status: "DONE" as const } : {}),
     },
     include: {
-      assignedTo: { select: { id: true, name: true } },
+      assignees: { select: { user: { select: { id: true, name: true } } } },
       property: { select: { id: true, nickname: true, name: true, address: true } },
       _count: { select: { comments: true } },
     },
@@ -59,7 +65,8 @@ export default async function TasksPage({
     title: t.title,
     priority: t.priority,
     status: t.status,
-    assignee: t.assignedTo,
+    assignees: t.assignees.map((a) => a.user).sort((a, b) => a.name.localeCompare(b.name)),
+    wholeTeam: people.length > 1 && t.assignees.length === people.length,
     dueLabel: t.dueOn ? formatDateOnly(t.dueOn) : null,
     overdue: isOverdue(t, now),
     propertyName: t.property ? propertyDisplayName(t.property) : null,

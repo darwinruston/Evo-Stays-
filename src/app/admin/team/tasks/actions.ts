@@ -34,7 +34,6 @@ type TaskValues = {
   description: string | null;
   priority: TaskPriority;
   dueOn: Date | null;
-  assignedToId: string | null;
   propertyId: string | null;
 };
 
@@ -45,7 +44,7 @@ type TaskValues = {
 async function readTask(
   db: ScopedPrismaClient,
   formData: FormData,
-): Promise<{ error: string } | { values: TaskValues; assigneeName: string | null }> {
+): Promise<{ error: string } | { values: TaskValues; assignees: { id: string; name: string }[] }> {
   const title = str(formData, "title");
   if (!title) return { error: "Give the task a title" };
   if (title.length > TASK_TITLE_MAX) return { error: `Keep the title under ${TASK_TITLE_MAX} characters` };
@@ -62,16 +61,18 @@ async function readTask(
   const dueOn = dueRaw ? parseDateOnly(dueRaw) : null;
   if (dueRaw && !dueOn) return { error: "That is not a valid due date" };
 
-  const assignedToId = str(formData, "assignedToId");
-  let assigneeName: string | null = null;
-  if (assignedToId) {
-    const assignee = await db.user.findFirst({
-      where: { id: assignedToId, role: { in: ["ADMIN", "OFFICE"] }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
-      select: { name: true },
-    });
-    if (!assignee) return { error: "That person can't be given tasks" };
-    assigneeName = assignee.name;
-  }
+  // Everyone ticked, each checked to be a real Admin or Office login in this
+  // company. A repeated id counts once.
+  const wanted = [...new Set(formData.getAll("assigneeIds").filter((v): v is string => typeof v === "string" && v !== ""))];
+  const assignees =
+    wanted.length === 0
+      ? []
+      : await db.user.findMany({
+          where: { id: { in: wanted }, role: { in: ["ADMIN", "OFFICE"] }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        });
+  if (assignees.length !== wanted.length) return { error: "One of those people can't be given tasks" };
 
   const propertyId = str(formData, "propertyId");
   if (propertyId) {
@@ -79,7 +80,22 @@ async function readTask(
     if (!property) return { error: "That property no longer exists" };
   }
 
-  return { values: { title, description, priority, dueOn, assignedToId, propertyId }, assigneeName };
+  return { values: { title, description, priority, dueOn, propertyId }, assignees };
+}
+
+// "Alex and Sam", "Alex, Sam and Jo", or "the whole team" when everyone is on it.
+function peopleList(names: string[], wholeTeam: boolean): string {
+  if (wholeTeam && names.length > 1) return "the whole team";
+  if (names.length <= 1) return names[0] ?? "nobody";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+// How many people can be given tasks in this company, to tell "the whole team"
+// from "several people".
+async function teamSize(db: ScopedPrismaClient): Promise<number> {
+  return db.user.count({
+    where: { role: { in: ["ADMIN", "OFFICE"] }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
+  });
 }
 
 function assignedNotice(taskId: string, actorName: string, userId: string, values: TaskValues) {
@@ -104,10 +120,17 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
   const read = await readTask(db, formData);
   if ("error" in read) return read;
-  const { values, assigneeName } = read;
+  const { values, assignees } = read;
 
   const created = await db.task.create({
-    data: { organizationId: session.user.organizationId, createdById: session.user.id, ...values },
+    data: {
+      organizationId: session.user.organizationId,
+      createdById: session.user.id,
+      ...values,
+      assignees: {
+        create: assignees.map((a) => ({ organizationId: session.user.organizationId, userId: a.id })),
+      },
+    },
     select: { id: true },
   });
 
@@ -115,10 +138,11 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     actorId: session.user.id,
     entityType: "Task",
     entityId: created.id,
-    summary: `Created task "${values.title}" (${TASK_PRIORITY_LABELS[values.priority]})${assigneeName ? `, assigned to ${assigneeName}` : ""}`,
+    summary: `Created task "${values.title}" (${TASK_PRIORITY_LABELS[values.priority]})${assignees.length > 0 ? `, assigned to ${peopleList(assignees.map((a) => a.name), assignees.length === (await teamSize(db)))}` : ""}`,
   });
-  if (values.assignedToId && values.assignedToId !== session.user.id) {
-    await notify(db, [assignedNotice(created.id, session.user.name ?? "Someone", values.assignedToId, values)]);
+  const told = assignees.filter((a) => a.id !== session.user.id);
+  if (told.length > 0) {
+    await notify(db, told.map((a) => assignedNotice(created.id, session.user.name ?? "Someone", a.id, values)));
   }
 
   refresh();
@@ -128,25 +152,54 @@ export async function updateTask(id: string, formData: FormData): Promise<Action
   const { session, db } = await requireStaff();
   const read = await readTask(db, formData);
   if ("error" in read) return read;
-  const { values, assigneeName } = read;
+  const { values, assignees } = read;
 
   const before = await db.task.findUnique({
     where: { id },
-    select: { title: true, priority: true, dueOn: true, assignedToId: true, propertyId: true, assignedTo: { select: { name: true } } },
+    select: {
+      title: true,
+      priority: true,
+      dueOn: true,
+      propertyId: true,
+      assignees: { select: { userId: true, user: { select: { name: true } } } },
+    },
   });
   if (!before) return { error: "That task no longer exists" };
 
-  await db.task.update({ where: { id }, data: values });
+  const beforeIds = new Set(before.assignees.map((a) => a.userId));
+  const afterIds = new Set(assignees.map((a) => a.id));
+  const peopleChanged = beforeIds.size !== afterIds.size || [...afterIds].some((x) => !beforeIds.has(x));
+
+  // One nested write, so the task and its people change together.
+  await db.task.update({
+    where: { id },
+    data: {
+      ...values,
+      ...(peopleChanged
+        ? {
+            assignees: {
+              deleteMany: { userId: { notIn: [...afterIds] } },
+              create: assignees
+                .filter((a) => !beforeIds.has(a.id))
+                .map((a) => ({ userId: a.id, organizationId: session.user.organizationId })),
+            },
+          }
+        : {}),
+    },
+  });
 
   const changes: string[] = [];
   if (before.title !== values.title) changes.push(`renamed from "${before.title}"`);
   if (before.priority !== values.priority) {
     changes.push(`importance changed from ${TASK_PRIORITY_LABELS[before.priority]} to ${TASK_PRIORITY_LABELS[values.priority]}`);
   }
-  if (before.assignedToId !== values.assignedToId) {
+  if (peopleChanged) {
+    const size = await teamSize(db);
+    const nowNames = assignees.map((a) => a.name);
+    const wasNames = before.assignees.map((a) => a.user.name).sort((a, b) => a.localeCompare(b));
     changes.push(
-      assigneeName
-        ? `assigned to ${assigneeName}${before.assignedTo ? ` (was ${before.assignedTo.name})` : ""}`
+      nowNames.length > 0
+        ? `assigned to ${peopleList(nowNames, nowNames.length === size)}${wasNames.length > 0 ? ` (was ${peopleList(wasNames, wasNames.length === size)})` : ""}`
         : "made unassigned",
     );
   }
@@ -162,8 +215,10 @@ export async function updateTask(id: string, formData: FormData): Promise<Action
       summary: `"${values.title}": ${changes.join("; ")}`,
     });
   }
-  if (values.assignedToId && values.assignedToId !== before.assignedToId && values.assignedToId !== session.user.id) {
-    await notify(db, [assignedNotice(id, session.user.name ?? "Someone", values.assignedToId, values)]);
+  // Only the people newly given it are told.
+  const added = assignees.filter((a) => !beforeIds.has(a.id) && a.id !== session.user.id);
+  if (added.length > 0) {
+    await notify(db, added.map((a) => assignedNotice(id, session.user.name ?? "Someone", a.id, values)));
   }
 
   refresh();
@@ -220,7 +275,7 @@ export async function addTaskComment(id: string, formData: FormData): Promise<Ac
 
   const task = await db.task.findUnique({
     where: { id },
-    select: { title: true, assignedToId: true, createdById: true },
+    select: { title: true, createdById: true, assignees: { select: { userId: true } } },
   });
   if (!task) return { error: "That task no longer exists" };
 
@@ -234,7 +289,7 @@ export async function addTaskComment(id: string, formData: FormData): Promise<Ac
     summary: `Added an update to "${task.title}"`,
   });
 
-  const recipients = new Set([task.assignedToId, task.createdById]);
+  const recipients = new Set<string | null>([task.createdById, ...task.assignees.map((a) => a.userId)]);
   recipients.delete(null);
   recipients.delete(session.user.id);
   if (recipients.size > 0) {

@@ -20,7 +20,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
     db.task.findUnique({
       where: { id },
       include: {
-        assignedTo: { select: { id: true, name: true } },
+        assignees: { select: { user: { select: { id: true, name: true } } } },
         createdBy: { select: { name: true } },
         completedBy: { select: { name: true } },
         property: { select: { id: true, nickname: true, name: true, address: true } },
@@ -65,7 +65,8 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           description: task.description,
           priority: task.priority,
           status: task.status,
-          assignee: task.assignedTo,
+          assignees: task.assignees.map((a) => a.user).sort((a, b) => a.name.localeCompare(b.name)),
+          wholeTeam: people.length > 1 && task.assignees.length === people.length,
           dueLabel: task.dueOn ? formatDateOnly(task.dueOn) : null,
           overdue: isOverdue(task),
           property: task.property ? { id: task.property.id, name: propertyDisplayName(task.property) } : null,
@@ -75,7 +76,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
             title: task.title,
             description: task.description ?? "",
             priority: task.priority as string,
-            assignedToId: task.assignedToId ?? "",
+            assigneeIds: task.assignees.map((a) => a.user.id),
             dueOn: task.dueOn ? toDateInputValue(task.dueOn) : "",
             propertyId: task.propertyId ?? "",
           },

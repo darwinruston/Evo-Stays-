@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, taskHref } from "@/lib/tasks";
 import { badge, card } from "@/lib/ui";
-import { Avatar } from "@/components/Avatar";
+import { TaskAssignees } from "@/components/TaskAssignees";
 
 export type TaskRowData = {
   id: string;
   title: string;
   priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   status: "TODO" | "IN_PROGRESS" | "DONE";
-  assignee: { id: string; name: string } | null;
+  assignees: { id: string; name: string }[];
+  // Everyone in the team is on it.
+  wholeTeam: boolean;
   // Already formatted on the server ("12 Nov 25"), so no date logic here.
   dueLabel: string | null;
   overdue: boolean;
@@ -38,14 +40,7 @@ export function TaskRow({ task }: { task: TaskRowData }) {
               {TASK_PRIORITY_LABELS[task.priority]}
             </span>
             {task.status === "IN_PROGRESS" && <span>{TASK_STATUS_LABELS.IN_PROGRESS}</span>}
-            {task.assignee ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Avatar name={task.assignee.name} size={18} />
-                {task.assignee.name}
-              </span>
-            ) : (
-              <span>Nobody yet</span>
-            )}
+            <TaskAssignees people={task.assignees} wholeTeam={task.wholeTeam} layout="inline" />
             {task.dueLabel && (
               <span className={task.overdue ? "font-medium text-zinc-900" : ""}>
                 {task.overdue ? "Overdue, was due" : "Due"} {task.dueLabel}

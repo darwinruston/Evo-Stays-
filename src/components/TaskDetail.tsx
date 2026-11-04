@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actionResult";
 import { TASK_PRIORITY_LABELS, TASK_STATUSES, TASK_STATUS_LABELS } from "@/lib/tasks";
 import { badge, button, card } from "@/lib/ui";
-import { Avatar } from "@/components/Avatar";
+import { TaskAssignees } from "@/components/TaskAssignees";
 import { TaskForm, type TaskFormValues } from "@/components/TaskForm";
 
 type Status = "TODO" | "IN_PROGRESS" | "DONE";
@@ -17,7 +17,8 @@ export type TaskDetailData = {
   description: string | null;
   priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   status: Status;
-  assignee: { id: string; name: string } | null;
+  assignees: { id: string; name: string }[];
+  wholeTeam: boolean;
   // Already formatted on the server ("12 Nov 25").
   dueLabel: string | null;
   overdue: boolean;
@@ -162,14 +163,7 @@ export function TaskDetail({
               </span>
             </Row>
             <Row label="Assigned to">
-              {task.assignee ? (
-                <span className="inline-flex items-center gap-2">
-                  <Avatar name={task.assignee.name} size={22} />
-                  {task.assignee.name}
-                </span>
-              ) : (
-                <span className="font-normal text-zinc-500">Nobody yet</span>
-              )}
+              <TaskAssignees people={task.assignees} wholeTeam={task.wholeTeam} layout="stacked" />
             </Row>
             <Row label="Due">
               {task.dueLabel ? (

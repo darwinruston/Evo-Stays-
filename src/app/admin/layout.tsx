@@ -51,7 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // A problem the linen company has flagged and nobody has picked up yet.
     modules.laundry ? db.linenVisit.count({ where: { issueRaisedAt: { not: null }, issueResolvedAt: null } }) : 0,
     // Tasks given to you and not yet done, shown on the Team tab.
-    db.task.count({ where: { assignedToId: session.user.id, status: { not: "DONE" } } }),
+    db.task.count({ where: { assignees: { some: { userId: session.user.id } }, status: { not: "DONE" } } }),
   ]);
   const items = NAV.filter(
     (item) =>
