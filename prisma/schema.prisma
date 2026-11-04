@@ -1292,6 +1292,16 @@ enum TaskPriority {
   URGENT
 }
 
+// How often a task comes round again. Finishing one makes the next (see
+// src/lib/taskRepeat.ts).
+enum TaskRepeat {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SIX_MONTHLY
+  YEARLY
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -1326,6 +1336,13 @@ model Task {
   // Set on a task made automatically from a health and safety date.
   safetyCheck    PropertySafetyCheck? @relation(fields: [safetyCheckId], references: [id], onDelete: SetNull)
   safetyCheckId  String?
+  // Set on a task that comes round again. It needs a due date, which the next
+  // one is counted from. previous is the occurrence this one was made from, so
+  // finishing, reopening and finishing a task again can't make two next ones.
+  repeat         TaskRepeat?
+  previous       Task?                @relation("TaskRepeats", fields: [previousId], references: [id], onDelete: SetNull)
+  previousId     String?
+  followUps      Task[]               @relation("TaskRepeats")
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   comments       TaskComment[]
@@ -1334,6 +1351,7 @@ model Task {
   @@index([organizationId])
   @@index([propertyId])
   @@index([safetyCheckId])
+  @@index([previousId])
 }
 
 // Who a task is with. A task can be given to one person or several (the whole

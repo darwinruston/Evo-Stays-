@@ -2,6 +2,7 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 import { formatDateOnly } from "@/lib/dateOnly";
+import { repeatPhrase } from "@/lib/taskRepeat";
 import { isOverdue, sortTasks } from "@/lib/tasks";
 import { TasksHeader } from "@/components/TaskForm";
 import { TaskFilters } from "@/components/TaskFilters";
@@ -71,6 +72,7 @@ export default async function TasksPage({
     dueLabel: t.dueOn ? formatDateOnly(t.dueOn) : null,
     overdue: isOverdue(t, now),
     propertyName: t.property ? propertyDisplayName(t.property) : null,
+    repeatLabel: t.repeat ? repeatPhrase(t.repeat) : null,
     commentCount: t._count.comments,
   }));
 

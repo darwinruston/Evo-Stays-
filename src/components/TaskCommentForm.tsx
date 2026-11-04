@@ -29,7 +29,13 @@ export function TaskCommentForm({ action }: { action: (formData: FormData) => Pr
   }
 
   return (
-    <form ref={formRef} action={submit} className={card("flex flex-col gap-3 p-4 ring-1 ring-black/[0.04]")}>
+    <form
+      ref={formRef}
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit(new FormData(e.currentTarget));
+      }}
+      className={card("flex flex-col gap-3 p-4 ring-1 ring-black/[0.04]")}>
       <label htmlFor="task-update" className="sr-only">
         Add an update
       </label>

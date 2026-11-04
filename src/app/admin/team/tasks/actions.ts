@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { TaskPriority, TaskStatus } from "@prisma/client";
+import type { TaskPriority, TaskRepeat, TaskStatus } from "@prisma/client";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
@@ -18,6 +18,7 @@ import {
   isTaskStatus,
   taskHref,
 } from "@/lib/tasks";
+import { TASK_REPEAT_LABELS, isTaskRepeat, nextDueDate, repeatPhrase } from "@/lib/taskRepeat";
 import type { ActionResult } from "@/lib/actionResult";
 
 const TASKS_HREF = "/admin/team/tasks";
@@ -34,6 +35,7 @@ type TaskValues = {
   description: string | null;
   priority: TaskPriority;
   dueOn: Date | null;
+  repeat: TaskRepeat | null;
   propertyId: string | null;
 };
 
@@ -61,6 +63,12 @@ async function readTask(
   const dueOn = dueRaw ? parseDateOnly(dueRaw) : null;
   if (dueRaw && !dueOn) return { error: "That is not a valid due date" };
 
+  const repeatRaw = str(formData, "repeat");
+  if (repeatRaw && !isTaskRepeat(repeatRaw)) return { error: "That is not a way a task can repeat" };
+  const repeat = repeatRaw && isTaskRepeat(repeatRaw) ? repeatRaw : null;
+  // The next one is counted from this one's due date.
+  if (repeat && !dueOn) return { error: "Set a due date to make a task repeat" };
+
   // Everyone ticked, each checked to be a real Admin or Office login in this
   // company. A repeated id counts once.
   const wanted = [...new Set(formData.getAll("assigneeIds").filter((v): v is string => typeof v === "string" && v !== ""))];
@@ -80,7 +88,7 @@ async function readTask(
     if (!property) return { error: "That property no longer exists" };
   }
 
-  return { values: { title, description, priority, dueOn, propertyId }, assignees };
+  return { values: { title, description, priority, dueOn, repeat, propertyId }, assignees };
 }
 
 // "Alex and Sam", "Alex, Sam and Jo", or "the whole team" when everyone is on it.
@@ -138,7 +146,7 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     actorId: session.user.id,
     entityType: "Task",
     entityId: created.id,
-    summary: `Created task "${values.title}" (${TASK_PRIORITY_LABELS[values.priority]})${assignees.length > 0 ? `, assigned to ${peopleList(assignees.map((a) => a.name), assignees.length === (await teamSize(db)))}` : ""}`,
+    summary: `Created task "${values.title}" (${TASK_PRIORITY_LABELS[values.priority]})${values.repeat ? `, ${repeatPhrase(values.repeat).toLowerCase()}` : ""}${assignees.length > 0 ? `, assigned to ${peopleList(assignees.map((a) => a.name), assignees.length === (await teamSize(db)))}` : ""}`,
   });
   const told = assignees.filter((a) => a.id !== session.user.id);
   if (told.length > 0) {
@@ -160,6 +168,7 @@ export async function updateTask(id: string, formData: FormData): Promise<Action
       title: true,
       priority: true,
       dueOn: true,
+      repeat: true,
       propertyId: true,
       assignees: { select: { userId: true, user: { select: { name: true } } } },
     },
@@ -207,6 +216,9 @@ export async function updateTask(id: string, formData: FormData): Promise<Action
     changes.push(values.dueOn ? `due date set to ${formatDateOnly(values.dueOn)}` : "due date cleared");
   }
   if (before.propertyId !== values.propertyId) changes.push("property changed");
+  if (before.repeat !== values.repeat) {
+    changes.push(values.repeat ? repeatPhrase(values.repeat).toLowerCase() : "no longer repeats");
+  }
   if (changes.length > 0) {
     await logAudit(db, {
       actorId: session.user.id,
@@ -230,7 +242,19 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
 
   const task = await db.task.findUnique({
     where: { id },
-    select: { title: true, status: true, createdById: true },
+    select: {
+      title: true,
+      description: true,
+      priority: true,
+      status: true,
+      createdById: true,
+      dueOn: true,
+      repeat: true,
+      propertyId: true,
+      assignees: { select: { userId: true } },
+      // Already made from this one (it was finished, reopened and finished again).
+      followUps: { select: { id: true }, take: 1 },
+    },
   });
   if (!task) return { error: "That task no longer exists" };
   if (task.status === status) return;
@@ -250,6 +274,46 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
     entityId: id,
     summary: `"${task.title}" moved to ${TASK_STATUS_LABELS[status]}`,
   });
+  // A task that repeats makes the next one as it is finished, once.
+  if (status === "DONE" && task.repeat && task.dueOn && task.followUps.length === 0) {
+    const dueOn = nextDueDate(task.dueOn, task.repeat);
+    const next = await db.task.create({
+      data: {
+        organizationId: session.user.organizationId,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        dueOn,
+        repeat: task.repeat,
+        propertyId: task.propertyId,
+        createdById: task.createdById,
+        previousId: id,
+        assignees: {
+          create: task.assignees.map((a) => ({ userId: a.userId, organizationId: session.user.organizationId })),
+        },
+      },
+      select: { id: true },
+    });
+    await logAudit(db, {
+      actorId: session.user.id,
+      entityType: "Task",
+      entityId: next.id,
+      summary: `Made the next "${task.title}" (${TASK_REPEAT_LABELS[task.repeat].toLowerCase()}), due ${formatDateOnly(dueOn)}`,
+    });
+    const told = task.assignees.filter((a) => a.userId !== session.user.id);
+    if (told.length > 0) {
+      await notify(
+        db,
+        told.map((a) => ({
+          userId: a.userId,
+          kind: "TASK_ASSIGNED" as const,
+          title: `Due again: ${task.title}`,
+          body: `Due ${formatDateOnly(dueOn)}`,
+          href: taskHref(next.id),
+        })),
+      );
+    }
+  }
   // Tell whoever asked for it, unless they're the one who finished it.
   if (status === "DONE" && task.createdById && task.createdById !== session.user.id) {
     await notify(db, [

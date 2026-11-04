@@ -31,6 +31,10 @@ export type TaskDetailData = {
   canPickUp: boolean;
   // Set on a task made automatically from a health and safety date.
   safetyHref: string | null;
+  // "Repeats monthly", or null if it does not repeat.
+  repeatLabel: string | null;
+  // The next one, made when this was finished.
+  nextTask: { id: string; dueLabel: string | null } | null;
 };
 
 const PANEL = "ring-1 ring-black/[0.04]";
@@ -141,6 +145,26 @@ export function TaskDetail({
             Edit task
           </button>
         </div>
+        {task.repeatLabel && (
+          <p className="text-sm text-zinc-600">
+            {task.repeatLabel}.{" "}
+            {done ? (
+              task.nextTask ? (
+                <>
+                  The next one is{" "}
+                  <Link href={`/admin/team/tasks/${task.nextTask.id}`} className="underline decoration-black/20 underline-offset-2 hover:decoration-black">
+                    {task.nextTask.dueLabel ? `due ${task.nextTask.dueLabel}` : "on your list"}
+                  </Link>
+                  .
+                </>
+              ) : (
+                "Reopen it and finish it again to make the next one."
+              )
+            ) : (
+              "Finishing it makes the next one."
+            )}
+          </p>
+        )}
         {task.safetyHref && !done && (
           <p className="text-sm text-zinc-600">
             Made automatically from a health and safety date.{" "}
@@ -193,6 +217,13 @@ export function TaskDetail({
                 </span>
               ) : (
                 <span className="font-normal text-zinc-500">No due date</span>
+              )}
+            </Row>
+            <Row label="Repeats">
+              {task.repeatLabel ? (
+                task.repeatLabel.replace(/^Repeats /, "").replace(/^./, (c) => c.toUpperCase())
+              ) : (
+                <span className="font-normal text-zinc-500">Does not repeat</span>
               )}
             </Row>
             <Row label="Property">

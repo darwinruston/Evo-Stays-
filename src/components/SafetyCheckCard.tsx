@@ -88,7 +88,13 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
       )}
 
       {open ? (
-        <form action={submit} className="flex flex-wrap items-end gap-3 rounded-lg bg-black/[0.03] p-3">
+        <form
+          onSubmit={(e) => {
+          e.preventDefault();
+          submit(new FormData(e.currentTarget));
+      }}
+          className="flex flex-wrap items-end gap-3 rounded-lg bg-black/[0.03] p-3"
+        >
           <div className="flex flex-col gap-1">
             <label htmlFor={`${uid}-done`} className="text-xs text-zinc-500">
               Date completed
@@ -220,7 +226,13 @@ export function AddSafetyCheckForm({
   }
 
   return (
-    <form action={submit} className={card("flex flex-wrap items-end gap-3 p-4")}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit(new FormData(e.currentTarget));
+      }}
+      className={card("flex flex-wrap items-end gap-3 p-4")}
+    >
       <div className="flex min-w-48 flex-1 flex-col gap-1.5">
         <label htmlFor="safety-title" className="text-sm font-medium">
           What is it?

@@ -15,6 +15,8 @@ export type TaskRowData = {
   dueLabel: string | null;
   overdue: boolean;
   propertyName: string | null;
+  // "Repeats monthly", or null if it does not repeat.
+  repeatLabel: string | null;
   commentCount: number;
 };
 
@@ -44,6 +46,7 @@ export function TaskRow({ task }: { task: TaskRowData }) {
           <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-zinc-500">
             {task.status === "IN_PROGRESS" && <span>{TASK_STATUS_LABELS.IN_PROGRESS}</span>}
             {task.propertyName && <span>{task.propertyName}</span>}
+            {task.repeatLabel && <span>{task.repeatLabel}</span>}
             {task.commentCount > 0 && (
               <span>
                 {task.commentCount} {task.commentCount === 1 ? "update" : "updates"}

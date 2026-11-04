@@ -5,6 +5,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 import { formatDateOnly, formatDateTime, toDateInputValue } from "@/lib/dateOnly";
 import { isOverdue } from "@/lib/tasks";
+import { repeatPhrase } from "@/lib/taskRepeat";
 import { Avatar } from "@/components/Avatar";
 import { TaskCommentForm } from "@/components/TaskCommentForm";
 import { TaskDetail } from "@/components/TaskDetail";
@@ -24,6 +25,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
         createdBy: { select: { name: true } },
         completedBy: { select: { name: true } },
         property: { select: { id: true, nickname: true, name: true, address: true } },
+        followUps: { select: { id: true, dueOn: true }, take: 1 },
         comments: {
           orderBy: { createdAt: "desc" },
           include: { author: { select: { name: true } } },
@@ -78,11 +80,16 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
             priority: task.priority as string,
             assigneeIds: task.assignees.map((a) => a.user.id),
             dueOn: task.dueOn ? toDateInputValue(task.dueOn) : "",
+            repeat: task.repeat ?? "",
             propertyId: task.propertyId ?? "",
           },
           canDelete: session.user.role === "ADMIN" || task.createdById === session.user.id,
           canPickUp:
             task.assignees.length === 0 || (people.length > 1 && task.assignees.length === people.length),
+          repeatLabel: task.repeat ? repeatPhrase(task.repeat) : null,
+          nextTask: task.followUps[0]
+            ? { id: task.followUps[0].id, dueLabel: task.followUps[0].dueOn ? formatDateOnly(task.followUps[0].dueOn) : null }
+            : null,
           safetyHref: task.safetyCheckId && task.propertyId ? `/admin/properties/${task.propertyId}?tab=safety` : null,
         }}
         staff={people}

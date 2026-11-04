@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actionResult";
 import { TASK_NOTES_MAX, TASK_PRIORITIES, TASK_PRIORITY_LABELS, TASK_TITLE_MAX } from "@/lib/tasks";
+import { TASK_REPEATS, TASK_REPEAT_LABELS } from "@/lib/taskRepeat";
 import { button, card, inputCompact } from "@/lib/ui";
 
 export type TaskFormValues = {
@@ -11,6 +12,7 @@ export type TaskFormValues = {
   priority: string;
   assigneeIds: string[];
   dueOn: string;
+  repeat: string;
   propertyId: string;
 };
 
@@ -20,6 +22,7 @@ export const EMPTY_TASK: TaskFormValues = {
   priority: "NORMAL",
   assigneeIds: [],
   dueOn: "",
+  repeat: "",
   propertyId: "",
 };
 
@@ -75,7 +78,13 @@ export function TaskForm({
   }
 
   return (
-    <form action={submit} className={card("flex flex-col gap-3 p-4")}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit(new FormData(e.currentTarget));
+      }}
+      className={card("flex flex-col gap-3 p-4")}
+    >
       <div className="flex flex-col gap-1.5">
         <label htmlFor="task-title" className="text-sm font-medium">
           What needs doing?
@@ -160,6 +169,20 @@ export function TaskForm({
             Due (optional)
           </label>
           <input id="task-due" name="dueOn" type="date" defaultValue={initial.dueOn} className={inputCompact} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="task-repeat" className="text-sm font-medium">
+            Repeats
+          </label>
+          <select id="task-repeat" name="repeat" defaultValue={initial.repeat} className={inputCompact}>
+            <option value="">Does not repeat</option>
+            {TASK_REPEATS.map((r) => (
+              <option key={r} value={r}>
+                {TASK_REPEAT_LABELS[r]}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-500">Needs a due date. Finishing it makes the next one.</p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="task-property" className="text-sm font-medium">
