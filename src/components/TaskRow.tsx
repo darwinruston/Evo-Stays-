@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, taskHref } from "@/lib/tasks";
-import { badge, card } from "@/lib/ui";
+import { badge } from "@/lib/ui";
 import { TaskAssignees } from "@/components/TaskAssignees";
 
 export type TaskRowData = {
@@ -18,7 +18,12 @@ export type TaskRowData = {
   commentCount: number;
 };
 
-// One task in the list. The whole card opens the task: that is where you read
+// The columns of the list on a wide screen: status mark, task, importance, who
+// has it, due, and the arrow. The heading row and every task use the same
+// template so they line up. On a phone each task is a stacked card instead.
+export const TASK_GRID = "md:grid-cols-[1.25rem_minmax(0,1fr)_5.5rem_12rem_8rem_1rem]";
+
+// One task in the list. The whole row opens the task: that is where you read
 // the notes, add an update, change it and complete it. Nothing here changes
 // the task, so a stray tap can't finish or lose one.
 export function TaskRow({ task }: { task: TaskRowData }) {
@@ -28,33 +33,41 @@ export function TaskRow({ task }: { task: TaskRowData }) {
     <li>
       <Link
         href={taskHref(task.id)}
-        className={card(
-          `flex items-start gap-3 p-4 transition-shadow hover:shadow-[0_1px_2px_rgba(0,0,0,0.06),0_16px_36px_-16px_rgba(0,0,0,0.2)] ${done ? "opacity-70" : ""}`,
-        )}
+        className={`grid grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-4 transition-colors hover:bg-black/[0.025] ${TASK_GRID} ${
+          done ? "opacity-60" : ""
+        }`}
       >
         <StatusMark status={task.status} />
-        <div className="min-w-0 flex-1">
-          <p className={`font-medium [overflow-wrap:anywhere] ${done ? "line-through" : ""}`}>{task.title}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-500">
-            <span className={badge(task.priority === "URGENT" ? "solid" : task.priority === "HIGH" ? "outline" : "neutral")}>
-              {TASK_PRIORITY_LABELS[task.priority]}
-            </span>
+
+        <div className="min-w-0">
+          <p className={`font-medium [overflow-wrap:anywhere] ${done ? "line-through decoration-zinc-400" : ""}`}>{task.title}</p>
+          <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-zinc-500">
             {task.status === "IN_PROGRESS" && <span>{TASK_STATUS_LABELS.IN_PROGRESS}</span>}
-            <TaskAssignees people={task.assignees} wholeTeam={task.wholeTeam} layout="inline" />
-            {task.dueLabel && (
-              <span className={task.overdue ? "font-medium text-zinc-900" : ""}>
-                {task.overdue ? "Overdue, was due" : "Due"} {task.dueLabel}
-              </span>
-            )}
             {task.propertyName && <span>{task.propertyName}</span>}
             {task.commentCount > 0 && (
               <span>
                 {task.commentCount} {task.commentCount === 1 ? "update" : "updates"}
               </span>
             )}
-          </div>
+          </p>
         </div>
-        <span aria-hidden="true" className="mt-0.5 text-zinc-400">
+
+        {/* On a phone these three sit on one line under the title; on a wide screen they are columns. */}
+        <div className="col-start-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500 md:contents md:text-sm md:text-zinc-900">
+          <span>
+            <span className={badge(task.priority === "URGENT" ? "solid" : task.priority === "HIGH" ? "outline" : "neutral")}>
+              {TASK_PRIORITY_LABELS[task.priority]}
+            </span>
+          </span>
+          <span className="min-w-0 truncate">
+            <TaskAssignees people={task.assignees} wholeTeam={task.wholeTeam} layout="inline" />
+          </span>
+          <span className={task.overdue ? "font-medium text-zinc-900" : task.dueLabel ? "" : "text-zinc-400"}>
+            {task.dueLabel ? (task.overdue ? `Overdue, ${task.dueLabel}` : task.dueLabel) : "No due date"}
+          </span>
+        </div>
+
+        <span aria-hidden="true" className="hidden text-zinc-400 md:block">
           →
         </span>
       </Link>
@@ -69,7 +82,7 @@ export function StatusMark({ status }: { status: TaskRowData["status"] }) {
   return (
     <span
       aria-hidden="true"
-      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center self-start rounded-full border md:self-center ${
         done ? "border-zinc-900 bg-zinc-900 text-white" : status === "IN_PROGRESS" ? "border-zinc-900" : "border-zinc-300"
       }`}
     >

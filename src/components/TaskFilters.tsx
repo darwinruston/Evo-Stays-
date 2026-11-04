@@ -19,8 +19,8 @@ export function TaskFilters({ people }: { people: { id: string; name: string }[]
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <div className="w-44">
+    <div className="flex w-full gap-2 sm:w-auto">
+      <div className="min-w-0 flex-1 sm:w-44 sm:flex-none">
         <select
           aria-label="Whose tasks"
           value={searchParams.get("who") ?? "me"}
@@ -37,7 +37,7 @@ export function TaskFilters({ people }: { people: { id: string; name: string }[]
           ))}
         </select>
       </div>
-      <div className="w-44">
+      <div className="min-w-0 flex-1 sm:w-44 sm:flex-none">
         <select
           aria-label="Which tasks"
           value={searchParams.get("show") ?? "open"}

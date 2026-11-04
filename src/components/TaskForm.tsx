@@ -188,8 +188,9 @@ export function TaskForm({
   );
 }
 
-// "+ New task", opening the form in place and closing it once saved.
-export function NewTask({
+// The heading of the Tasks page with the "+ New task" button beside it. The
+// form opens underneath, full width of the heading, and closes once saved.
+export function TasksHeader({
   action,
   staff,
   properties,
@@ -202,24 +203,35 @@ export function NewTask({
 }) {
   const [open, setOpen] = useState(false);
 
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} className={button("primary", "sm")}>
-        + New task
-      </button>
-    );
-  }
   return (
-    <div className="max-w-xl">
-      <TaskForm
-        action={action}
-        initial={{ ...EMPTY_TASK, assigneeIds: defaultAssigneeId ? [defaultAssigneeId] : [] }}
-        staff={staff}
-        properties={properties}
-        submitLabel="Add task"
-        onSaved={() => setOpen(false)}
-        onCancel={() => setOpen(false)}
-      />
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Tasks</h1>
+          <p className="mt-1.5 max-w-xl text-sm text-zinc-500">
+            Work for the team that isn&apos;t a clean. Give it to one person or the whole team, say how important it
+            is, and open it to add updates and mark it complete.
+          </p>
+        </div>
+        {!open && (
+          <button type="button" onClick={() => setOpen(true)} className={button("primary", "md")}>
+            + New task
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="max-w-2xl">
+          <TaskForm
+            action={action}
+            initial={{ ...EMPTY_TASK, assigneeIds: defaultAssigneeId ? [defaultAssigneeId] : [] }}
+            staff={staff}
+            properties={properties}
+            submitLabel="Add task"
+            onSaved={() => setOpen(false)}
+            onCancel={() => setOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
