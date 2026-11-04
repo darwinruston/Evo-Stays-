@@ -26,6 +26,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
         completedBy: { select: { name: true } },
         property: { select: { id: true, nickname: true, name: true, address: true } },
         followUps: { select: { id: true, dueOn: true }, take: 1 },
+        issues: { select: { id: true }, take: 1 },
         comments: {
           orderBy: { createdAt: "desc" },
           include: { author: { select: { name: true } } },
@@ -90,6 +91,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           nextTask: task.followUps[0]
             ? { id: task.followUps[0].id, dueLabel: task.followUps[0].dueOn ? formatDateOnly(task.followUps[0].dueOn) : null }
             : null,
+          issueHref: task.issues[0] ? `/admin/issues/${task.issues[0].id}` : null,
           safetyHref: task.safetyCheckId && task.propertyId ? `/admin/properties/${task.propertyId}?tab=safety` : null,
         }}
         staff={people}

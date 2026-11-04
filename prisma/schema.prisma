@@ -1188,6 +1188,11 @@ model Issue {
   resolvedAt         DateTime?
   resolvedBy         User?         @relation("IssueResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
   resolvedById       String?
+  // Set when staff turned the report into a task for the team. The issue is
+  // then closed (RESOLVED) and leaves the open list; the work lives on the
+  // task. SetNull so deleting the task doesn't delete the report.
+  task               Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskId             String?
   photos             IssuePhoto[]
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -1196,6 +1201,7 @@ model Issue {
   @@index([propertyId, status])
   @@index([status])
   @@index([cleanId])
+  @@index([taskId])
 }
 
 // Evidence photos for an issue. Stored under the same
@@ -1350,6 +1356,8 @@ model Task {
   previous          Task?                @relation("TaskRepeats", fields: [previousId], references: [id], onDelete: SetNull)
   previousId        String?
   followUps         Task[]               @relation("TaskRepeats")
+  // The reported issue(s) this task was made from.
+  issues            Issue[]
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
   comments          TaskComment[]

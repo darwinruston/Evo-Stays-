@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { IssueSeverity, IssueStatus } from "@prisma/client";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
+import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
+import { TASK_NOTES_MAX, TASK_TITLE_MAX } from "@/lib/tasks";
+import { IssueTriage } from "@/components/IssueTriage";
 import { propertyDisplayName } from "@/lib/address";
 import { formatScheduledFor } from "@/lib/schedule";
 import {
@@ -11,7 +14,7 @@ import {
   ISSUE_STATUS_LABELS,
 } from "@/lib/issues";
 import { badge, button, card, inputCompact } from "@/lib/ui";
-import { updateIssue, deleteIssue } from "../actions";
+import { updateIssue, deleteIssue, moveIssueToTask, closeIssue } from "../actions";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,6 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 const STATUSES = Object.keys(ISSUE_STATUS_LABELS) as IssueStatus[];
+const ISSUE_TASK_STATUS = { TODO: "To do", IN_PROGRESS: "In progress", DONE: "Done" } as const;
 // Most urgent first in the picker, matching how lists are ordered.
 const SEVERITIES: IssueSeverity[] = ["URGENT", "MEDIUM", "LOW"];
 
@@ -46,9 +50,18 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
       reportedBy: { select: { name: true } },
       resolvedBy: { select: { name: true } },
       photos: { orderBy: { createdAt: "asc" } },
+      task: { select: { id: true, title: true, status: true } },
     },
   });
   if (!issue) notFound();
+
+  // Who a task made from this can go to: everyone on the team by default, so
+  // nothing reported is left with nobody.
+  const staff = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "OFFICE"] }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
   const activity = await db.auditLog.findMany({
     where: { entityType: "Issue", entityId: issue.id },
@@ -57,6 +70,20 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
   });
 
   const title = propertyDisplayName(issue.property);
+
+  // The task form, filled in from the report. Importance follows how severe
+  // the system or staff judged it.
+  const taskTitle = `${ISSUE_CATEGORY_LABELS[issue.category]} at ${title}`;
+  const reportedLine = `Reported ${formatScheduledFor(issue.createdAt)}${issue.reportedBy ? ` by ${issue.reportedBy.name}` : ""}.`;
+  const taskDefaults = {
+    title: taskTitle.length > TASK_TITLE_MAX ? `${taskTitle.slice(0, TASK_TITLE_MAX - 3)}...` : taskTitle,
+    description: `${issue.description.slice(0, TASK_NOTES_MAX - reportedLine.length - 2)}\n\n${reportedLine}`,
+    priority: issue.severity === "URGENT" ? "URGENT" : issue.severity === "LOW" ? "LOW" : "NORMAL",
+    assigneeIds: staff.map((s) => s.id),
+    dueOn: "",
+    repeat: "",
+    propertyId: issue.propertyId,
+  };
 
   return (
     <div className="flex max-w-3xl flex-col gap-8">
@@ -70,7 +97,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
             {ISSUE_SEVERITY_LABELS[issue.severity]}
           </span>
           <span className={badge(issue.status === "RESOLVED" ? "neutral" : "outline")}>
-            {ISSUE_STATUS_LABELS[issue.status]}
+            {issue.taskId ? "Moved to a task" : ISSUE_STATUS_LABELS[issue.status]}
           </span>
         </div>
         <p className="mt-0.5 text-sm text-zinc-500">
@@ -85,6 +112,34 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
       </div>
 
       <p className="text-sm whitespace-pre-line text-zinc-700 [overflow-wrap:anywhere]">{issue.description}</p>
+
+      {issue.status !== "RESOLVED" && (
+        <IssueTriage
+          moveToTask={moveIssueToTask.bind(null, issue.id)}
+          close={closeIssue.bind(null, issue.id)}
+          taskDefaults={taskDefaults}
+          staff={staff}
+          property={{ id: issue.property.id, name: title }}
+        />
+      )}
+
+      {issue.taskId && (
+        <div className={card("flex flex-wrap items-center justify-between gap-3 p-4")}>
+          <p className="text-sm">
+            {issue.task ? (
+              <>
+                This was moved to a task:{" "}
+                <Link href={`/admin/team/tasks/${issue.task.id}`} className="font-medium underline underline-offset-2">
+                  {issue.task.title}
+                </Link>
+              </>
+            ) : (
+              "This was moved to a task that has since been deleted."
+            )}
+          </p>
+          {issue.task && <span className={badge("neutral")}>{ISSUE_TASK_STATUS[issue.task.status]}</span>}
+        </div>
+      )}
 
       {issue.photos.length > 0 && (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">

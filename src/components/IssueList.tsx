@@ -15,6 +15,8 @@ export type IssueRow = {
   // What was done about it, once resolved -- so a cleaner looking back at
   // what they reported sees the outcome, not just "Resolved".
   resolutionNote?: string | null;
+  // Handed to the team as a task rather than fixed here.
+  movedToTask?: boolean;
   // Extra context a caller wants on the meta line -- the property name on
   // the portfolio-wide list, the reporter on a property's own page.
   context?: string | null;
@@ -45,7 +47,12 @@ function IssueRowBody({
         )}
       </div>
       <p className="line-clamp-2 text-sm text-zinc-600 [overflow-wrap:anywhere]">{issue.description}</p>
-      {issue.status === "RESOLVED" && issue.resolutionNote && (
+      {issue.status === "RESOLVED" && issue.movedToTask && (
+        <p className="text-sm text-zinc-900">
+          <span className="font-medium">Moved to a task</span>
+        </p>
+      )}
+      {issue.status === "RESOLVED" && !issue.movedToTask && issue.resolutionNote && (
         <p className="line-clamp-2 text-sm text-zinc-900 [overflow-wrap:anywhere]">
           <span className="font-medium">Resolved:</span> {issue.resolutionNote}
         </p>
@@ -108,6 +115,7 @@ export function toIssueRow(
     description: string;
     createdAt: Date;
     resolutionNote?: string | null;
+    taskId?: string | null;
     _count: { photos: number };
   },
   context?: string | null,
@@ -121,6 +129,7 @@ export function toIssueRow(
     createdAt: issue.createdAt,
     photoCount: issue._count.photos,
     resolutionNote: issue.resolutionNote ?? null,
+    movedToTask: issue.taskId != null,
     context,
   };
 }

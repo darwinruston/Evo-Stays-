@@ -31,6 +31,8 @@ export type TaskDetailData = {
   canPickUp: boolean;
   // Set on a task made automatically from a health and safety date.
   safetyHref: string | null;
+  // Set on a task made from a reported issue.
+  issueHref: string | null;
   // "Repeats monthly", or null if it does not repeat.
   repeatLabel: string | null;
   // The next one, made when this was finished.
@@ -163,6 +165,15 @@ export function TaskDetail({
             ) : (
               "Finishing it makes the next one."
             )}
+          </p>
+        )}
+        {task.issueHref && (
+          <p className="text-sm text-zinc-600">
+            Made from a reported issue.{" "}
+            <Link href={task.issueHref} className="underline decoration-black/20 underline-offset-2 hover:decoration-black">
+              See the report and its photos
+            </Link>
+            .
           </p>
         )}
         {task.safetyHref && !done && (

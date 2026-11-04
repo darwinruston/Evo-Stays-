@@ -6,6 +6,8 @@ import { requireStaff } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { propertyDisplayName } from "@/lib/address";
 import { notify, issueResolvedNotice } from "@/lib/notify";
+import { createTaskFromForm } from "@/lib/taskRecords";
+import type { ActionResult } from "@/lib/actionResult";
 import {
   createIssueRecord,
   parseIssueForm,
@@ -172,4 +174,109 @@ export async function deleteIssue(id: string) {
 
   revalidateIssueViews(undefined, issue.propertyId, issue.cleanId);
   redirect("/admin/issues");
+}
+
+// Triage, one way out of the open list: the report becomes a task for the team
+// to do. The task is made from the same form as any other (pre-filled from the
+// issue), the issue is closed with a link to it, and whoever reported it is
+// told it has been passed on. The work, its people, due date and updates then
+// live on the task.
+export async function moveIssueToTask(
+  issueId: string,
+  formData: FormData,
+): Promise<{ error: string } | { taskId: string }> {
+  const { session, db } = await requireStaff();
+
+  const issue = await db.issue.findUnique({
+    where: { id: issueId },
+    include: {
+      property: { select: { nickname: true, name: true, address: true } },
+      reportedBy: { select: { id: true, role: true } },
+      task: { select: { id: true } },
+    },
+  });
+  if (!issue) return { error: "That issue no longer exists" };
+  if (issue.task) return { error: "This issue already has a task" };
+
+  const created = await createTaskFromForm(
+    db,
+    { id: session.user.id, name: session.user.name ?? null, organizationId: session.user.organizationId },
+    formData,
+    ", from a reported issue",
+  );
+  if ("error" in created) return created;
+
+  const note = `Moved to a task: ${created.title}`;
+  await db.issue.update({
+    where: { id: issueId },
+    data: {
+      status: "RESOLVED",
+      taskId: created.id,
+      resolutionNote: note,
+      resolvedAt: new Date(),
+      resolvedById: session.user.id,
+    },
+  });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Issue",
+    entityId: issueId,
+    summary: `Moved to a task: "${created.title}"`,
+  });
+
+  // Only the reporter, and only if it wasn't them who moved it.
+  if (issue.reportedBy && issue.reportedBy.id !== session.user.id) {
+    await notify(
+      db,
+      issueResolvedNotice(issue.reportedBy, issue, "Passed to the team to deal with.").map((n) => ({
+        ...n,
+        title: n.title.replace(/^Resolved:/, "Passed to the team:"),
+      })),
+    );
+  }
+
+  revalidateIssueViews(issueId, issue.propertyId, issue.cleanId);
+  revalidatePath("/admin/team/tasks", "layout");
+  return { taskId: created.id };
+}
+
+// Triage, the other way out: nothing more to do (a duplicate, already sorted,
+// a false alarm). Closes it with an optional reason; whoever reported it is
+// told, with that reason. Kept, not deleted, so the history stays.
+export async function closeIssue(id: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const note = str(formData, "note");
+  if (note && note.length > ISSUE_DESCRIPTION_MAX) {
+    return { error: `Keep the note under ${ISSUE_DESCRIPTION_MAX} characters` };
+  }
+
+  const before = await db.issue.findUnique({ where: { id }, select: { status: true, resolutionNote: true } });
+  if (!before) return { error: "That issue no longer exists" };
+  if (before.status === "RESOLVED") return;
+
+  const issue = await db.issue.update({
+    where: { id },
+    data: {
+      status: "RESOLVED",
+      resolutionNote: note ?? before.resolutionNote,
+      resolvedAt: new Date(),
+      resolvedById: session.user.id,
+    },
+    include: {
+      property: { select: { nickname: true, name: true, address: true } },
+      reportedBy: { select: { id: true, role: true } },
+    },
+  });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Issue",
+    entityId: id,
+    summary: `Closed${note ? `: ${note}` : ""}`,
+  });
+  if (issue.reportedBy && issue.reportedBy.id !== session.user.id) {
+    await notify(db, issueResolvedNotice(issue.reportedBy, issue, note));
+  }
+
+  revalidateIssueViews(id, issue.propertyId, issue.cleanId);
 }
