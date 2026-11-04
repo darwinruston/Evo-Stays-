@@ -120,7 +120,7 @@ function assignedNotice(taskId: string, actorName: string, userId: string, value
 function refresh() {
   // The list and each task's own page.
   revalidatePath(TASKS_HREF, "layout");
-  // The Team tab in the menu carries a count of your open tasks.
+  // The Operations heading in the menu carries a count of your open tasks.
   revalidatePath("/admin", "layout");
 }
 

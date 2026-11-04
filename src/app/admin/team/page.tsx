@@ -9,7 +9,7 @@ import { StaffRow } from "@/components/StaffRow";
 import { badge, card } from "@/lib/ui";
 import { createTeamMember, updateStaff, deleteStaff } from "./actions";
 
-export const metadata = { title: "Team" };
+export const metadata = { title: "People" };
 
 // Open to every staff login: Office staff need the cleaners here (pay rates,
 // properties, days off) now that Cleaners no longer has a tab of its own. What
@@ -54,7 +54,7 @@ export default async function TeamPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">People</h1>
           <p className="mt-1 max-w-xl text-sm text-zinc-500">
             Everyone who signs in to your company, and what they do. Each person has their own login, so{" "}
             <Link href="/admin/audit" className="underline underline-offset-2 hover:text-zinc-900">

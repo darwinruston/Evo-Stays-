@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     db.issue.count({ where: { status: { not: "RESOLVED" } } }),
     // A problem the linen company has flagged and nobody has picked up yet.
     modules.laundry ? db.linenVisit.count({ where: { issueRaisedAt: { not: null }, issueResolvedAt: null } }) : 0,
-    // Tasks given to you and not yet done, shown on the Team tab.
+    // Tasks given to you and not yet done, shown on the Operations heading and its Tasks tab.
     db.task.count({ where: { assignees: { some: { userId: session.user.id } }, status: { not: "DONE" } } }),
   ]);
   // The main headings, each with the pages that belong under it. Stock,
@@ -66,7 +66,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     },
     {
       key: "team",
-      label: "Team",
+      label: "Operations",
       href: "/admin/team",
       prefixes: ["/admin/team", "/admin/staff", "/admin/cleaners", "/admin/audit"],
       count: myOpenTasks,

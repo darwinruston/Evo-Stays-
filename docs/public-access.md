@@ -18,7 +18,7 @@ data. So do the checklist below **before** turning Funnel on.
 - [ ] **Get rid of the demo logins.** A fresh database is seeded with
       `admin@`, `office@`, `cleaner@` and `cleaner2@evostays.test`, all with
       the password `password123`, which is published in this repo. Edit each one
-      under Team: give it a real email and a strong password,
+      under Operations, People: give it a real email and a strong password,
       or remove it. A production server now refuses `password123` anyway, but
       don't rely on that.
 - [ ] **Check `AUTH_SECRET`.** It must be a long random value that is not
@@ -28,7 +28,7 @@ data. So do the checklist below **before** turning Funnel on.
 - [ ] **Set `AUTH_URL` and `APP_URL`** to the public address,
       `https://evostays.<your-tailnet>.ts.net`. Sign-in redirects and the links
       in notification emails then point somewhere testers can actually reach.
-- [ ] **Give each tester their own login.** Admins add them under Team.
+- [ ] **Give each tester their own login.** Admins add them under Operations, People.
       Pick the lowest role that works: Cleaner sees only
       properties they have a clean at, Office can't manage logins, Admin can do
       everything. Don't share logins. Removing a person then cuts off only that

@@ -25,7 +25,7 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {
   Cleaner: "Cleaner",
   Invoice: "Invoice",
   Issue: "Issue",
-  Staff: "Team",
+  Staff: "People",
   Task: "Task",
 };
 
