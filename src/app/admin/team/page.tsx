@@ -52,7 +52,7 @@ export default async function TeamPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
           <p className="mt-1 max-w-xl text-sm text-zinc-500">
@@ -63,7 +63,11 @@ export default async function TeamPage() {
             shows who changed what.
           </p>
         </div>
-        <AddTeamMemberForm action={createTeamMember} cleanersOnly={!isAdmin} />
+        {/* Under the heading, not beside it: the form opens in place, at the
+            left, instead of being pushed to the far edge of a header row. */}
+        <div>
+          <AddTeamMemberForm action={createTeamMember} cleanersOnly={!isAdmin} />
+        </div>
       </div>
 
       <section className="flex flex-col gap-3">
