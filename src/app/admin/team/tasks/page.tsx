@@ -1,12 +1,12 @@
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
-import { formatDateOnly, toDateInputValue } from "@/lib/dateOnly";
+import { formatDateOnly } from "@/lib/dateOnly";
 import { isOverdue, sortTasks } from "@/lib/tasks";
 import { NewTask } from "@/components/TaskForm";
 import { TaskFilters } from "@/components/TaskFilters";
 import { TaskRow } from "@/components/TaskRow";
-import { createTask, deleteTask, setTaskStatus, updateTask } from "./actions";
+import { createTask } from "./actions";
 
 export const metadata = { title: "Tasks" };
 
@@ -47,34 +47,23 @@ export default async function TasksPage({
     },
     include: {
       assignedTo: { select: { id: true, name: true } },
-      createdBy: { select: { name: true } },
       property: { select: { id: true, nickname: true, name: true, address: true } },
+      _count: { select: { comments: true } },
     },
     ...(show === "done" ? { orderBy: { completedAt: "desc" as const }, take: DONE_LIMIT } : {}),
   });
 
   const now = new Date();
-  const isAdmin = session.user.role === "ADMIN";
   const rows = sortTasks(tasks).map((t) => ({
     id: t.id,
     title: t.title,
-    description: t.description,
     priority: t.priority,
     status: t.status,
     assignee: t.assignedTo,
     dueLabel: t.dueOn ? formatDateOnly(t.dueOn) : null,
     overdue: isOverdue(t, now),
-    property: t.property ? { id: t.property.id, name: propertyDisplayName(t.property) } : null,
-    createdByName: t.createdBy?.name ?? null,
-    form: {
-      title: t.title,
-      description: t.description ?? "",
-      priority: t.priority as string,
-      assignedToId: t.assignedToId ?? "",
-      dueOn: t.dueOn ? toDateInputValue(t.dueOn) : "",
-      propertyId: t.propertyId ?? "",
-    },
-    canDelete: isAdmin || t.createdById === session.user.id,
+    propertyName: t.property ? propertyDisplayName(t.property) : null,
+    commentCount: t._count.comments,
   }));
 
   const emptyText =
@@ -90,8 +79,8 @@ export default async function TasksPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
           <p className="mt-1 max-w-xl text-sm text-zinc-500">
-            Work for the team that isn&apos;t a clean: give it to someone, say how important it is, and tick it off
-            when it is done. They are told when you give them one.
+            Work for the team that isn&apos;t a clean: give it to someone and say how important it is. Open a task to
+            add updates and mark it complete. They are told when you give them one.
           </p>
         </div>
         <div>
@@ -106,15 +95,7 @@ export default async function TasksPage({
       ) : (
         <ul className="flex max-w-3xl flex-col gap-2">
           {rows.map((row) => (
-            <TaskRow
-              key={row.id}
-              task={row}
-              staff={people}
-              properties={properties}
-              setStatus={setTaskStatus.bind(null, row.id)}
-              update={updateTask.bind(null, row.id)}
-              remove={deleteTask.bind(null, row.id)}
-            />
+            <TaskRow key={row.id} task={row} />
           ))}
         </ul>
       )}

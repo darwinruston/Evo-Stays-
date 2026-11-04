@@ -15,7 +15,7 @@ export const AUDIT_ENTITY_HREF: Record<AuditEntityType, (id: string) => string> 
   Invoice: (id) => `/admin/invoices/${id}`,
   Issue: (id) => `/admin/issues/${id}`,
   Staff: () => "/admin/team",
-  Task: () => "/admin/team/tasks",
+  Task: (id) => `/admin/team/tasks/${id}`,
 };
 
 export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {

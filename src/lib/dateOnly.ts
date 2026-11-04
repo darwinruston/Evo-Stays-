@@ -32,6 +32,25 @@ export function formatDateOnly(date: Date): string {
   return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${pad(date.getUTCFullYear() % 100)}`;
 }
 
+// A moment in time as UK wall-clock time: "12 Nov 25, 14:30". For things that
+// happened at a time of day, such as an update on a task.
+export function formatDateTime(date: Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .map((p) => [p.type, p.value]),
+  );
+  return `${Number(parts.day)} ${MONTHS[Number(parts.month) - 1]} ${parts.year.slice(-2)}, ${parts.hour}:${parts.minute}`;
+}
+
 // Adds whole months, stopping at the end of a shorter month rather than
 // spilling into the next one (31 January plus one month is 28 February).
 export function addMonths(date: Date, months: number): Date {

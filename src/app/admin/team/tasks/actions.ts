@@ -9,12 +9,14 @@ import { notify } from "@/lib/notify";
 import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 import { formatDateOnly, parseDateOnly } from "@/lib/dateOnly";
 import {
+  TASK_COMMENT_MAX,
   TASK_NOTES_MAX,
   TASK_PRIORITY_LABELS,
   TASK_STATUS_LABELS,
   TASK_TITLE_MAX,
   isTaskPriority,
   isTaskStatus,
+  taskHref,
 } from "@/lib/tasks";
 import type { ActionResult } from "@/lib/actionResult";
 
@@ -80,19 +82,20 @@ async function readTask(
   return { values: { title, description, priority, dueOn, assignedToId, propertyId }, assigneeName };
 }
 
-function assignedNotice(actorName: string, userId: string, values: TaskValues) {
+function assignedNotice(taskId: string, actorName: string, userId: string, values: TaskValues) {
   const bits = [TASK_PRIORITY_LABELS[values.priority], values.dueOn ? `due ${formatDateOnly(values.dueOn)}` : null];
   return {
     userId,
     kind: "TASK_ASSIGNED" as const,
     title: `${actorName} gave you a task: ${values.title}`,
     body: bits.filter(Boolean).join(", "),
-    href: TASKS_HREF,
+    href: taskHref(taskId),
   };
 }
 
 function refresh() {
-  revalidatePath(TASKS_HREF);
+  // The list and each task's own page.
+  revalidatePath(TASKS_HREF, "layout");
   // The Team tab in the menu carries a count of your open tasks.
   revalidatePath("/admin", "layout");
 }
@@ -115,7 +118,7 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     summary: `Created task "${values.title}" (${TASK_PRIORITY_LABELS[values.priority]})${assigneeName ? `, assigned to ${assigneeName}` : ""}`,
   });
   if (values.assignedToId && values.assignedToId !== session.user.id) {
-    await notify(db, [assignedNotice(session.user.name ?? "Someone", values.assignedToId, values)]);
+    await notify(db, [assignedNotice(created.id, session.user.name ?? "Someone", values.assignedToId, values)]);
   }
 
   refresh();
@@ -160,7 +163,7 @@ export async function updateTask(id: string, formData: FormData): Promise<Action
     });
   }
   if (values.assignedToId && values.assignedToId !== before.assignedToId && values.assignedToId !== session.user.id) {
-    await notify(db, [assignedNotice(session.user.name ?? "Someone", values.assignedToId, values)]);
+    await notify(db, [assignedNotice(id, session.user.name ?? "Someone", values.assignedToId, values)]);
   }
 
   refresh();
@@ -179,7 +182,11 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
 
   await db.task.update({
     where: { id },
-    data: { status, completedAt: status === "DONE" ? new Date() : null },
+    data: {
+      status,
+      completedAt: status === "DONE" ? new Date() : null,
+      completedById: status === "DONE" ? session.user.id : null,
+    },
   });
 
   await logAudit(db, {
@@ -195,9 +202,53 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
         userId: task.createdById,
         kind: "TASK_COMPLETED",
         title: `${session.user.name ?? "Someone"} completed: ${task.title}`,
-        href: TASKS_HREF,
+        href: taskHref(id),
       },
     ]);
+  }
+
+  refresh();
+}
+
+// An update on a task. Whoever it is with and whoever asked for it are told,
+// unless they wrote it themselves.
+export async function addTaskComment(id: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+  const body = str(formData, "body");
+  if (!body) return { error: "Write something first" };
+  if (body.length > TASK_COMMENT_MAX) return { error: `Keep an update under ${TASK_COMMENT_MAX} characters` };
+
+  const task = await db.task.findUnique({
+    where: { id },
+    select: { title: true, assignedToId: true, createdById: true },
+  });
+  if (!task) return { error: "That task no longer exists" };
+
+  await db.taskComment.create({
+    data: { organizationId: session.user.organizationId, taskId: id, authorId: session.user.id, body },
+  });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Task",
+    entityId: id,
+    summary: `Added an update to "${task.title}"`,
+  });
+
+  const recipients = new Set([task.assignedToId, task.createdById]);
+  recipients.delete(null);
+  recipients.delete(session.user.id);
+  if (recipients.size > 0) {
+    const preview = body.length > 140 ? `${body.slice(0, 137)}...` : body;
+    await notify(
+      db,
+      [...recipients].map((userId) => ({
+        userId: userId as string,
+        kind: "TASK_COMMENTED" as const,
+        title: `${session.user.name ?? "Someone"} updated: ${task.title}`,
+        body: preview,
+        href: taskHref(id),
+      })),
+    );
   }
 
   refresh();

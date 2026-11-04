@@ -127,6 +127,7 @@ model Organization {
   checklistItems        PropertyChecklistItem[]
   propertySafetyChecks  PropertySafetyCheck[]
   tasks                 Task[]
+  taskComments          TaskComment[]
 }
 
 // A lead from the public "Register interest" page (src/app/signup/) --
@@ -210,6 +211,8 @@ model User {
   auditLogs            AuditLog[]
   assignedTasks        Task[]                  @relation("TaskAssignee")
   createdTasks         Task[]                  @relation("TaskCreator")
+  completedTasks       Task[]                  @relation("TaskCompleter")
+  taskComments         TaskComment[]
   passwordResetTokens  PasswordResetToken[]
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
@@ -310,6 +313,9 @@ enum NotificationKind {
   // asked someone else to do has been finished.
   TASK_ASSIGNED
   TASK_COMPLETED
+  // To the person a task is with, and whoever asked for it: someone added an
+  // update to it.
+  TASK_COMMENTED
 }
 
 // One thing a specific person should know about, shown in their in-app
@@ -437,7 +443,7 @@ model Property {
   // Null means none: it doesn't appear on any linen schedule.
   laundryFacility    LaundryFacility?        @relation(fields: [laundryFacilityId], references: [id], onDelete: SetNull)
   laundryFacilityId  String?
-  type             PropertyType         @default(APARTMENT)
+  type               PropertyType            @default(APARTMENT)
   // Short let unless said otherwise, which is what every property was
   // before this was asked.
   management         PropertyManagement      @default(SHORT_LET)
@@ -1289,25 +1295,46 @@ enum TaskStatus {
 // removing a login shouldn't erase the task, which just becomes unassigned.
 // dueOn is a calendar date at midnight UTC (see src/lib/dateOnly.ts).
 model Task {
-  id             String       @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String        @id @default(cuid())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
   title          String
   description    String?
-  priority       TaskPriority @default(NORMAL)
-  status         TaskStatus   @default(TODO)
-  assignedTo     User?        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  priority       TaskPriority  @default(NORMAL)
+  status         TaskStatus    @default(TODO)
+  assignedTo     User?         @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   assignedToId   String?
-  createdBy      User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy      User?         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdById    String?
-  property       Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  property       Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   propertyId     String?
   dueOn          DateTime?
   completedAt    DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  completedBy    User?         @relation("TaskCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+  completedById  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  comments       TaskComment[]
 
   @@index([organizationId])
   @@index([assignedToId, status])
   @@index([propertyId])
+}
+
+// An update on a task: what has been done, what is blocking it, a question.
+// The thread on a task's own page. Kept when its author's login is removed
+// (SetNull), and removed with the task.
+model TaskComment {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  task           Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId         String
+  author         User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId       String?
+  body           String
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([taskId, createdAt])
 }
