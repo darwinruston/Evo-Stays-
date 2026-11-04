@@ -52,7 +52,7 @@ export default async function OrganizationsPage() {
       const db = scopedDb(org.id);
       // Excludes the org's own automated-sync account -- same "not a real
       // login" convention the Staff page already applies (see
-      // src/app/admin/staff/page.tsx).
+      // src/app/admin/team/page.tsx).
       const [users, properties] = await Promise.all([
         db.user.count({ where: { NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } } }),
         db.property.count(),

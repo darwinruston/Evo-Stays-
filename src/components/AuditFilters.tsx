@@ -5,31 +5,46 @@ import { AUDIT_ENTITY_LABELS, type AuditEntityType } from "@/lib/audit";
 import { inputCompact } from "@/lib/ui";
 
 // Same auto-apply-on-change pattern as CleanFilters.
-export function AuditFilters() {
+export function AuditFilters({ people }: { people: { id: string; name: string }[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function setEntityType(value: string) {
+  function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set("entityType", value);
-    else params.delete("entityType");
+    if (value) params.set(key, value);
+    else params.delete(key);
     router.push(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
   }
 
   return (
-    <select
-      aria-label="Filter by type"
-      value={searchParams.get("entityType") ?? ""}
-      onChange={(e) => setEntityType(e.target.value)}
-      className={`${inputCompact} w-auto`}
-    >
-      <option value="">All types</option>
-      {(Object.entries(AUDIT_ENTITY_LABELS) as [AuditEntityType, string][]).map(([value, label]) => (
-        <option key={value} value={value}>
-          {label}
-        </option>
-      ))}
-    </select>
+    <div className="flex flex-wrap gap-2">
+      <select
+        aria-label="Filter by person"
+        value={searchParams.get("actor") ?? ""}
+        onChange={(e) => setParam("actor", e.target.value)}
+        className={`${inputCompact} w-auto`}
+      >
+        <option value="">Everyone</option>
+        {people.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Filter by type"
+        value={searchParams.get("entityType") ?? ""}
+        onChange={(e) => setParam("entityType", e.target.value)}
+        className={`${inputCompact} w-auto`}
+      >
+        <option value="">All types</option>
+        {(Object.entries(AUDIT_ENTITY_LABELS) as [AuditEntityType, string][]).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

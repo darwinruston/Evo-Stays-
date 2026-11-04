@@ -46,8 +46,8 @@ export default async function CleanersPage() {
       {session.user.role === "ADMIN" && (
         <p className="text-sm text-zinc-500">
           Need a login for office staff or another admin?{" "}
-          <Link href="/admin/staff" className="underline underline-offset-2 hover:text-zinc-900">
-            Staff logins
+          <Link href="/admin/team" className="underline underline-offset-2 hover:text-zinc-900">
+            Team
           </Link>
         </p>
       )}

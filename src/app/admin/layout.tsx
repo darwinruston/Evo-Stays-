@@ -64,7 +64,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   );
   const rightItems = [
     { href: "/admin/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" },
-    ...PROFILE_NAV,
+    ...PROFILE_NAV.flatMap((item) =>
+      // Team sits beside Cleaners, for admins only: it's where logins are added.
+      item.href === "/admin/audit" && session.user.role === "ADMIN"
+        ? [{ href: "/admin/team", label: "Team" }, item]
+        : [item],
+    ),
     ...(session.user.role === "ADMIN" ? [{ href: "/admin/settings", label: "Settings" }] : []),
   ];
 

@@ -14,7 +14,7 @@ export const AUDIT_ENTITY_HREF: Record<AuditEntityType, (id: string) => string> 
   Cleaner: (id) => `/admin/cleaners/${id}`,
   Invoice: (id) => `/admin/invoices/${id}`,
   Issue: (id) => `/admin/issues/${id}`,
-  Staff: () => "/admin/staff",
+  Staff: () => "/admin/team",
 };
 
 export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {
@@ -24,7 +24,7 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntityType, string> = {
   Cleaner: "Cleaner",
   Invoice: "Invoice",
   Issue: "Issue",
-  Staff: "Staff login",
+  Staff: "Team",
 };
 
 // actorId is nullable to match the schema -- an automated change (Hostify

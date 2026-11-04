@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRevealForm } from "@/lib/useRevealForm";
 import type { ActionResult } from "@/lib/actionResult";
@@ -13,6 +14,7 @@ export function StaffRow({
   email,
   role,
   isSelf,
+  activityHref,
   updateAction,
   removeAction,
 }: {
@@ -20,6 +22,8 @@ export function StaffRow({
   email: string;
   role: "ADMIN" | "OFFICE";
   isSelf: boolean;
+  // What this person has changed, on the Activity page.
+  activityHref?: string;
   updateAction: (formData: FormData) => Promise<ActionResult>;
   removeAction: () => Promise<ActionResult>;
 }) {
@@ -59,6 +63,14 @@ export function StaffRow({
         </div>
         {!open && (
           <div className="flex shrink-0 items-center gap-3">
+            {activityHref && (
+              <Link
+                href={activityHref}
+                className="text-xs text-zinc-500 underline decoration-dotted underline-offset-2 hover:text-zinc-900"
+              >
+                Activity
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => setOpen(true)}
@@ -131,7 +143,7 @@ export function StaffRow({
             ) : (
               <select id={`staffRole-${email}`} name="role" defaultValue={role} className={input}>
                 <option value="OFFICE">Office: runs the schedule</option>
-                <option value="ADMIN">Admin: also manages staff logins</option>
+                <option value="ADMIN">Admin: also manages the team and Settings</option>
               </select>
             )}
           </div>

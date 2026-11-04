@@ -3,6 +3,7 @@ import { requireStaff } from "@/lib/authz";
 import { AUDIT_ENTITY_HREF, AUDIT_ENTITY_LABELS, type AuditEntityType } from "@/lib/audit";
 import { AuditFilters } from "@/components/AuditFilters";
 import { formatScheduledFor } from "@/lib/schedule";
+import { SYSTEM_USER_ID_PREFIX } from "@/lib/systemUser";
 import { card, badge } from "@/lib/ui";
 
 export const metadata = { title: "Activity" };
@@ -16,15 +17,25 @@ const RECENT_LIMIT = 200;
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ entityType?: string }>;
+  searchParams: Promise<{ entityType?: string; actor?: string }>;
 }) {
   const { db } = await requireStaff();
-  const { entityType } = await searchParams;
+  const { entityType, actor } = await searchParams;
 
   const isValidType = entityType !== undefined && Object.hasOwn(AUDIT_ENTITY_LABELS, entityType);
 
+  // Everyone who has made a change, for the "by person" filter. Only people
+  // who appear in the log are offered, so the list never has a name that
+  // would show nothing.
+  const people = await db.user.findMany({
+    where: { auditLogs: { some: {} }, NOT: { id: { startsWith: SYSTEM_USER_ID_PREFIX } } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  const actorId = people.some((p) => p.id === actor) ? actor : undefined;
+
   const entries = await db.auditLog.findMany({
-    where: isValidType ? { entityType } : {},
+    where: { ...(isValidType ? { entityType } : {}), ...(actorId ? { actorId } : {}) },
     orderBy: { createdAt: "desc" },
     take: RECENT_LIMIT,
     include: { actor: { select: { name: true } } },
@@ -34,11 +45,11 @@ export default async function AuditPage({
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
 
-      <AuditFilters />
+      <AuditFilters people={people} />
 
       {entries.length === 0 ? (
         <p className="text-sm text-zinc-600">
-          {isValidType ? "No activity of this type yet." : "Nothing recorded yet."}
+          {isValidType || actorId ? "No matching activity yet." : "Nothing recorded yet."}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

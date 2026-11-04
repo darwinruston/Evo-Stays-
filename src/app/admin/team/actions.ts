@@ -10,7 +10,7 @@ import { SYSTEM_USER_ID_PREFIX, isSystemSyncUserId } from "@/lib/systemUser";
 import type { ActionResult } from "@/lib/actionResult";
 
 const STAFF_ROLES: Role[] = ["ADMIN", "OFFICE"];
-const ROLE_LABELS: Record<string, string> = { ADMIN: "Admin", OFFICE: "Office" };
+const ROLE_LABELS: Record<string, string> = { ADMIN: "Admin", OFFICE: "Office", CLEANER: "Cleaner" };
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -25,6 +25,14 @@ function staffRole(formData: FormData): Role | null {
   return role === "ADMIN" || role === "OFFICE" ? role : null;
 }
 
+// What the Team page's add form can create. A linen company login is left
+// out on purpose: it belongs to one laundry company, so it is added from that
+// company's own page (see createLinenLogin).
+function newMemberRole(formData: FormData): Role | null {
+  const role = str(formData, "role");
+  return role === "ADMIN" || role === "OFFICE" || role === "CLEANER" ? role : null;
+}
+
 // Admins other than this one and the "Automated sync" system account, which
 // is an ADMIN for permission purposes but can't log in and doesn't count as
 // someone who could rescue a locked-out system.
@@ -34,14 +42,16 @@ async function otherAdminCount(db: ScopedPrismaClient, excludingId: string): Pro
   });
 }
 
-export async function createStaff(formData: FormData): Promise<ActionResult> {
+// Adds someone to the team with the role they will work in. A cleaner's pay
+// rate and properties are set afterwards on their own page.
+export async function createTeamMember(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireAdmin();
 
   const name = str(formData, "name");
   const email = str(formData, "email");
   const password = str(formData, "password");
-  const role = staffRole(formData);
-  if (!role) return { error: "Choose Admin or Office" };
+  const role = newMemberRole(formData);
+  if (!role) return { error: "Choose what they will do" };
   if (!name || !email || !password) return { error: "Name, email and password are all required" };
   if (password.length < 8) return { error: "Password must be at least 8 characters" };
 
@@ -66,7 +76,8 @@ export async function createStaff(formData: FormData): Promise<ActionResult> {
     summary: `Added ${ROLE_LABELS[role]} login: ${name} (${email})`,
   });
 
-  revalidatePath("/admin/staff");
+  revalidatePath("/admin/team");
+  if (role === "CLEANER") revalidatePath("/admin/cleaners");
 }
 
 // Name, email, role, and (optionally) a new password. Blank password means
@@ -130,7 +141,7 @@ export async function updateStaff(id: string, formData: FormData): Promise<Actio
     });
   }
 
-  revalidatePath("/admin/staff");
+  revalidatePath("/admin/team");
 }
 
 export async function deleteStaff(id: string): Promise<ActionResult> {
@@ -173,5 +184,5 @@ export async function deleteStaff(id: string): Promise<ActionResult> {
     summary: `Removed ${ROLE_LABELS[target.role]} login: ${target.name} (${target.email})`,
   });
 
-  revalidatePath("/admin/staff");
+  revalidatePath("/admin/team");
 }
