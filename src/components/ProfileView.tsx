@@ -64,8 +64,8 @@ export function ProfileView({
             Password
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Your password is stored scrambled, so nobody can read it back, not even us. You can set a new one below.
-            Use Show to check what you have typed.
+            Your password is stored scrambled, so nobody can read it back, not even us. You can set a new one at any
+            time.
           </p>
         </div>
         {passwordChanged && (

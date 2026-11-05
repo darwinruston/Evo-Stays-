@@ -6,11 +6,14 @@ import { PASSWORD_MIN_LENGTH } from "@/lib/profile";
 import { button } from "@/lib/ui";
 import { PasswordInput } from "@/components/PasswordInput";
 
-// Change the password you know, or, if you have forgotten it, have a reset
-// link emailed to the address on the account. Submitted through the form's
-// submit event rather than as a form action, so a refused save (wrong current
-// password, say) leaves what was typed in the boxes.
+// A "Change password" button that opens the form only when asked for. In it you
+// can change the password you know or, if you have forgotten it, have a reset
+// link emailed to the address on the account. Closing it again throws away
+// whatever was typed. Submitted through the form's submit event rather than as
+// a form action, so a refused save (wrong current password, say) leaves what
+// was typed in the boxes.
 export function ChangePasswordForm() {
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [resetMessage, setResetMessage] = useState<string | null>(null);
@@ -40,6 +43,16 @@ export function ChangePasswordForm() {
     });
   }
 
+  if (!open) {
+    return (
+      <div>
+        <button type="button" onClick={() => setOpen(true)} className={button("secondary", "md")}>
+          Change password
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <form
@@ -63,9 +76,12 @@ export function ChangePasswordForm() {
             {error}
           </p>
         )}
-        <div>
+        <div className="flex items-center gap-2">
           <button type="submit" disabled={pending} className={button("primary", "md")}>
-            {pending ? "Saving…" : "Change password"}
+            {pending ? "Saving…" : "Save new password"}
+          </button>
+          <button type="button" onClick={() => setOpen(false)} className={button("ghost", "md")}>
+            Cancel
           </button>
         </div>
       </form>
