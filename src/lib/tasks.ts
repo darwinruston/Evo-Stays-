@@ -23,6 +23,9 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
 export const TASK_TITLE_MAX = 120;
 export const TASK_NOTES_MAX = 2000;
 export const TASK_COMMENT_MAX = 2000;
+export const SUBTASK_TITLE_MAX = 200;
+// A checklist this long is really several tasks.
+export const SUBTASKS_MAX = 60;
 
 export function taskHref(id: string): string {
   return `/admin/team/tasks/${id}`;

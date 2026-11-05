@@ -7,6 +7,8 @@ import { logAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { formatDateOnly } from "@/lib/dateOnly";
 import {
+  SUBTASKS_MAX,
+  SUBTASK_TITLE_MAX,
   TASK_COMMENT_MAX,
   TASK_PRIORITY_LABELS,
   TASK_STATUS_LABELS,
@@ -140,6 +142,7 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
       assignees: { select: { userId: true } },
       // Already made from this one (it was finished, reopened and finished again).
       followUps: { select: { id: true }, take: 1 },
+      subtasks: { select: { title: true, position: true }, orderBy: { position: "asc" } },
     },
   });
   if (!task) return { error: "That task no longer exists" };
@@ -176,6 +179,14 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
         previousId: id,
         assignees: {
           create: task.assignees.map((a) => ({ userId: a.userId, organizationId: session.user.organizationId })),
+        },
+        // The same steps, none of them ticked.
+        subtasks: {
+          create: task.subtasks.map((s) => ({
+            title: s.title,
+            position: s.position,
+            organizationId: session.user.organizationId,
+          })),
         },
       },
       select: { id: true },
@@ -248,6 +259,96 @@ export async function claimTask(id: string): Promise<ActionResult> {
     entityType: "Task",
     entityId: id,
     summary: `${session.user.name ?? "Someone"} picked up "${task.title}"`,
+  });
+
+  refresh();
+}
+
+// Adds steps to a task. Each non-empty line of what was typed or pasted is one
+// step, so a whole list can go in at once.
+export async function addSubtasks(taskId: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const raw = formData.get("titles");
+  const titles = (typeof raw === "string" ? raw : "")
+    .split(/\r?\n/)
+    // A pasted list often arrives with bullets or numbers already on it.
+    .map((line) => line.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s+/, "").trim())
+    .filter((line) => line !== "");
+  if (titles.length === 0) return { error: "Write the step first" };
+  if (titles.some((t) => t.length > SUBTASK_TITLE_MAX)) {
+    return { error: `Keep each step under ${SUBTASK_TITLE_MAX} characters` };
+  }
+
+  const task = await db.task.findUnique({
+    where: { id: taskId },
+    select: { title: true, _count: { select: { subtasks: true } } },
+  });
+  if (!task) return { error: "That task no longer exists" };
+  if (task._count.subtasks + titles.length > SUBTASKS_MAX) {
+    return { error: `A task can have up to ${SUBTASKS_MAX} steps. Split it into separate tasks.` };
+  }
+
+  const last = await db.taskSubtask.findFirst({ where: { taskId }, orderBy: { position: "desc" }, select: { position: true } });
+  const start = (last?.position ?? -1) + 1;
+  await db.taskSubtask.createMany({
+    data: titles.map((title, i) => ({
+      organizationId: session.user.organizationId,
+      taskId,
+      title,
+      position: start + i,
+    })),
+  });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Task",
+    entityId: taskId,
+    summary: `Added ${titles.length === 1 ? `the step "${titles[0]}"` : `${titles.length} steps`} to "${task.title}"`,
+  });
+
+  refresh();
+}
+
+// Ticks a step off, or puts it back.
+export async function setSubtaskDone(subtaskId: string, done: boolean): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const subtask = await db.taskSubtask.findUnique({
+    where: { id: subtaskId },
+    select: { title: true, done: true, task: { select: { id: true, title: true } } },
+  });
+  if (!subtask) return { error: "That step no longer exists" };
+  if (subtask.done === done) return;
+
+  await db.taskSubtask.update({
+    where: { id: subtaskId },
+    data: { done, doneAt: done ? new Date() : null, doneById: done ? session.user.id : null },
+  });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Task",
+    entityId: subtask.task.id,
+    summary: `${done ? "Ticked off" : "Reopened"} the step "${subtask.title}" on "${subtask.task.title}"`,
+  });
+
+  refresh();
+}
+
+export async function removeSubtask(subtaskId: string): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const subtask = await db.taskSubtask.findUnique({
+    where: { id: subtaskId },
+    select: { title: true, task: { select: { id: true, title: true } } },
+  });
+  if (!subtask) return;
+
+  await db.taskSubtask.delete({ where: { id: subtaskId } });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Task",
+    entityId: subtask.task.id,
+    summary: `Removed the step "${subtask.title}" from "${subtask.task.title}"`,
   });
 
   refresh();

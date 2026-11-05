@@ -33,6 +33,8 @@ export type TaskDetailData = {
   safetyHref: string | null;
   // Set on a task made from a reported issue.
   issueHref: string | null;
+  // Subtasks not yet ticked off.
+  openSubtasks: number;
   // "Repeats monthly", or null if it does not repeat.
   repeatLabel: string | null;
   // The next one, made when this was finished.
@@ -131,7 +133,23 @@ export function TaskDetail({
               Reopen task
             </button>
           ) : (
-            <button type="button" disabled={pending} onClick={() => run(() => setStatus("DONE"))} className={button("primary", "md")}>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                // Completing is deliberate, but not by accident: say what is still open.
+                if (
+                  task.openSubtasks > 0 &&
+                  !window.confirm(
+                    `${task.openSubtasks} ${task.openSubtasks === 1 ? "subtask isn't" : "subtasks aren't"} done yet. Mark the task as complete anyway?`,
+                  )
+                ) {
+                  return;
+                }
+                run(() => setStatus("DONE"));
+              }}
+              className={button("primary", "md")}
+            >
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2.2} className="h-4 w-4" aria-hidden="true">
                 <path d="M4 10.5 8 14l8-8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>

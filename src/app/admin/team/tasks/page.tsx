@@ -57,6 +57,7 @@ export default async function TasksPage({
       assignees: { select: { user: { select: { id: true, name: true } } } },
       property: { select: { id: true, nickname: true, name: true, address: true } },
       _count: { select: { comments: true } },
+      subtasks: { select: { done: true } },
     },
     ...(show === "done" ? { orderBy: { completedAt: "desc" as const }, take: DONE_LIMIT } : {}),
   });
@@ -73,6 +74,8 @@ export default async function TasksPage({
     overdue: isOverdue(t, now),
     propertyName: t.property ? propertyDisplayName(t.property) : null,
     repeatLabel: t.repeat ? repeatPhrase(t.repeat) : null,
+    subtasksDone: t.subtasks.filter((s) => s.done).length,
+    subtasksTotal: t.subtasks.length,
     commentCount: t._count.comments,
   }));
 

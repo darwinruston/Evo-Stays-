@@ -17,6 +17,9 @@ export type TaskRowData = {
   propertyName: string | null;
   // "Repeats monthly", or null if it does not repeat.
   repeatLabel: string | null;
+  // Subtasks ticked off and in all; none if the task has no subtasks.
+  subtasksDone: number;
+  subtasksTotal: number;
   commentCount: number;
 };
 
@@ -47,6 +50,11 @@ export function TaskRow({ task }: { task: TaskRowData }) {
             {task.status === "IN_PROGRESS" && <span>{TASK_STATUS_LABELS.IN_PROGRESS}</span>}
             {task.propertyName && <span>{task.propertyName}</span>}
             {task.repeatLabel && <span>{task.repeatLabel}</span>}
+            {task.subtasksTotal > 0 && (
+              <span>
+                {task.subtasksDone}/{task.subtasksTotal} subtasks
+              </span>
+            )}
             {task.commentCount > 0 && (
               <span>
                 {task.commentCount} {task.commentCount === 1 ? "update" : "updates"}
