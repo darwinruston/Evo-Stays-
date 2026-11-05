@@ -142,7 +142,20 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
       assignees: { select: { userId: true } },
       // Already made from this one (it was finished, reopened and finished again).
       followUps: { select: { id: true }, take: 1 },
-      subtasks: { select: { title: true, position: true }, orderBy: { position: "asc" } },
+      // Only a top-level task repeats its subtasks: they are copied across too.
+      children: {
+        orderBy: { position: "asc" },
+        select: {
+          title: true,
+          description: true,
+          priority: true,
+          propertyId: true,
+          position: true,
+          dueOn: true,
+          createdById: true,
+          assignees: { select: { userId: true } },
+        },
+      },
     },
   });
   if (!task) return { error: "That task no longer exists" };
@@ -180,12 +193,21 @@ export async function setTaskStatus(id: string, status: TaskStatus): Promise<Act
         assignees: {
           create: task.assignees.map((a) => ({ userId: a.userId, organizationId: session.user.organizationId })),
         },
-        // The same steps, none of them ticked.
-        subtasks: {
-          create: task.subtasks.map((s) => ({
-            title: s.title,
-            position: s.position,
+        // The same subtasks, none of them done, their dates moved on by as much
+        // as the main task's.
+        children: {
+          create: task.children.map((child) => ({
             organizationId: session.user.organizationId,
+            title: child.title,
+            description: child.description,
+            priority: child.priority,
+            propertyId: child.propertyId,
+            position: child.position,
+            createdById: child.createdById,
+            dueOn: child.dueOn && task.dueOn ? new Date(child.dueOn.getTime() + (dueOn.getTime() - task.dueOn.getTime())) : null,
+            assignees: {
+              create: child.assignees.map((a) => ({ userId: a.userId, organizationId: session.user.organizationId })),
+            },
           })),
         },
       },
@@ -264,8 +286,11 @@ export async function claimTask(id: string): Promise<ActionResult> {
   refresh();
 }
 
-// Adds steps to a task. Each non-empty line of what was typed or pasted is one
-// step, so a whole list can go in at once.
+// Adds subtasks to a task. Each non-empty line of what was typed or pasted
+// becomes one, so a whole list can go in at once. A subtask is a task in its
+// own right (it gets a due date, notes, people and updates when you open it),
+// so this only makes the shell: a title under the main task, at the same
+// property. A subtask has no subtasks of its own.
 export async function addSubtasks(taskId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
@@ -275,27 +300,30 @@ export async function addSubtasks(taskId: string, formData: FormData): Promise<A
     // A pasted list often arrives with bullets or numbers already on it.
     .map((line) => line.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s+/, "").trim())
     .filter((line) => line !== "");
-  if (titles.length === 0) return { error: "Write the step first" };
+  if (titles.length === 0) return { error: "Write the subtask first" };
   if (titles.some((t) => t.length > SUBTASK_TITLE_MAX)) {
-    return { error: `Keep each step under ${SUBTASK_TITLE_MAX} characters` };
+    return { error: `Keep each subtask under ${SUBTASK_TITLE_MAX} characters` };
   }
 
   const task = await db.task.findUnique({
     where: { id: taskId },
-    select: { title: true, _count: { select: { subtasks: true } } },
+    select: { title: true, parentId: true, propertyId: true, _count: { select: { children: true } } },
   });
   if (!task) return { error: "That task no longer exists" };
-  if (task._count.subtasks + titles.length > SUBTASKS_MAX) {
-    return { error: `A task can have up to ${SUBTASKS_MAX} steps. Split it into separate tasks.` };
+  if (task.parentId) return { error: "A subtask can't have subtasks of its own" };
+  if (task._count.children + titles.length > SUBTASKS_MAX) {
+    return { error: `A task can have up to ${SUBTASKS_MAX} subtasks. Split it into separate tasks.` };
   }
 
-  const last = await db.taskSubtask.findFirst({ where: { taskId }, orderBy: { position: "desc" }, select: { position: true } });
+  const last = await db.task.findFirst({ where: { parentId: taskId }, orderBy: { position: "desc" }, select: { position: true } });
   const start = (last?.position ?? -1) + 1;
-  await db.taskSubtask.createMany({
+  await db.task.createMany({
     data: titles.map((title, i) => ({
       organizationId: session.user.organizationId,
-      taskId,
+      createdById: session.user.id,
       title,
+      parentId: taskId,
+      propertyId: task.propertyId,
       position: start + i,
     })),
   });
@@ -303,52 +331,7 @@ export async function addSubtasks(taskId: string, formData: FormData): Promise<A
     actorId: session.user.id,
     entityType: "Task",
     entityId: taskId,
-    summary: `Added ${titles.length === 1 ? `the step "${titles[0]}"` : `${titles.length} steps`} to "${task.title}"`,
-  });
-
-  refresh();
-}
-
-// Ticks a step off, or puts it back.
-export async function setSubtaskDone(subtaskId: string, done: boolean): Promise<ActionResult> {
-  const { session, db } = await requireStaff();
-
-  const subtask = await db.taskSubtask.findUnique({
-    where: { id: subtaskId },
-    select: { title: true, done: true, task: { select: { id: true, title: true } } },
-  });
-  if (!subtask) return { error: "That step no longer exists" };
-  if (subtask.done === done) return;
-
-  await db.taskSubtask.update({
-    where: { id: subtaskId },
-    data: { done, doneAt: done ? new Date() : null, doneById: done ? session.user.id : null },
-  });
-  await logAudit(db, {
-    actorId: session.user.id,
-    entityType: "Task",
-    entityId: subtask.task.id,
-    summary: `${done ? "Ticked off" : "Reopened"} the step "${subtask.title}" on "${subtask.task.title}"`,
-  });
-
-  refresh();
-}
-
-export async function removeSubtask(subtaskId: string): Promise<ActionResult> {
-  const { session, db } = await requireStaff();
-
-  const subtask = await db.taskSubtask.findUnique({
-    where: { id: subtaskId },
-    select: { title: true, task: { select: { id: true, title: true } } },
-  });
-  if (!subtask) return;
-
-  await db.taskSubtask.delete({ where: { id: subtaskId } });
-  await logAudit(db, {
-    actorId: session.user.id,
-    entityType: "Task",
-    entityId: subtask.task.id,
-    summary: `Removed the step "${subtask.title}" from "${subtask.task.title}"`,
+    summary: `Added ${titles.length === 1 ? `the subtask "${titles[0]}"` : `${titles.length} subtasks`} to "${task.title}"`,
   });
 
   refresh();

@@ -1,33 +1,40 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actionResult";
-import { SUBTASK_TITLE_MAX } from "@/lib/tasks";
+import { SUBTASK_TITLE_MAX, taskHref } from "@/lib/tasks";
 import { button, card, inputCompact } from "@/lib/ui";
+import { TaskAssignees } from "@/components/TaskAssignees";
 
 export type SubtaskItem = {
   id: string;
   title: string;
   done: boolean;
-  // "Done by Sam, 5 Nov 25, 14:30", worked out on the server.
-  doneLine: string | null;
+  // Already formatted on the server ("12 Nov 25").
+  dueLabel: string | null;
+  overdue: boolean;
+  assignees: { id: string; name: string }[];
+  commentCount: number;
+  canRemove: boolean;
 };
 
-// The small steps inside a task: tick them off, add more (one per line, so a
-// whole list can be pasted in at once), or remove one. Progress is shown as
-// "3 of 7 done" with a bar. Nothing here completes the task itself: that stays
-// a deliberate click on the task.
+// The subtasks of a task. Each is a task in its own right: tick it off here,
+// or open it for its due date, notes, people and updates. Add more below (one
+// per line, so a whole list can be pasted in at once). Progress shows as
+// "3 of 7 done" with a bar. Nothing here completes the main task itself: that
+// stays a deliberate click on the task.
 export function SubtaskList({
   items,
   taskDone,
   add,
-  setDone,
+  setStatus,
   remove,
 }: {
   items: SubtaskItem[];
   taskDone: boolean;
   add: (formData: FormData) => Promise<ActionResult>;
-  setDone: (id: string, done: boolean) => Promise<ActionResult>;
+  setStatus: (id: string, status: "TODO" | "DONE") => Promise<ActionResult>;
   remove: (id: string) => Promise<ActionResult>;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -53,10 +60,6 @@ export function SubtaskList({
       setBusyId(null);
       setConfirmingId(null);
     });
-  }
-
-  function submitAdd(formData: FormData) {
-    run(null, () => add(formData), () => formRef.current?.reset());
   }
 
   return (
@@ -93,7 +96,7 @@ export function SubtaskList({
                 <button
                   type="button"
                   disabled={pending && busyId === item.id}
-                  onClick={() => run(item.id, () => setDone(item.id, !item.done))}
+                  onClick={() => run(item.id, () => setStatus(item.id, item.done ? "TODO" : "DONE"))}
                   aria-label={item.done ? `Mark "${item.title}" as not done` : `Mark "${item.title}" as done`}
                   aria-pressed={item.done}
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
@@ -107,10 +110,31 @@ export function SubtaskList({
                   )}
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm [overflow-wrap:anywhere] ${item.done ? "text-zinc-500 line-through decoration-zinc-300" : ""}`}>
+                  <Link
+                    href={taskHref(item.id)}
+                    className={`text-sm hover:underline [overflow-wrap:anywhere] ${
+                      item.done ? "text-zinc-500 line-through decoration-zinc-300" : ""
+                    }`}
+                  >
                     {item.title}
-                  </p>
-                  {item.doneLine && <p className="mt-0.5 text-xs text-zinc-500">{item.doneLine}</p>}
+                  </Link>
+                  {(item.dueLabel || item.assignees.length > 0 || item.commentCount > 0) && (
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+                      {item.dueLabel && (
+                        <span className={item.overdue && !item.done ? "font-medium text-zinc-900" : ""}>
+                          {item.overdue && !item.done ? "Overdue, was due" : "Due"} {item.dueLabel}
+                        </span>
+                      )}
+                      {item.assignees.length > 0 && (
+                        <TaskAssignees people={item.assignees} wholeTeam={false} layout="inline" />
+                      )}
+                      {item.commentCount > 0 && (
+                        <span>
+                          {item.commentCount} {item.commentCount === 1 ? "update" : "updates"}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {confirmingId === item.id ? (
                   <span className="flex shrink-0 items-center gap-3 text-xs">
@@ -127,14 +151,21 @@ export function SubtaskList({
                     </button>
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingId(item.id)}
-                    aria-label={`Remove "${item.title}"`}
-                    className="shrink-0 text-xs text-zinc-400 hover:text-red-600"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex shrink-0 items-center gap-3 text-xs">
+                    <Link href={taskHref(item.id)} className="text-zinc-500 hover:text-zinc-900">
+                      Open
+                    </Link>
+                    {item.canRemove && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingId(item.id)}
+                        aria-label={`Remove "${item.title}"`}
+                        className="text-zinc-400 hover:text-red-600"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 )}
               </li>
             ))}
@@ -145,7 +176,8 @@ export function SubtaskList({
           ref={formRef}
           onSubmit={(e) => {
             e.preventDefault();
-            submitAdd(new FormData(e.currentTarget));
+            const formData = new FormData(e.currentTarget);
+            run(null, () => add(formData), () => formRef.current?.reset());
           }}
           className={`flex items-start gap-2 p-3 ${total > 0 ? "border-t border-black/5" : ""}`}
         >
@@ -157,7 +189,7 @@ export function SubtaskList({
             name="titles"
             rows={1}
             maxLength={SUBTASK_TITLE_MAX * 20}
-            placeholder={total === 0 ? "Add a step. Paste a list to add several at once." : "Add another step"}
+            placeholder={total === 0 ? "Add a subtask. Paste a list to add several at once." : "Add another subtask"}
             onKeyDown={(e) => {
               // Enter adds; Shift+Enter starts a new line for a list.
               if (e.key === "Enter" && !e.shiftKey) {

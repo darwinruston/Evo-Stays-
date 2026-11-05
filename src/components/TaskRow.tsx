@@ -20,6 +20,8 @@ export type TaskRowData = {
   // Subtasks ticked off and in all; none if the task has no subtasks.
   subtasksDone: number;
   subtasksTotal: number;
+  // The main task, when this one is a subtask.
+  parentTitle: string | null;
   commentCount: number;
 };
 
@@ -48,6 +50,7 @@ export function TaskRow({ task }: { task: TaskRowData }) {
           <p className={`font-medium [overflow-wrap:anywhere] ${done ? "line-through decoration-zinc-400" : ""}`}>{task.title}</p>
           <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-zinc-500">
             {task.status === "IN_PROGRESS" && <span>{TASK_STATUS_LABELS.IN_PROGRESS}</span>}
+            {task.parentTitle && <span>Subtask of {task.parentTitle}</span>}
             {task.propertyName && <span>{task.propertyName}</span>}
             {task.repeatLabel && <span>{task.repeatLabel}</span>}
             {task.subtasksTotal > 0 && (

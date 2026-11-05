@@ -44,12 +44,15 @@ export default async function TasksPage({
 
   const tasks = await db.task.findMany({
     where: {
+      // Subtasks live inside their main task, so Everyone and Not assigned list
+      // only the main ones. Looking at a person (or yourself) also shows a
+      // subtask that is theirs, so nothing given to someone is out of sight.
       ...(who === "me"
         ? { assignees: { some: { userId: session.user.id } } }
         : who === "none"
-          ? { assignees: { none: {} } }
+          ? { assignees: { none: {} }, parentId: null }
           : who === "all"
-            ? {}
+            ? { parentId: null }
             : { assignees: { some: { userId: who } } }),
       ...(show === "open" ? { status: { not: "DONE" as const } } : show === "done" ? { status: "DONE" as const } : {}),
     },
@@ -57,7 +60,8 @@ export default async function TasksPage({
       assignees: { select: { user: { select: { id: true, name: true } } } },
       property: { select: { id: true, nickname: true, name: true, address: true } },
       _count: { select: { comments: true } },
-      subtasks: { select: { done: true } },
+      children: { select: { status: true } },
+      parent: { select: { title: true } },
     },
     ...(show === "done" ? { orderBy: { completedAt: "desc" as const }, take: DONE_LIMIT } : {}),
   });
@@ -74,8 +78,9 @@ export default async function TasksPage({
     overdue: isOverdue(t, now),
     propertyName: t.property ? propertyDisplayName(t.property) : null,
     repeatLabel: t.repeat ? repeatPhrase(t.repeat) : null,
-    subtasksDone: t.subtasks.filter((s) => s.done).length,
-    subtasksTotal: t.subtasks.length,
+    subtasksDone: t.children.filter((c) => c.status === "DONE").length,
+    subtasksTotal: t.children.length,
+    parentTitle: t.parent?.title ?? null,
     commentCount: t._count.comments,
   }));
 

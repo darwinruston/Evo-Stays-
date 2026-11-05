@@ -130,7 +130,6 @@ model Organization {
   taskComments          TaskComment[]
   taskAssignees         TaskAssignee[]
   safetyDocuments       SafetyDocument[]
-  taskSubtasks          TaskSubtask[]
 }
 
 // A lead from the public "Register interest" page (src/app/signup/) --
@@ -214,7 +213,6 @@ model User {
   auditLogs            AuditLog[]
   taskAssignments      TaskAssignee[]
   safetyDocuments      SafetyDocument[]
-  doneSubtasks         TaskSubtask[]
   createdTasks         Task[]                  @relation("TaskCreator")
   completedTasks       Task[]                  @relation("TaskCompleter")
   taskComments         TaskComment[]
@@ -1358,7 +1356,15 @@ model Task {
   previous          Task?                @relation("TaskRepeats", fields: [previousId], references: [id], onDelete: SetNull)
   previousId        String?
   followUps         Task[]               @relation("TaskRepeats")
-  subtasks          TaskSubtask[]
+  // Set on a subtask: a small task inside a bigger one ("collect the key safe
+  // code" inside "Onboard Millstone Cottage"). It is a task in its own right
+  // (dates, notes, updates, people) and is removed with its parent. Only one
+  // level: a subtask has no subtasks of its own. position keeps them in the
+  // order they were added.
+  parent            Task?                @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId          String?
+  children          Task[]               @relation("TaskSubtasks")
+  position          Int                  @default(0)
   // The reported issue(s) this task was made from.
   issues            Issue[]
   createdAt         DateTime             @default(now())
@@ -1369,6 +1375,7 @@ model Task {
   @@index([organizationId])
   @@index([propertyId])
   @@index([safetyCheckId])
+  @@index([parentId, position])
   @@index([previousId])
 }
 
@@ -1431,27 +1438,4 @@ model SafetyDocument {
 
   @@index([organizationId])
   @@index([checkId, createdAt])
-}
-
-// One small step inside a task: "collect the key safe code" inside "Onboard
-// Millstone Cottage". A plain checklist: a title, ticked or not, and who ticked
-// it and when. Removed with its task. A repeating task copies its subtasks,
-// unticked, into the next one. position keeps them in the order they were
-// added.
-model TaskSubtask {
-  id             String       @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  task           Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId         String
-  title          String
-  position       Int          @default(0)
-  done           Boolean      @default(false)
-  doneAt         DateTime?
-  doneBy         User?        @relation(fields: [doneById], references: [id], onDelete: SetNull)
-  doneById       String?
-  createdAt      DateTime     @default(now())
-
-  @@index([organizationId])
-  @@index([taskId, position])
 }

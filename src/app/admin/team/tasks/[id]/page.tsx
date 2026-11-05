@@ -10,7 +10,7 @@ import { Avatar } from "@/components/Avatar";
 import { TaskCommentForm } from "@/components/TaskCommentForm";
 import { TaskDetail } from "@/components/TaskDetail";
 import { SubtaskList } from "@/components/SubtaskList";
-import { addSubtasks, addTaskComment, claimTask, deleteTask, removeSubtask, setSubtaskDone, setTaskStatus, updateTask } from "../actions";
+import { addSubtasks, addTaskComment, claimTask, deleteTask, setTaskStatus, updateTask } from "../actions";
 
 export const metadata = { title: "Task" };
 
@@ -28,9 +28,13 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
         property: { select: { id: true, nickname: true, name: true, address: true } },
         followUps: { select: { id: true, dueOn: true }, take: 1 },
         issues: { select: { id: true }, take: 1 },
-        subtasks: {
+        parent: { select: { id: true, title: true } },
+        children: {
           orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-          include: { doneBy: { select: { name: true } } },
+          include: {
+            assignees: { select: { user: { select: { id: true, name: true } } } },
+            _count: { select: { comments: true } },
+          },
         },
         comments: {
           orderBy: { createdAt: "desc" },
@@ -62,9 +66,15 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/admin/team/tasks" className="text-sm text-zinc-500 hover:text-zinc-900">
-        ← Tasks
-      </Link>
+      {task.parent ? (
+        <Link href={`/admin/team/tasks/${task.parent.id}`} className="text-sm text-zinc-500 hover:text-zinc-900">
+          ← Subtask of {task.parent.title}
+        </Link>
+      ) : (
+        <Link href="/admin/team/tasks" className="text-sm text-zinc-500 hover:text-zinc-900">
+          ← Tasks
+        </Link>
+      )}
 
       <TaskDetail
         task={{
@@ -96,7 +106,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           nextTask: task.followUps[0]
             ? { id: task.followUps[0].id, dueLabel: task.followUps[0].dueOn ? formatDateOnly(task.followUps[0].dueOn) : null }
             : null,
-          openSubtasks: task.subtasks.filter((s) => !s.done).length,
+          openSubtasks: task.children.filter((c) => c.status !== "DONE").length,
           issueHref: task.issues[0] ? `/admin/issues/${task.issues[0].id}` : null,
           safetyHref: task.safetyCheckId && task.propertyId ? `/admin/properties/${task.propertyId}?tab=safety` : null,
         }}
@@ -107,19 +117,25 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
         remove={deleteTask.bind(null, task.id)}
         claim={claimTask.bind(null, task.id)}
       >
-        <SubtaskList
-          items={task.subtasks.map((s) => ({
-            id: s.id,
-            title: s.title,
-            done: s.done,
-            doneLine:
-              s.done && s.doneAt ? `Done${s.doneBy ? ` by ${s.doneBy.name}` : ""}, ${formatDateTime(s.doneAt)}` : null,
-          }))}
-          taskDone={task.status === "DONE"}
-          add={addSubtasks.bind(null, task.id)}
-          setDone={setSubtaskDone}
-          remove={removeSubtask}
-        />
+        {/* Subtasks sit one level down: a subtask has none of its own. */}
+        {!task.parentId && (
+          <SubtaskList
+            items={task.children.map((c) => ({
+              id: c.id,
+              title: c.title,
+              done: c.status === "DONE",
+              dueLabel: c.dueOn ? formatDateOnly(c.dueOn) : null,
+              overdue: isOverdue(c),
+              assignees: c.assignees.map((a) => a.user).sort((a, b) => a.name.localeCompare(b.name)),
+              commentCount: c._count.comments,
+              canRemove: session.user.role === "ADMIN" || c.createdById === session.user.id,
+            }))}
+            taskDone={task.status === "DONE"}
+            add={addSubtasks.bind(null, task.id)}
+            setStatus={setTaskStatus}
+            remove={deleteTask}
+          />
+        )}
 
         <section className="flex flex-col gap-4" aria-labelledby="updates-heading">
           <h2 id="updates-heading" className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
