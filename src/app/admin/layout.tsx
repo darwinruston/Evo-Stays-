@@ -110,6 +110,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ...(session.user.role === "ADMIN"
       ? [{ href: "/admin/settings", label: "Settings", activePrefixes: ["/admin/settings"] }]
       : []),
+    { href: "/admin/profile", icon: "user" as const, label: "Profile", activePrefixes: ["/admin/profile"] },
   ];
 
   // Only fetched when actually impersonating (see impersonateOrganization

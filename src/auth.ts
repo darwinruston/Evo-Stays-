@@ -8,7 +8,7 @@ import { clientIp, isLoginBlocked, recordLoginFailure, recordLoginSuccess } from
 // but published in this repo, so a production server refuses it outright
 // rather than trusting that someone remembered to change it. Set
 // ALLOW_DEMO_PASSWORD=true to get back in if you're locked out by this.
-const DEMO_PASSWORD = "password123";
+export const DEMO_PASSWORD = "password123";
 
 // A real bcrypt hash of a random value nobody knows. Compared against when
 // the email doesn't exist, so an unknown email takes as long to reject as

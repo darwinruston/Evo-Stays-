@@ -1,8 +1,7 @@
 "use server";
 
-import { prisma, authPrisma } from "@/lib/prisma";
-import { sendEmail, emailConfigured, absoluteUrl } from "@/lib/email";
-import { generateResetToken, hashResetToken, PASSWORD_RESET_EXPIRY_MS } from "@/lib/passwordReset";
+import { authPrisma } from "@/lib/prisma";
+import { issuePasswordResetLink } from "@/lib/passwordResetEmail";
 
 // Always the same message, whether or not that email actually has an
 // account -- telling someone "no account with that email" would let anyone
@@ -27,41 +26,7 @@ export async function requestPasswordReset(
   // singleton.
   const user = await authPrisma.user.findUnique({ where: { email } });
 
-  if (user) {
-    const rawToken = generateResetToken();
-    const tokenHash = hashResetToken(rawToken);
-
-    // Any previous unused token for this user is replaced, not left to
-    // linger -- only the most recent request should ever work.
-    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
-    await prisma.passwordResetToken.create({
-      data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS) },
-    });
-
-    const path = `/reset-password/${rawToken}`;
-    const link = absoluteUrl(path) ?? path;
-
-    if (emailConfigured()) {
-      await sendEmail({
-        to: user.email,
-        subject: "Reset your Evo Stays password",
-        text: [
-          `Hi ${user.name},`,
-          "",
-          "Someone (hopefully you) asked to reset your Evo Stays password.",
-          "This link works once and expires in an hour:",
-          "",
-          link,
-          "",
-          "If you didn't ask for this, you can ignore this email. Your password hasn't changed.",
-        ].join("\n"),
-      });
-    } else {
-      // No SMTP configured (e.g. local dev) -- logged instead of silently
-      // going nowhere, so the flow is still testable without real email.
-      console.log(`[password reset] ${user.email}: ${link}`);
-    }
-  }
+  if (user) await issuePasswordResetLink(user);
 
   return GENERIC_MESSAGE;
 }

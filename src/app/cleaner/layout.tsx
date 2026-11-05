@@ -20,7 +20,7 @@ export default async function CleanerLayout({ children }: { children: React.Reac
   const { session, db } = await requireCleaner();
   const unread = await unreadNotificationCount(db, session.user.id);
   const modules = await getOrgModules(session.user.organizationId);
-  const items = [...NAV.filter((item) => item.href !== "/cleaner/laundry" || modules.laundry), { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }];
+  const items = [...NAV.filter((item) => item.href !== "/cleaner/laundry" || modules.laundry), { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }, { href: "/cleaner/profile", icon: "user" as const, label: "Profile" }];
 
   return (
     <div className="min-h-screen">

@@ -3,7 +3,7 @@ import { requireLinen } from "@/lib/authz";
 import { unreadNotificationCount } from "@/lib/notificationViews";
 import { vapidPublicKey } from "@/lib/push";
 import { DeviceSetupBanner } from "@/components/DeviceSetupBanner";
-import { BellIcon } from "@/components/Icons";
+import { BellIcon, UserIcon } from "@/components/Icons";
 import { EvoTick } from "@/components/EvoTick";
 import { button } from "@/lib/ui";
 import { logoutAction } from "../logout/actions";
@@ -33,6 +33,13 @@ export default async function LinenLayout({ children }: { children: React.ReactN
                   {unread}
                 </span>
               )}
+            </Link>
+            <Link
+              href="/linen/profile"
+              aria-label="Profile"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-black/5 hover:text-zinc-950"
+            >
+              <UserIcon className="h-5 w-5" />
             </Link>
             <form action={logoutAction}>
               <button type="submit" className={button("secondary", "sm")}>

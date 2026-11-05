@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { button } from "@/lib/ui";
-import { BellIcon } from "@/components/Icons";
+import { BellIcon, UserIcon } from "@/components/Icons";
 
 // `count` is an optional badge after the label (unread notifications, open
 // issues). Zero (or omitted) shows no badge at all rather than a "0", which
@@ -22,7 +22,7 @@ type NavItem = {
   label: string;
   count?: number;
   countLabel?: string;
-  icon?: "bell";
+  icon?: "bell" | "user";
   activePrefixes?: string[];
 };
 
@@ -35,6 +35,10 @@ function isCurrent(item: NavItem, pathname: string): boolean {
 }
 
 const signOutClass = button("secondary", "sm");
+
+function NavIcon({ name, className }: { name: "bell" | "user"; className: string }) {
+  return name === "user" ? <UserIcon className={className} /> : <BellIcon className={className} />;
+}
 
 function CountBadge({ item, className }: { item: NavItem; className: string }) {
   const count = item.count ?? 0;
@@ -76,7 +80,7 @@ function NavLink({
         aria-current={current ? "page" : undefined}
         className={`${classes} relative inline-flex items-center`}
       >
-        <BellIcon className="h-5 w-5" />
+        <NavIcon name={item.icon} className="h-5 w-5" />
         <CountBadge item={item} className="absolute -right-0.5 -top-0.5 min-w-4 px-1 text-[10px] leading-4" />
       </Link>
     );
@@ -88,7 +92,7 @@ function NavLink({
       aria-current={current ? "page" : undefined}
       className={`${classes} inline-flex items-center gap-1.5`}
     >
-      {item.icon && <BellIcon className="h-4 w-4" />}
+      {item.icon && <NavIcon name={item.icon} className="h-4 w-4" />}
       {item.label}
       <CountBadge item={item} className="" />
     </Link>

@@ -100,6 +100,16 @@ export function BellIcon({ className }: IconProps) {
   );
 }
 
+// A head and shoulders -- the signed-in person's profile.
+export function UserIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" />
+    </Icon>
+  );
+}
+
 // A warning triangle -- problems reported on site and tracked to resolution.
 export function AlertIcon({ className }: IconProps) {
   return (
