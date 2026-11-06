@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { button } from "@/lib/ui";
+import { Avatar } from "@/components/Avatar";
 import { BellIcon, UserIcon } from "@/components/Icons";
 
 // `count` is an optional badge after the label (unread notifications, open
@@ -23,6 +24,9 @@ type NavItem = {
   count?: number;
   countLabel?: string;
   icon?: "bell" | "user";
+  // Shows the signed-in person's photo (or their initials in a circle) in
+  // place of an icon: the Profile link.
+  avatar?: { name: string; photoPath: string | null };
   activePrefixes?: string[];
 };
 
@@ -70,6 +74,25 @@ function NavLink({
   const pathname = usePathname();
   const current = isCurrent(item, pathname);
   const classes = `${linkClass} ${current ? currentClass : ""}`;
+  if (item.avatar) {
+    return (
+      <Link
+        href={item.href}
+        aria-label={item.label}
+        title={item.label}
+        onClick={onNavigate}
+        aria-current={current ? "page" : undefined}
+        className={
+          iconOnly
+            ? `flex items-center rounded-full p-0.5 ring-offset-2 transition-shadow hover:ring-2 hover:ring-black/10 ${current ? "ring-2 ring-zinc-900" : ""}`
+            : `${classes} inline-flex items-center gap-2`
+        }
+      >
+        <Avatar name={item.avatar.name} photoPath={item.avatar.photoPath} size={iconOnly ? 30 : 22} />
+        {!iconOnly && item.label}
+      </Link>
+    );
+  }
   if (item.icon && iconOnly) {
     return (
       <Link

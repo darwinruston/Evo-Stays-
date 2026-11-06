@@ -1,5 +1,6 @@
 import { Avatar } from "@/components/Avatar";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { ProfilePhotoForm } from "@/components/ProfilePhotoForm";
 import { badge, card } from "@/lib/ui";
 
 // Who you are signed in as, and the password. One view for every kind of
@@ -11,6 +12,7 @@ import { badge, card } from "@/lib/ui";
 export function ProfileView({
   name,
   email,
+  photoPath,
   roleLabel,
   organisationName,
   passwordChanged,
@@ -18,6 +20,7 @@ export function ProfileView({
 }: {
   name: string;
   email: string;
+  photoPath: string | null;
   roleLabel: string;
   organisationName: string | null;
   passwordChanged: boolean;
@@ -25,14 +28,17 @@ export function ProfileView({
 }) {
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
-      <div className="flex items-center gap-4">
-        <Avatar name={name} size={56} />
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]">{name}</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
-            <span className={badge("neutral")}>{roleLabel}</span>
-            {organisationName && <span>{organisationName}</span>}
-          </p>
+      <div className="flex items-center gap-5">
+        <Avatar name={name} photoPath={photoPath} size={88} />
+        <div className="flex min-w-0 flex-col gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]">{name}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+              <span className={badge("neutral")}>{roleLabel}</span>
+              {organisationName && <span>{organisationName}</span>}
+            </p>
+          </div>
+          <ProfilePhotoForm hasPhoto={photoPath !== null} />
         </div>
       </div>
 

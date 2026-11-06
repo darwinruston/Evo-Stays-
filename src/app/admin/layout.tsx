@@ -25,13 +25,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Issues' badge counts everything not yet resolved -- the same number as
   // the dashboard's "Open issues" tile and the Issues page's Open tab, so
   // the three never disagree about how much is outstanding.
-  const [unread, openIssues, linenProblems, myOpenTasks] = await Promise.all([
+  const [unread, openIssues, linenProblems, myOpenTasks, me] = await Promise.all([
     unreadNotificationCount(db, session.user.id),
     db.issue.count({ where: { status: { not: "RESOLVED" } } }),
     // A problem the linen company has flagged and nobody has picked up yet.
     modules.laundry ? db.linenVisit.count({ where: { issueRaisedAt: { not: null }, issueResolvedAt: null } }) : 0,
     // Tasks given to you and not yet done, shown on the Operations heading and its Tasks tab.
     db.task.count({ where: { assignees: { some: { userId: session.user.id } }, status: { not: "DONE" } } }),
+    // Their photo, for the Profile link in the bar.
+    db.user.findUnique({ where: { id: session.user.id }, select: { name: true, photoPath: true } }),
   ]);
   // The main headings, each with the pages that belong under it. Stock,
   // Laundry and Invoices follow the company's own switches. A heading that
@@ -110,7 +112,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ...(session.user.role === "ADMIN"
       ? [{ href: "/admin/settings", label: "Settings", activePrefixes: ["/admin/settings"] }]
       : []),
-    { href: "/admin/profile", icon: "user" as const, label: "Profile", activePrefixes: ["/admin/profile"] },
+    {
+      href: "/admin/profile",
+      label: "Profile",
+      avatar: { name: me?.name ?? session.user.name ?? "Profile", photoPath: me?.photoPath ?? null },
+      activePrefixes: ["/admin/profile"],
+    },
   ];
 
   // Only fetched when actually impersonating (see impersonateOrganization

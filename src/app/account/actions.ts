@@ -8,7 +8,9 @@ import { authPrisma, scopedDb } from "@/lib/prisma";
 import { clientIp, isLoginBlocked, recordLoginFailure } from "@/lib/loginRateLimit";
 import { issuePasswordResetLink } from "@/lib/passwordResetEmail";
 import { logAudit } from "@/lib/audit";
-import { PASSWORD_MIN_LENGTH, profilePath } from "@/lib/profile";
+import { deleteProfilePhoto, saveProfilePhoto } from "@/lib/profilePhotos";
+import { PASSWORD_MIN_LENGTH, PROFILE_PHOTO_MAX_BYTES, PROFILE_PHOTO_TYPES, profilePath } from "@/lib/profile";
+import { revalidatePath } from "next/cache";
 
 // A person changing their own password from their profile page. They must
 // give the current one first, so a phone left unlocked on the profile page
@@ -84,4 +86,43 @@ export async function sendOwnResetLink(): Promise<string> {
   if (!user) return "Please sign in again.";
   await issuePasswordResetLink(user);
   return `We've sent a reset link to ${user.email}. It works once and expires in an hour.`;
+}
+
+// Puts a photo on the signed-in person's own profile. The page shrinks and
+// crops it to a small square first (see ProfilePhotoForm), so what arrives
+// here is a modest JPEG, PNG or WebP; anything else is refused. The old photo
+// file is removed once the new one is saved.
+export async function uploadProfilePhoto(formData: FormData): Promise<{ error: string } | undefined> {
+  const session = await auth();
+  if (!session?.user) return { error: "Please sign in again." };
+
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo first." };
+  if (!PROFILE_PHOTO_TYPES.includes(file.type)) return { error: "Use a JPEG, PNG or WebP photo." };
+  if (file.size > PROFILE_PHOTO_MAX_BYTES) return { error: "That photo is too large. Try a smaller one." };
+
+  const db = scopedDb(session.user.organizationId);
+  const before = await db.user.findUnique({ where: { id: session.user.id }, select: { photoPath: true } });
+  if (!before) return { error: "Please sign in again." };
+
+  const photoPath = await saveProfilePhoto(session.user.id, file);
+  await db.user.update({ where: { id: session.user.id }, data: { photoPath } });
+  if (before.photoPath) await deleteProfilePhoto(before.photoPath);
+
+  // The photo is in every page's top bar.
+  revalidatePath("/", "layout");
+}
+
+export async function removeProfilePhoto(): Promise<{ error: string } | undefined> {
+  const session = await auth();
+  if (!session?.user) return { error: "Please sign in again." };
+
+  const db = scopedDb(session.user.organizationId);
+  const before = await db.user.findUnique({ where: { id: session.user.id }, select: { photoPath: true } });
+  if (!before?.photoPath) return;
+
+  await db.user.update({ where: { id: session.user.id }, data: { photoPath: null } });
+  await deleteProfilePhoto(before.photoPath);
+
+  revalidatePath("/", "layout");
 }

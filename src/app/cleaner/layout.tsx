@@ -20,7 +20,8 @@ export default async function CleanerLayout({ children }: { children: React.Reac
   const { session, db } = await requireCleaner();
   const unread = await unreadNotificationCount(db, session.user.id);
   const modules = await getOrgModules(session.user.organizationId);
-  const items = [...NAV.filter((item) => item.href !== "/cleaner/laundry" || modules.laundry), { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }, { href: "/cleaner/profile", icon: "user" as const, label: "Profile" }];
+  const me = await db.user.findUnique({ where: { id: session.user.id }, select: { name: true, photoPath: true } });
+  const items = [...NAV.filter((item) => item.href !== "/cleaner/laundry" || modules.laundry), { href: "/cleaner/notifications", icon: "bell" as const, label: "Notifications", count: unread, countLabel: "unread" }, { href: "/cleaner/profile", label: "Profile", avatar: { name: me?.name ?? session.user.name ?? "Profile", photoPath: me?.photoPath ?? null } }];
 
   return (
     <div className="min-h-screen">

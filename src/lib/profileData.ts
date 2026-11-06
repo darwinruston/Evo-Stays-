@@ -9,7 +9,7 @@ export async function loadProfile(
   session: { user: { id: string; organizationId: string; impersonatedBy?: string } },
 ) {
   const [user, organisation] = await Promise.all([
-    db.user.findUniqueOrThrow({ where: { id: session.user.id }, select: { name: true, email: true, role: true } }),
+    db.user.findUniqueOrThrow({ where: { id: session.user.id }, select: { name: true, email: true, role: true, photoPath: true } }),
     // Organisation carries no row-level security (see UNSCOPED_MODELS in
     // src/lib/prisma.ts), so the plain client reads it.
     prisma.organization.findUnique({ where: { id: session.user.organizationId }, select: { name: true } }),
@@ -17,6 +17,7 @@ export async function loadProfile(
   return {
     name: user.name,
     email: user.email,
+    photoPath: user.photoPath,
     roleLabel: ROLE_LABELS[user.role] ?? user.role,
     organisationName: organisation?.name ?? null,
     // Support staff viewing a company as its admin can look but not change.
