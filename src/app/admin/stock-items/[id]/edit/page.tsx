@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
 import { updateStockItem, deleteStockItem } from "../../actions";
-import { button, inputCompact } from "@/lib/ui";
+import { StockItemFields } from "@/components/StockItemFields";
+import { button } from "@/lib/ui";
 
 export const metadata = { title: "Edit stock item" };
 
@@ -27,30 +28,7 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
       </div>
 
       <form action={updateStockItem.bind(null, item.id)} className="flex max-w-lg flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="name" className="text-sm font-medium">
-            Name
-          </label>
-          <input id="name" name="name" required defaultValue={item.name} className={inputCompact} />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="areaId" className="text-sm font-medium">
-            Where is it kept?
-          </label>
-          <select id="areaId" name="areaId" defaultValue={item.areaId ?? ""} className={inputCompact}>
-            <option value="">No area yet</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-zinc-500">
-            Cleaners check stock area by area, so this decides where in the walk it comes. Add or reorder areas on the
-            Stock items page.
-          </p>
-        </div>
+        <StockItemFields areas={areas} initialName={item.name} initialAreaId={item.areaId ?? ""} />
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={item.active} />

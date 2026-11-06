@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { createStockItem } from "../actions";
-import { button, inputCompact } from "@/lib/ui";
+import { StockItemFields } from "@/components/StockItemFields";
+import { button } from "@/lib/ui";
 
 export const metadata = { title: "New stock item" };
 
@@ -19,30 +20,7 @@ export default async function NewStockItemPage() {
       </div>
 
       <form action={createStockItem} className="flex max-w-lg flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="name" className="text-sm font-medium">
-            Name
-          </label>
-          <input id="name" name="name" required placeholder="Toilet roll" className={inputCompact} />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="areaId" className="text-sm font-medium">
-            Where is it kept?
-          </label>
-          <select id="areaId" name="areaId" className={inputCompact}>
-            <option value="">No area yet</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-zinc-500">
-            Cleaners check stock area by area, so this decides where in the walk it comes. Add or reorder areas on the
-            Stock items page.
-          </p>
-        </div>
+        <StockItemFields areas={areas} namePlaceholder="Toilet roll" />
 
         <div>
           <button type="submit" className={button("primary", "sm")}>
