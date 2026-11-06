@@ -12,6 +12,7 @@ import { StockLevelToggle } from "@/components/StockLevelToggle";
 import { bandFromDb, isRunningLow } from "@/lib/stock";
 import { PropertyCover } from "@/components/PropertyCover";
 import { AddStockLevelForm } from "@/components/AddStockLevelForm";
+import { groupByStockArea, sortByStockArea } from "@/lib/stockAreas";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
@@ -90,7 +91,7 @@ export default async function PropertyDetailPage({
     include: {
       client: { select: { id: true, name: true, pmsProvider: true, pmsCredentials: true } },
       images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
-      stockLevels: { orderBy: { createdAt: "asc" }, include: { stockItem: true } },
+      stockLevels: { orderBy: { createdAt: "asc" }, include: { stockItem: { include: { area: { select: { id: true, name: true, position: true } } } } } },
       invoices: {
         orderBy: { periodStart: "desc" },
         include: { cleaner: { select: { id: true, name: true } } },
@@ -128,7 +129,11 @@ export default async function PropertyDetailPage({
   const availableItems = await db.stockItem.findMany({
     where: { active: true, id: { notIn: [...configuredItemIds] } },
     orderBy: { name: "asc" },
+    include: { area: { select: { id: true, name: true, position: true } } },
   });
+  // The stock already here, grouped by where it is kept in the order a
+  // cleaner walks through it.
+  const stockGroups = groupByStockArea(property.stockLevels, (l) => ({ name: l.stockItem.name, area: l.stockItem.area }));
 
   // Loads still out at the laundrette that include at least one visit at
   // this property. Filtered to collectedAt: null, not just fetched and
@@ -545,9 +550,15 @@ export default async function PropertyDetailPage({
           <InfoTooltip text="Nobody counts bin bags exactly, just the item, and what you'd call the amount there right now. Set the level the same way a cleaner records it." />
         </h2>
 
-        {property.stockLevels.length > 0 && (
+        {stockGroups.map((group) => (
+          <div key={group.area?.id ?? "none"} className="flex flex-col gap-2">
+            {(group.area || stockGroups.length > 1) && (
+              <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                {group.area ? group.area.name : "No area yet"}
+              </h3>
+            )}
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {property.stockLevels.map((level) => (
+            {group.rows.map((level) => (
               <li key={level.id} className={card("flex flex-col gap-2 p-3")}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="min-w-0 truncate text-sm font-medium">{level.stockItem.name}</p>
@@ -572,10 +583,11 @@ export default async function PropertyDetailPage({
               </li>
             ))}
           </ul>
-        )}
+          </div>
+        ))}
 
         {availableItems.length > 0 ? (
-          <AddStockLevelForm action={addPropertyStockLevel.bind(null, property.id)} items={availableItems} />
+          <AddStockLevelForm action={addPropertyStockLevel.bind(null, property.id)} items={sortByStockArea(availableItems, (i) => ({ name: i.name, area: i.area })).map((i) => ({ id: i.id, name: i.name, areaName: i.area?.name ?? null }))} />
         ) : (
           <p className="text-sm text-zinc-500">
             {property.stockLevels.length === 0 ? (

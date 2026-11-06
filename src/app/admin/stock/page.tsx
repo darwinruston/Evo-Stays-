@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { bandFromDb, isRunningLow } from "@/lib/stock";
+import { groupByStockArea } from "@/lib/stockAreas";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { card } from "@/lib/ui";
 
@@ -16,7 +17,7 @@ export default async function StockOverviewPage() {
   // without raw SQL, and this list is small enough that it doesn't matter).
   const levels = await db.propertyStockLevel.findMany({
     include: {
-      stockItem: true,
+      stockItem: { include: { area: { select: { id: true, name: true, position: true } } } },
       property: { select: { id: true, name: true, address: true, client: { select: { name: true } } } },
     },
     orderBy: { updatedAt: "desc" },
@@ -38,7 +39,9 @@ export default async function StockOverviewPage() {
   const propertyGroups = [...byProperty.values()]
     .map((group) => ({
       ...group,
-      levels: group.levels.sort((a, b) => a.stockItem.name.localeCompare(b.stockItem.name)),
+      // Within a property, by where each is kept in the order a cleaner walks
+      // through it, then by name.
+      areaGroups: groupByStockArea(group.levels, (l) => ({ name: l.stockItem.name, area: l.stockItem.area })),
     }))
     .sort((a, b) => propertyDisplayName(a.property).localeCompare(propertyDisplayName(b.property)));
 
@@ -88,7 +91,7 @@ export default async function StockOverviewPage() {
           </p>
         ) : (
           <div className="flex flex-col gap-6">
-            {propertyGroups.map(({ property, levels: propertyLevels }) => (
+            {propertyGroups.map(({ property, areaGroups }) => (
               <div key={property.id} className="flex flex-col gap-2">
                 <Link
                   href={`/admin/properties/${property.id}`}
@@ -97,14 +100,23 @@ export default async function StockOverviewPage() {
                   {propertyDisplayName(property)}{" "}
                   <span className="font-normal text-zinc-500">· {property.client.name}</span>
                 </Link>
-                <ul className="flex flex-col gap-2">
-                  {propertyLevels.map((level) => (
-                    <li key={level.id} className={card("flex items-center justify-between gap-4 p-4")}>
-                      <p className="font-medium">{level.stockItem.name}</p>
-                      <StockLevelIndicator band={bandFromDb(level.band)} />
-                    </li>
-                  ))}
-                </ul>
+                {areaGroups.map((group) => (
+                  <div key={group.area?.id ?? "none"} className="flex flex-col gap-2">
+                    {(group.area || areaGroups.length > 1) && (
+                      <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                        {group.area ? group.area.name : "No area yet"}
+                      </h3>
+                    )}
+                    <ul className="flex flex-col gap-2">
+                      {group.rows.map((level) => (
+                        <li key={level.id} className={card("flex items-center justify-between gap-4 p-4")}>
+                          <p className="font-medium">{level.stockItem.name}</p>
+                          <StockLevelIndicator band={bandFromDb(level.band)} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

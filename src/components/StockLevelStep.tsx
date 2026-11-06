@@ -25,6 +25,10 @@ export function StockLevelStep({
   reason,
   position,
   total,
+  areaName,
+  areaPosition,
+  areaTotal,
+  movedOn,
 }: {
   action: (formData: FormData) => void;
   itemName: string;
@@ -32,6 +36,14 @@ export function StockLevelStep({
   reason: string;
   position: number;
   total: number;
+  // Where the item is kept, and how far through that area: the check goes
+  // area by area, so the cleaner knows where to be standing. Null when the
+  // company hasn't set areas up.
+  areaName: string | null;
+  areaPosition: number;
+  areaTotal: number;
+  // This is the first item of a new area: time to move on.
+  movedOn: boolean;
 }) {
   const [selected, setSelected] = useState<StockLevelBand>(predicted);
   const alternatives = BAND_ORDER.filter((b) => b !== selected);
@@ -39,6 +51,17 @@ export function StockLevelStep({
   return (
     <form action={action} className={card("flex flex-col gap-4 p-4")}>
       <div>
+        {areaName && (
+          <p className="mb-2 inline-flex items-center rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white">
+            {areaName}
+            <span className="ml-2 font-normal text-white/70">
+              {areaPosition} of {areaTotal}
+            </span>
+          </p>
+        )}
+        {movedOn && areaName && (
+          <p className="mb-2 text-sm font-medium text-zinc-900">Now the {areaName.toLowerCase()}.</p>
+        )}
         <p className="text-xs text-zinc-500">
           Stock {position} of {total}
         </p>

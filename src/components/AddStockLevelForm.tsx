@@ -6,6 +6,18 @@ import type { ActionResult } from "@/lib/actionResult";
 import { STOCK_BANDS, STOCK_BAND_LABELS } from "@/lib/stock";
 import { button, card, inputCompact } from "@/lib/ui";
 
+// Splits the list into runs by area, keeping the order it came in.
+function groupItems(items: { id: string; name: string; areaName: string | null }[]) {
+  const groups: { label: string; items: typeof items }[] = [];
+  for (const item of items) {
+    const label = item.areaName ?? "No area yet";
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  }
+  return groups;
+}
+
 // Two steps, not one form with both fields at once: pick the item first: the
 // level picker (High/Medium/Low/None) only appears once an item's actually
 // chosen, rather than sitting there the whole time asking a question that
@@ -15,7 +27,7 @@ export function AddStockLevelForm({
   items,
 }: {
   action: (formData: FormData) => Promise<ActionResult>;
-  items: { id: string; name: string }[];
+  items: { id: string; name: string; areaName: string | null }[];
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(action);
   const [itemId, setItemId] = useState("");
@@ -57,10 +69,16 @@ export function AddStockLevelForm({
           <option value="" disabled>
             Choose…
           </option>
-          {items.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
+          {/* Grouped by where each is kept, in the order the list arrives
+              (the catalogue's area order), so the right one is easy to find. */}
+          {groupItems(items).map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

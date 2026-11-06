@@ -15,6 +15,7 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
     include: { _count: { select: { levels: true, usage: true } } },
   });
   if (!item) notFound();
+  const areas = await db.stockArea.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: { id: true, name: true } });
 
   return (
     <div className="flex flex-col gap-8">
@@ -31,6 +32,24 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
             Name
           </label>
           <input id="name" name="name" required defaultValue={item.name} className={inputCompact} />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="areaId" className="text-sm font-medium">
+            Where is it kept?
+          </label>
+          <select id="areaId" name="areaId" defaultValue={item.areaId ?? ""} className={inputCompact}>
+            <option value="">No area yet</option>
+            {areas.map((area) => (
+              <option key={area.id} value={area.id}>
+                {area.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-500">
+            Cleaners check stock area by area, so this decides where in the walk it comes. Add or reorder areas on the
+            Stock items page.
+          </p>
         </div>
 
         <label className="flex items-center gap-2 text-sm">
