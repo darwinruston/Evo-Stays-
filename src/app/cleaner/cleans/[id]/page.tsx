@@ -13,7 +13,7 @@ import { StockLevelStep } from "@/components/StockLevelStep";
 import { CleaningChecklist } from "@/components/CleaningChecklist";
 import { DetailsCard } from "@/components/DetailsCard";
 import { bandFromDb } from "@/lib/stock";
-import { sortByStockArea } from "@/lib/stockAreas";
+import { sortByStockZone, stockZoneFor } from "@/lib/stockZones";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PhotoPicker } from "@/components/PhotoPicker";
@@ -109,7 +109,7 @@ export default async function CleanerCleanPage({
     include: {
       property: {
         include: {
-          stockLevels: { include: { stockItem: { include: { area: { select: { id: true, name: true, position: true } } } } } },
+          stockLevels: { include: { stockItem: true } },
           images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
           checklistItems: { orderBy: { createdAt: "asc" }, select: { room: true, text: true } },
           // Anything already known to be wrong here and not yet fixed --
@@ -143,12 +143,11 @@ export default async function CleanerCleanPage({
   // this step, so rolling out stock tracking doesn't hold up every turnover
   // everywhere else.
   const stockModuleOn = (await getOrgModules(session.user.organizationId)).stock;
-  // Worked through area by area (everything in the kitchen, then the kitchen
-  // cupboard, then the bathroom...) so nobody is back and forth between rooms.
-  // Same order every time, so "item 2 of 3" means the same on every reload.
-  const stockItems = stockModuleOn
-    ? sortByStockArea(clean.property.stockLevels, (l) => ({ name: l.stockItem.name, area: l.stockItem.area }))
-    : [];
+  // In walking order (the kitchen, then the kitchen cupboard, the bathroom...,
+  // worked out from the item names, see src/lib/stockZones.ts) so nobody is
+  // back and forth across the house. Same order every time, so "item 2 of 3"
+  // means the same on every reload.
+  const stockItems = stockModuleOn ? sortByStockZone(clean.property.stockLevels, (l) => l.stockItem.name) : [];
   const recordedStockItemIds = new Set((clean.log?.stockUsage ?? []).map((u) => u.stockItemId));
   const stockDone =
     stockItems.length === 0 || stockItems.every((s) => recordedStockItemIds.has(s.stockItemId));
@@ -164,15 +163,17 @@ export default async function CleanerCleanPage({
   // Where they are in the current area: "Kitchen cupboard, 2 of 4", and whether
   // this is the first thing in a new one (so the screen can say it is time to
   // move on).
-  const nextAreaId = nextUp?.stockItem.area?.id ?? null;
-  const inNextArea = nextUp ? stockItems.filter((l) => (l.stockItem.area?.id ?? null) === nextAreaId) : [];
+  const nextZone = nextUp ? stockZoneFor(nextUp.stockItem.name) : null;
+  const inNextArea = nextUp
+    ? stockItems.filter((l) => (stockZoneFor(l.stockItem.name)?.id ?? null) === (nextZone?.id ?? null))
+    : [];
   const doneInNextArea = inNextArea.filter((l) => recordedStockItemIds.has(l.stockItemId)).length;
   const currentStockStep = nextUp
     ? {
         level: nextUp,
         band: bandFromDb(nextUp.band),
         reason: "Based on what was last recorded, check the shelf.",
-        areaName: nextUp.stockItem.area?.name ?? null,
+        areaName: nextZone?.name ?? null,
         areaPosition: doneInNextArea + 1,
         areaTotal: inNextArea.length,
         movedOn: doneInNextArea === 0 && recordedStockItemIds.size > 0,

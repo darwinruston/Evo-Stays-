@@ -10,7 +10,7 @@ import { button, card, inputCompact } from "@/lib/ui";
 function groupItems(items: { id: string; name: string; areaName: string | null }[]) {
   const groups: { label: string; items: typeof items }[] = [];
   for (const item of items) {
-    const label = item.areaName ?? "No area yet";
+    const label = item.areaName ?? "Other";
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.items.push(item);
     else groups.push({ label, items: [item] });

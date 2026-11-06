@@ -129,7 +129,6 @@ model Organization {
   tasks                 Task[]
   taskComments          TaskComment[]
   taskAssignees         TaskAssignee[]
-  stockAreas            StockArea[]
   safetyDocuments       SafetyDocument[]
 }
 
@@ -680,23 +679,6 @@ model CleanPhoto {
 // tea/coffee, cleaning products. active mirrors Service in the sibling app --
 // items with usage history are hidden rather than deleted, see the guard in
 // src/app/admin/stock-items/actions.ts.
-// A place stock is kept, as the company names it: "Kitchen", "Kitchen
-// cupboard", "Bathroom", "Store cupboard". position is the order a cleaner
-// walks through them, so the stock check goes room by room. See
-// src/lib/stockAreas.ts.
-model StockArea {
-  id             String       @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationId String
-  name           String
-  position       Int          @default(0)
-  items          StockItem[]
-  createdAt      DateTime     @default(now())
-
-  @@unique([organizationId, name])
-  @@index([organizationId, position])
-}
-
 model StockItem {
   id             String               @id @default(cuid())
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -706,12 +688,6 @@ model StockItem {
   // next to the number, never used in arithmetic.
   unit           String?
   active         Boolean              @default(true)
-  // Where it is kept ("Kitchen cupboard"). Cleaners go through stock area by
-  // area, in the areas' own order, so they are not back and forth between
-  // rooms; an item with no area comes last. SetNull so deleting an area just
-  // leaves its items unsorted.
-  area           StockArea?           @relation(fields: [areaId], references: [id], onDelete: SetNull)
-  areaId         String?
   levels         PropertyStockLevel[]
   usage          StockUsageLog[]
   createdAt      DateTime             @default(now())

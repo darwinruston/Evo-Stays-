@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { bandFromDb, isRunningLow } from "@/lib/stock";
-import { groupByStockArea } from "@/lib/stockAreas";
+import { groupByStockZone } from "@/lib/stockZones";
 import { StockLevelIndicator } from "@/components/StockLevelIndicator";
 import { card } from "@/lib/ui";
 
@@ -17,7 +17,7 @@ export default async function StockOverviewPage() {
   // without raw SQL, and this list is small enough that it doesn't matter).
   const levels = await db.propertyStockLevel.findMany({
     include: {
-      stockItem: { include: { area: { select: { id: true, name: true, position: true } } } },
+      stockItem: true,
       property: { select: { id: true, name: true, address: true, client: { select: { name: true } } } },
     },
     orderBy: { updatedAt: "desc" },
@@ -41,7 +41,7 @@ export default async function StockOverviewPage() {
       ...group,
       // Within a property, by where each is kept in the order a cleaner walks
       // through it, then by name.
-      areaGroups: groupByStockArea(group.levels, (l) => ({ name: l.stockItem.name, area: l.stockItem.area })),
+      areaGroups: groupByStockZone(group.levels, (l) => l.stockItem.name),
     }))
     .sort((a, b) => propertyDisplayName(a.property).localeCompare(propertyDisplayName(b.property)));
 
@@ -101,10 +101,10 @@ export default async function StockOverviewPage() {
                   <span className="font-normal text-zinc-500">· {property.client.name}</span>
                 </Link>
                 {areaGroups.map((group) => (
-                  <div key={group.area?.id ?? "none"} className="flex flex-col gap-2">
-                    {(group.area || areaGroups.length > 1) && (
+                  <div key={group.zone?.id ?? "other"} className="flex flex-col gap-2">
+                    {(group.zone || areaGroups.length > 1) && (
                       <h3 className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                        {group.area ? group.area.name : "No area yet"}
+                        {group.zone ? group.zone.name : "Other"}
                       </h3>
                     )}
                     <ul className="flex flex-col gap-2">

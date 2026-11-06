@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { createStockItem } from "../actions";
-import { StockItemFields } from "@/components/StockItemFields";
-import { button } from "@/lib/ui";
+import { button, inputCompact } from "@/lib/ui";
 
 export const metadata = { title: "New stock item" };
 
 export default async function NewStockItemPage() {
-  const { db } = await requireStaff();
-  const areas = await db.stockArea.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: { id: true, name: true } });
+  await requireStaff();
 
   return (
     <div className="flex flex-col gap-6">
@@ -20,7 +18,12 @@ export default async function NewStockItemPage() {
       </div>
 
       <form action={createStockItem} className="flex max-w-lg flex-col gap-4">
-        <StockItemFields areas={areas} namePlaceholder="Toilet roll" />
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="name" className="text-sm font-medium">
+            Name
+          </label>
+          <input id="name" name="name" required placeholder="Toilet roll" className={inputCompact} />
+        </div>
 
         <div>
           <button type="submit" className={button("primary", "sm")}>

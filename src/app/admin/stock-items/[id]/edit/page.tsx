@@ -2,8 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
 import { updateStockItem, deleteStockItem } from "../../actions";
-import { StockItemFields } from "@/components/StockItemFields";
-import { button } from "@/lib/ui";
+import { button, inputCompact } from "@/lib/ui";
 
 export const metadata = { title: "Edit stock item" };
 
@@ -16,7 +15,6 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
     include: { _count: { select: { levels: true, usage: true } } },
   });
   if (!item) notFound();
-  const areas = await db.stockArea.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: { id: true, name: true } });
 
   return (
     <div className="flex flex-col gap-8">
@@ -28,7 +26,12 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
       </div>
 
       <form action={updateStockItem.bind(null, item.id)} className="flex max-w-lg flex-col gap-4">
-        <StockItemFields areas={areas} initialName={item.name} initialAreaId={item.areaId ?? ""} />
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="name" className="text-sm font-medium">
+            Name
+          </label>
+          <input id="name" name="name" required defaultValue={item.name} className={inputCompact} />
+        </div>
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={item.active} />
