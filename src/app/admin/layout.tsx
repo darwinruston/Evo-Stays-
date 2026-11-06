@@ -53,7 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     },
     {
       key: "cleaning",
-      label: "Cleaning",
+      label: "Turnovers",
       href: "/admin/cleans",
       prefixes: ["/admin/cleans", "/admin/stock", "/admin/stock-items", "/admin/laundry", "/admin/laundry-facilities"],
       count: linenProblems,
