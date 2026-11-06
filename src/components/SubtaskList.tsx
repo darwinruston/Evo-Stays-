@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/actionResult";
 import { SUBTASK_TITLE_MAX, taskHref } from "@/lib/tasks";
 import { button, card, inputCompact } from "@/lib/ui";
@@ -41,7 +41,9 @@ export function SubtaskList({
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  // The box for new subtasks only opens when asked for, so it does not look
+  // like the updates box below it.
+  const [adding, setAdding] = useState(false);
 
   const total = items.length;
   const doneCount = items.filter((i) => i.done).length;
@@ -172,37 +174,48 @@ export function SubtaskList({
           </ul>
         )}
 
-        <form
-          ref={formRef}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            run(null, () => add(formData), () => formRef.current?.reset());
-          }}
-          className={`flex items-start gap-2 p-3 ${total > 0 ? "border-t border-black/5" : ""}`}
-        >
-          <label htmlFor="subtask-titles" className="sr-only">
-            Add a subtask
-          </label>
-          <textarea
-            id="subtask-titles"
-            name="titles"
-            rows={1}
-            maxLength={SUBTASK_TITLE_MAX * 20}
-            placeholder={total === 0 ? "Add a subtask. Paste a list to add several at once." : "Add another subtask"}
-            onKeyDown={(e) => {
-              // Enter adds; Shift+Enter starts a new line for a list.
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                formRef.current?.requestSubmit();
-              }
+        {adding ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              run(null, () => add(formData), () => setAdding(false));
             }}
-            className={`${inputCompact} min-h-9 resize-y`}
-          />
-          <button type="submit" disabled={pending && busyId === null} className={`${button("secondary", "sm")} shrink-0`}>
-            Add
-          </button>
-        </form>
+            className={`flex flex-col gap-3 p-4 ${total > 0 ? "border-t border-black/5" : ""}`}
+          >
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="subtask-titles" className="text-sm font-medium">
+                What are the subtasks?
+              </label>
+              <textarea
+                id="subtask-titles"
+                name="titles"
+                rows={3}
+                autoFocus
+                required
+                maxLength={SUBTASK_TITLE_MAX * 20}
+                placeholder={"Collect the key safe code\nTake cover photos"}
+                className={inputCompact}
+              />
+              <p className="text-xs text-zinc-500">One per line, so you can paste a whole list. You can add dates and notes to each afterwards.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="submit" disabled={pending && busyId === null} className={button("primary", "sm")}>
+                {pending && busyId === null ? "Adding…" : "Add subtasks"}
+              </button>
+              <button type="button" onClick={() => setAdding(false)} className={button("ghost", "sm")}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className={`flex items-center justify-between gap-3 px-4 py-3 ${total > 0 ? "border-t border-black/5" : ""}`}>
+            {total === 0 && <p className="text-sm text-zinc-500">No subtasks yet.</p>}
+            <button type="button" onClick={() => setAdding(true)} className={`${button("secondary", "sm")} ${total === 0 ? "" : "self-start"}`}>
+              + Add subtask
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
