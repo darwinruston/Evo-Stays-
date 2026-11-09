@@ -6,6 +6,7 @@ import type { ActionResult } from "@/lib/actionResult";
 import { SUBTASK_TITLE_MAX, taskHref } from "@/lib/tasks";
 import { button, card, inputCompact } from "@/lib/ui";
 import { TaskAssignees } from "@/components/TaskAssignees";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 export type SubtaskItem = {
   id: string;
@@ -184,8 +185,9 @@ export function SubtaskList({
             className={`flex flex-col gap-3 p-4 ${total > 0 ? "border-t border-black/5" : ""}`}
           >
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="subtask-titles" className="text-sm font-medium">
+              <label htmlFor="subtask-titles" className="flex items-center gap-2 text-sm font-medium">
                 What are the subtasks?
+                <InfoTooltip text="One per line, so you can paste a whole list. You can add dates and notes to each afterwards." />
               </label>
               <textarea
                 id="subtask-titles"
@@ -197,7 +199,6 @@ export function SubtaskList({
                 placeholder={"Collect the key safe code\nTake cover photos"}
                 className={inputCompact}
               />
-              <p className="text-xs text-zinc-500">One per line, so you can paste a whole list. You can add dates and notes to each afterwards.</p>
             </div>
             <div className="flex items-center gap-2">
               <button type="submit" disabled={pending && busyId === null} className={button("primary", "sm")}>

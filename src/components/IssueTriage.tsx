@@ -6,6 +6,7 @@ import type { ActionResult } from "@/lib/actionResult";
 import { ISSUE_DESCRIPTION_MAX } from "@/lib/issues";
 import { button, card, inputCompact } from "@/lib/ui";
 import { TaskForm, type TaskFormValues } from "@/components/TaskForm";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 // What to do with a reported problem that is still open: hand it to the team
 // as a task, or close it. Either way it leaves the open list, so Issues stays
@@ -37,13 +38,10 @@ export function IssueTriage({
   return (
     <section className={card("flex flex-col gap-4 p-5 ring-1 ring-black/[0.04]")} aria-labelledby="triage-heading">
       <div>
-        <h2 id="triage-heading" className="text-base font-semibold">
+        <h2 id="triage-heading" className="flex items-center gap-2 text-base font-semibold">
           What should happen with this?
+          <InfoTooltip text="Turn it into a task for the team to do, or close it if nothing more is needed. Either way it leaves the open issues." />
         </h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Turn it into a task for the team to do, or close it if nothing more is needed. Either way it leaves the open
-          issues.
-        </p>
       </div>
 
       {mode === null && (

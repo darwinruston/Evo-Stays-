@@ -4,6 +4,7 @@ import { formatDateOnly } from "@/lib/dateOnly";
 import { safetyStatusLabel } from "@/lib/safetyChecks";
 import { loadSafetyAttention, loadSafetyRest, type SafetyAttentionRow } from "@/lib/safetyOverview";
 import { badge, card } from "@/lib/ui";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 export const metadata = { title: "Health & safety" };
 
@@ -41,11 +42,10 @@ export default async function SafetyOverviewPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Health &amp; safety</h1>
-          <p className="mt-1.5 max-w-xl text-sm text-zinc-500">
-            Every check across your properties that is overdue or coming up, so you can stay on top of them in one place.
-            Open one to record the new date and keep the certificate.
-          </p>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">
+            Health &amp; safety
+            <InfoTooltip text="Every check across your properties that is overdue or coming up, so you can stay on top of them in one place. Open one to record the new date and keep the certificate. Reminders start once a date is recorded, so a check with no date yet is listed at the bottom but never counted as an alarm." />
+          </h1>
         </div>
         <ul className="flex flex-wrap gap-2 text-sm">
           <li className={badge(overdue.length > 0 ? "solid" : "neutral")}>{overdue.length} overdue</li>
@@ -84,9 +84,6 @@ export default async function SafetyOverviewPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-zinc-500">
-            Reminders start once a date is recorded. A property nobody has set up yet is not a problem to chase.
-          </p>
         </details>
       )}
     </div>

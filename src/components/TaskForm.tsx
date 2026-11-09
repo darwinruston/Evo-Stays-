@@ -5,6 +5,7 @@ import type { ActionResult } from "@/lib/actionResult";
 import { TASK_NOTES_MAX, TASK_PRIORITIES, TASK_PRIORITY_LABELS, TASK_TITLE_MAX } from "@/lib/tasks";
 import { TASK_REPEATS, TASK_REPEAT_LABELS } from "@/lib/taskRepeat";
 import { button, card, inputCompact } from "@/lib/ui";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 export type TaskFormValues = {
   title: string;
@@ -230,11 +231,10 @@ export function TasksHeader({
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Tasks</h1>
-          <p className="mt-1.5 max-w-xl text-sm text-zinc-500">
-            Work for the team that isn&apos;t a clean. Give it to one person or the whole team, say how important it
-            is, and open it to add updates and mark it complete.
-          </p>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">
+            Tasks
+            <InfoTooltip text="Work for the team that isn't a clean. Give it to one person or the whole team, say how important it is, and open it to add updates and mark it complete. Tasks can have subtasks, a due date and a repeat." />
+          </h1>
         </div>
         {!open && (
           <button type="button" onClick={() => setOpen(true)} className={button("primary", "md")}>

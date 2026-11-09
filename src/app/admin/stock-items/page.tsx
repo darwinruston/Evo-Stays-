@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { badge, button, card } from "@/lib/ui";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 export const metadata = { title: "Stock items" };
 
@@ -19,16 +20,15 @@ export default async function StockItemsPage() {
           ← Stock
         </Link>
         <div className="mt-2 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">Stock items</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+            Stock items
+            <InfoTooltip text="The catalogue every property's stock is picked from. The order a cleaner checks stock in is worked out from the item names, so there is nothing to set up." />
+          </h1>
           <Link href="/admin/stock-items/new" className={button("primary", "sm")}>
             New item
           </Link>
         </div>
       </div>
-
-      <p className="text-sm text-zinc-600">
-        The catalogue every property&apos;s par levels are picked from.
-      </p>
 
       {items.length === 0 ? (
         <p className="text-sm text-zinc-600">No stock items yet.</p>

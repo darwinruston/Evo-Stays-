@@ -2,6 +2,7 @@ import { Avatar } from "@/components/Avatar";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { ProfilePhotoForm } from "@/components/ProfilePhotoForm";
 import { badge, card } from "@/lib/ui";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 // Who you are signed in as, and the password. One view for every kind of
 // login (staff, cleaner, linen company): each area has its own page around it.
@@ -66,13 +67,10 @@ export function ProfileView({
 
       <section className={card("flex flex-col gap-4 p-5 ring-1 ring-black/[0.04]")} aria-labelledby="password-heading">
         <div>
-          <h2 id="password-heading" className="text-base font-semibold">
+          <h2 id="password-heading" className="flex items-center gap-2 text-base font-semibold">
             Password
+            <InfoTooltip text="Your password is stored scrambled, so nobody can read it back, not even us. You can set a new one at any time." />
           </h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Your password is stored scrambled, so nobody can read it back, not even us. You can set a new one at any
-            time.
-          </p>
         </div>
         {passwordChanged && (
           <p role="status" className="rounded-lg bg-black/[0.04] px-3 py-2 text-sm text-zinc-800">

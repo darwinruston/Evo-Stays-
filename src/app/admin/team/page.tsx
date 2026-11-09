@@ -8,6 +8,7 @@ import { AddTeamMemberForm } from "@/components/AddTeamMemberForm";
 import { StaffRow } from "@/components/StaffRow";
 import { badge, card } from "@/lib/ui";
 import { createTeamMember, updateStaff, deleteStaff } from "./actions";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 export const metadata = { title: "People" };
 
@@ -54,14 +55,10 @@ export default async function TeamPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">People</h1>
-          <p className="mt-1 max-w-xl text-sm text-zinc-500">
-            Everyone who signs in to your company, and what they do. Each person has their own login, so{" "}
-            <Link href="/admin/audit" className="underline underline-offset-2 hover:text-zinc-900">
-              Activity
-            </Link>{" "}
-            shows who changed what.
-          </p>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+            People
+            <InfoTooltip text="Everyone who signs in to your company, and what they do. Each person has their own login, so the Activity tab shows who changed what." />
+          </h1>
         </div>
         {/* Under the heading, not beside it: the form opens in place, at the
             left, instead of being pushed to the far edge of a header row. */}
@@ -71,12 +68,10 @@ export default async function TeamPage() {
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-zinc-900">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Admin and office <span className="text-sm font-normal text-zinc-500">({staff.length})</span>
+          <InfoTooltip text="Admins can also manage the team and Settings. Office staff run the day-to-day but can't." />
         </h2>
-        <p className="max-w-xl text-sm text-zinc-500">
-          Admins can also manage the team and Settings. Office staff run the day-to-day but can&apos;t.
-        </p>
         <ul className="flex max-w-2xl flex-col gap-2">
           {staff.map((s) =>
             isAdmin ? (
@@ -109,13 +104,10 @@ export default async function TeamPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-zinc-900">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           Cleaners <span className="text-sm font-normal text-zinc-500">({cleaners.length})</span>
+          <InfoTooltip text="They see only the properties they have cleans at. Open a cleaner to set their pay rate, properties and days off." />
         </h2>
-        <p className="max-w-xl text-sm text-zinc-500">
-          They see only the properties they have cleans at. Open a cleaner to set their pay rate, properties and days
-          off.
-        </p>
         {cleaners.length === 0 ? (
           <p className="text-sm text-zinc-500">No cleaners yet. Add one with the button above.</p>
         ) : (
@@ -149,12 +141,10 @@ export default async function TeamPage() {
 
       {modules.laundry && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold text-zinc-900">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
             Linen companies <span className="text-sm font-normal text-zinc-500">({linen.length})</span>
+            <InfoTooltip text="They see only their own delivery schedule. A login is added from the linen company's own page." />
           </h2>
-          <p className="max-w-xl text-sm text-zinc-500">
-            They see only their own delivery schedule. A login is added from the linen company&apos;s own page.
-          </p>
           {linen.length === 0 ? (
             <p className="text-sm text-zinc-500">
               No linen company logins yet.{" "}
