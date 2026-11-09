@@ -11,6 +11,9 @@ import { savePropertyPhotos } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
 import { plannedArrivalFor } from "@/lib/arrival";
+import { parseTeamSize, TEAM_SIZE_MAX } from "@/lib/teamSize";
+import { logAudit } from "@/lib/audit";
+import type { ActionResult } from "@/lib/actionResult";
 import type { LaundryLoadFormState } from "@/components/LaundryLoadWizard";
 import {
   createIssueRecord,
@@ -68,13 +71,20 @@ export async function confirmArrival(cleanId: string, formData: FormData) {
 // Arriving on site. Creates the visit record straight away rather than at
 // check-out, so the before photos taken in the next step have somewhere to
 // live -- a log with departedAt still null is a visit in progress.
-export async function checkInClean(cleanId: string) {
+//
+// Also where the cleaner says how many of them are cleaning (a helper or a
+// whole team may arrive together): the hours are billed for everyone, see
+// src/lib/invoices.ts. Left blank it is one person, as it always was.
+export async function checkInClean(cleanId: string, formData: FormData) {
   const { session, db } = await requireCleaner();
   const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
 
   if (clean.status !== "PENDING") {
     throw new Error("This clean has already been started.");
   }
+  const rawTeam = formData.get("teamSize");
+  const teamSize = rawTeam === null ? 1 : parseTeamSize(rawTeam);
+  if (teamSize === null) throw new Error(`The team can be 1 to ${TEAM_SIZE_MAX} people.`);
 
   const arrivedAt = new Date();
   // The clean and its brand-new log need to land together -- the scoped
@@ -93,12 +103,36 @@ export async function checkInClean(cleanId: string) {
         cleanId,
         recordedById: session.user.id,
         arrivedAt,
+        teamSize,
       },
     });
   });
 
   revalidatePath("/cleaner");
   revalidatePath(`/cleaner/cleans/${cleanId}`);
+}
+
+// Someone joined or left partway through. Only while the visit is in
+// progress; staff can correct it afterwards (until it is invoiced).
+export async function updateTeamSize(cleanId: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireCleaner();
+  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+
+  if (clean.status !== "IN_PROGRESS" || !clean.log) return { error: "Check in first." };
+  const teamSize = parseTeamSize(formData.get("teamSize"));
+  if (teamSize === null) return { error: `The team can be 1 to ${TEAM_SIZE_MAX} people.` };
+  if (teamSize === clean.log.teamSize) return;
+
+  await db.cleanLog.update({ where: { id: clean.log.id }, data: { teamSize } });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Clean",
+    entityId: cleanId,
+    summary: `Team size changed from ${clean.log.teamSize} to ${teamSize}`,
+  });
+
+  revalidatePath(`/cleaner/cleans/${cleanId}`);
+  revalidatePath(`/admin/cleans/${cleanId}`);
 }
 
 // One stage's photos. Before and after go through the same action because

@@ -14,6 +14,7 @@ type LogLike = {
   note: string | null;
   arrivedAt: Date | null;
   departedAt: Date | null;
+  teamSize?: number;
   recordedBy: { name: string };
   photos: LogPhoto[];
   stockUsage?: LogStockUsage[];
@@ -71,6 +72,7 @@ export function CleanLogView({ log, alt }: { log: LogLike; alt: string }) {
           "Time on site not recorded"
         )}
         {` · ${log.recordedBy.name}`}
+        {log.teamSize !== undefined && log.teamSize > 1 && ` · Team of ${log.teamSize}`}
       </div>
 
       {log.note && <p className="text-sm whitespace-pre-line text-zinc-600">{log.note}</p>}

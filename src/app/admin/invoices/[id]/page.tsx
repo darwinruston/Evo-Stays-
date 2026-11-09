@@ -109,7 +109,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             // Once a line's been manually adjusted, the "topped up to
             // minimum" note no longer applies -- the billed hours are
             // whatever staff set, not derived from the visit any more.
-            const toppedUp = !line.adjusted && line.hours > actualHours + 1 / 3600; // +1s slack for float rounding
+            // Billed hours are people x time, so compare with the whole team's time.
+            const toppedUp = !line.adjusted && line.hours > actualHours * line.teamSize + 1 / 3600; // +1s slack for float rounding
             // A flat-fee visit pays the same however long it took, so a short
             // one isn't a billing question.
             const isFlat = line.flatFee !== null;
@@ -121,9 +122,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     {formatScheduledFor(line.arrivedAt)} – {formatScheduledFor(line.departedAt)}
                   </span>
                   <span className="shrink-0 text-sm text-zinc-500">
-                    {isFlat ? `Flat fee (${formatHours(actualHours)} on site)` : formatHours(line.hours)}
-                    {line.adjusted && ` (adjusted, actual visit ${formatHours(actualHours)})`}
-                    {toppedUp && ` (${formatHours(actualHours)} actual, topped up to minimum)`}
+                    {isFlat
+                      ? `Flat fee (${formatHours(actualHours)} on site${line.teamSize > 1 ? `, ${line.teamSize} people` : ""})`
+                      : line.teamSize > 1 && !line.adjusted
+                        ? `${line.teamSize} people × ${formatHours(toppedUp ? line.hours / line.teamSize : actualHours)} = ${formatHours(line.hours)}`
+                        : formatHours(line.hours)}
+                    {line.adjusted && ` (adjusted, actual visit ${formatHours(actualHours)}${line.teamSize > 1 ? ` × ${line.teamSize} people` : ""})`}
+                    {toppedUp && ` (${formatHours(actualHours)} actual each, topped up to minimum)`}
                     {" · "}
                     {formatCurrency(line.amount)}
                   </span>
@@ -139,7 +144,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     className="flex items-center gap-2"
                   >
                     <label htmlFor={`hours-${line.id}`} className="text-xs text-zinc-500">
-                      Billed hours
+                      Billed hours{line.teamSize > 1 ? ", all people" : ""}
                     </label>
                     <input
                       id={`hours-${line.id}`}

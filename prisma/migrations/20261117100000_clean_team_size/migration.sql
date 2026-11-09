@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "CleanLog" ADD COLUMN "teamSize" INTEGER NOT NULL DEFAULT 1;
+
+-- AlterTable
+ALTER TABLE "InvoiceLine" ADD COLUMN "teamSize" INTEGER NOT NULL DEFAULT 1;

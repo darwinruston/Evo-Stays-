@@ -6,8 +6,9 @@ import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
 import { calendarDayKey, formatScheduledFor, formatScheduledForWithDay } from "@/lib/schedule";
 import { RescheduleClean } from "@/components/RescheduleClean";
-import { rescheduleClean } from "../actions";
+import { rescheduleClean, setCleanTeamSize } from "../actions";
 import { CleanLogView } from "@/components/CleanLogView";
+import { TeamSizeChange } from "@/components/TeamSizeChange";
 import { badge, button, card } from "@/lib/ui";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { IssueList, toIssueRow } from "@/components/IssueList";
@@ -66,6 +67,7 @@ export default async function CleanDetailPage({
           recordedBy: { select: { name: true } },
           photos: true,
           stockUsage: { include: { stockItem: true } },
+          invoiceLine: { select: { id: true } },
         },
       },
       issues: {
@@ -221,6 +223,15 @@ export default async function CleanDetailPage({
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-zinc-500">What happened</h2>
           <CleanLogView log={clean.log} alt={propertyDisplayName(clean.property)} />
+          {/* The invoice bills people x time, so how many cleaned matters. */}
+          {clean.log.invoiceLine ? (
+            <p className="text-sm text-zinc-500">
+              {clean.log.teamSize === 1 ? "One person cleaned" : `${clean.log.teamSize} people cleaned`}. This visit is on an
+              invoice, so adjust the hours there if it needs correcting.
+            </p>
+          ) : (
+            <TeamSizeChange size={clean.log.teamSize} action={setCleanTeamSize.bind(null, clean.id)} staff />
+          )}
         </section>
       )}
 

@@ -637,6 +637,11 @@ model CleanLog {
   note           String?
   arrivedAt      DateTime?
   departedAt     DateTime?
+  // How many people cleaned, the person logged in included. The cleaner says at
+  // check-in (a team of two arrives and both are on the clock), and the invoice
+  // bills people x time, so hourly pay scales with the team. See
+  // src/lib/invoices.ts. Staff can correct it until the visit is invoiced.
+  teamSize       Int             @default(1)
   photos         CleanPhoto[]
   stockUsage     StockUsageLog[]
   // At most one -- a visit can only ever be billed once, even across
@@ -864,7 +869,13 @@ model InvoiceLine {
   cleanLogId     String       @unique
   arrivedAt      DateTime
   departedAt     DateTime
+  // Billed hours: people x time, so a team of two for 1h 30m is 3h. For one
+  // person it is just the time.
   hours          Float
+  // How many people the hours are for (see CleanLog.teamSize), kept here so the
+  // invoice can say "2 people x 1h 30m" and so a later change to the visit
+  // never rewrites an invoice already made.
+  teamSize       Int          @default(1)
   amount         Float
   // True once staff have overridden the billed hours away from what
   // arrivedAt/departedAt (and any per-property minimum) would compute --

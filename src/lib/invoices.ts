@@ -101,7 +101,7 @@ export async function generateInvoices(
     flatFee: number | null;
     propertyId: string;
     minBillableHours: number | null;
-    logs: { id: string; arrivedAt: Date; departedAt: Date }[];
+    logs: { id: string; arrivedAt: Date; departedAt: Date; teamSize: number }[];
   };
   const groups = new Map<string, Group>();
 
@@ -133,7 +133,7 @@ export async function generateInvoices(
       minBillableHours: log.clean.property.minBillableHours,
       logs: [],
     };
-    group.logs.push({ id: log.id, arrivedAt: log.arrivedAt!, departedAt: log.departedAt! });
+    group.logs.push({ id: log.id, arrivedAt: log.arrivedAt!, departedAt: log.departedAt!, teamSize: log.teamSize });
     groups.set(key, group);
   }
 
@@ -154,14 +154,20 @@ export async function generateInvoices(
       // cleaner who finishes quickly because the place was left tidy isn't
       // penalised for it -- arrivedAt/departedAt still record the real
       // visit, only the billed hours are topped up.
-      const hours =
+      const perPerson =
         group.minBillableHours !== null ? Math.max(actualHours, group.minBillableHours) : actualHours;
+      // A team is on the clock together, so hourly pay is for everyone on the
+      // clean: two people for an hour and a half is three billed hours. The
+      // minimum above is per person for the same reason. A flat fee below is
+      // the agreed price for the visit, so the team's size does not change it.
+      const hours = perPerson * log.teamSize;
       return {
         organizationId: db.organizationId,
         cleanLogId: log.id,
         arrivedAt: log.arrivedAt,
         departedAt: log.departedAt,
         hours,
+        teamSize: log.teamSize,
         // A flat fee is what's paid however long the visit took; the hours
         // are still recorded as the real visit.
         amount: group.flatFee ?? hours * group.hourlyRate!,

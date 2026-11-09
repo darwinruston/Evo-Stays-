@@ -12,6 +12,7 @@ import type { ActionResult } from "@/lib/actionResult";
 import { linenNoticesFor } from "@/lib/linenNotify";
 import { notify, newCleanNotices, cleanEditNotices, cleanCancelledNotice } from "@/lib/notify";
 import { turnoverFor, isAtRisk, atRiskNotices } from "@/lib/turnover";
+import { parseTeamSize, TEAM_SIZE_MAX } from "@/lib/teamSize";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -255,4 +256,36 @@ export async function deleteClean(id: string) {
   revalidatePath("/admin/cleans");
   revalidatePath("/cleaner");
   redirect("/admin/cleans");
+}
+
+// Staff correcting how many people cleaned (the cleaner forgot to change it, or
+// a helper came along): the invoice bills people x time, so it matters. Allowed
+// until the visit is on an invoice; after that, adjust the hours on the
+// invoice itself.
+export async function setCleanTeamSize(cleanId: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+
+  const teamSize = parseTeamSize(formData.get("teamSize"));
+  if (teamSize === null) return { error: `The team can be 1 to ${TEAM_SIZE_MAX} people.` };
+
+  const clean = await db.clean.findUnique({
+    where: { id: cleanId },
+    select: { log: { select: { id: true, teamSize: true, invoiceLine: { select: { id: true } } } } },
+  });
+  if (!clean?.log) return { error: "This clean has no visit record yet." };
+  if (clean.log.invoiceLine) {
+    return { error: "This visit is already on an invoice. Adjust the hours on the invoice instead." };
+  }
+  if (clean.log.teamSize === teamSize) return;
+
+  await db.cleanLog.update({ where: { id: clean.log.id }, data: { teamSize } });
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Clean",
+    entityId: cleanId,
+    summary: `Team size changed from ${clean.log.teamSize} to ${teamSize}`,
+  });
+
+  revalidatePath(`/admin/cleans/${cleanId}`);
+  revalidatePath(`/cleaner/cleans/${cleanId}`);
 }

@@ -24,6 +24,7 @@ import { turnoverFor } from "@/lib/turnover";
 import { TurnoverNotice } from "@/components/TurnoverNotice";
 import {
   checkInClean,
+  updateTeamSize,
   confirmArrival,
   uploadCleanPhotos,
   recordStockLevel,
@@ -32,6 +33,8 @@ import {
 } from "../../actions";
 import { defaultArrivalTime, formatTimeOfDay } from "@/lib/arrival";
 import { getOrgModules } from "@/lib/modules";
+import { TeamSizeStepper } from "@/components/TeamSizeStepper";
+import { TeamSizeChange } from "@/components/TeamSizeChange";
 
 export const metadata = { title: "Clean" };
 
@@ -142,6 +145,19 @@ export default async function CleanerCleanPage({
   // Opt-in per property: a place with nothing configured skips straight past
   // this step, so rolling out stock tracking doesn't hold up every turnover
   // everywhere else.
+  // Whoever came last time to this property: the starting point for "how many
+  // of you are cleaning?", so a regular pair does not have to change it every
+  // visit.
+  const lastVisit =
+    clean.status === "PENDING"
+      ? await db.cleanLog.findFirst({
+          where: { clean: { propertyId: clean.propertyId, assignedToId: session.user.id } },
+          orderBy: [{ arrivedAt: "desc" }, { createdAt: "desc" }],
+          select: { teamSize: true },
+        })
+      : null;
+  const usualTeamSize = lastVisit?.teamSize ?? 1;
+
   const stockModuleOn = (await getOrgModules(session.user.organizationId)).stock;
   // In walking order (the kitchen, then the kitchen cupboard, the bathroom...,
   // worked out from the item names, see src/lib/stockZones.ts) so nobody is
@@ -296,7 +312,17 @@ export default async function CleanerCleanPage({
             <h2 className="text-sm font-medium text-zinc-500">Cleaning checklist</h2>
             <CleaningChecklist extras={clean.property.checklistItems} />
           </section>
-          <form action={checkInClean.bind(null, clean.id)}>
+          <form action={checkInClean.bind(null, clean.id)} className="flex flex-col gap-5">
+            {/* A helper or a whole team may arrive: everyone on the clean is
+                paid for, so say how many before starting. Starts at whoever
+                came last time to this property. */}
+            <section className={card("flex flex-col items-center gap-3 p-5")}>
+              <h2 className="text-sm font-medium">How many of you are cleaning?</h2>
+              <TeamSizeStepper defaultValue={usualTeamSize} />
+              <p className="text-center text-xs text-zinc-500">
+                Count everyone who is here to clean, you included. Hourly pay is for everyone on the clean.
+              </p>
+            </section>
             <button type="submit" className={`w-full ${button("primary", "lg")}`}>
               I&apos;ve arrived, check in
             </button>
@@ -310,6 +336,9 @@ export default async function CleanerCleanPage({
             <p className="text-sm text-zinc-600">
               Checked in at {formatScheduledFor(clean.arrivedAt)}.
             </p>
+          )}
+          {clean.log && (
+            <TeamSizeChange size={clean.log.teamSize} action={updateTeamSize.bind(null, clean.id)} />
           )}
 
           {/* Step 2 -- before photos, required before anything else opens up. */}
