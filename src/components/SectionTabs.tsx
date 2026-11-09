@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 export type SectionTab = {
   href: string;
   label: string;
+  // A shorter name for a narrow screen, where four tabs have to fit one row.
+  shortLabel?: string;
   // A badge after the label (open issues, your tasks). Zero shows nothing.
   count?: number;
   countLabel?: string;
@@ -40,11 +42,18 @@ export function SectionTabs({ sections }: { sections: Section[] }) {
               <Link
                 href={tab.href}
                 aria-current={current ? "page" : undefined}
-                className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                className={`-mb-px flex items-center gap-1.5 border-b-2 px-2 py-2.5 text-sm font-medium whitespace-nowrap transition-colors sm:px-3 ${
                   current ? "border-zinc-900 text-zinc-900" : "border-transparent text-zinc-500 hover:text-zinc-900"
                 }`}
               >
-                {tab.label}
+                {tab.shortLabel ? (
+                  <>
+                    <span className="sm:hidden">{tab.shortLabel}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </>
+                ) : (
+                  tab.label
+                )}
                 {count > 0 && (
                   <span className="rounded-full bg-zinc-900 px-1.5 text-xs leading-5 text-white">
                     {count > 99 ? "99+" : count}

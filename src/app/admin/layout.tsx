@@ -8,6 +8,7 @@ import { SectionTabs, type Section } from "@/components/SectionTabs";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { unreadNotificationCount } from "@/lib/notificationViews";
 import { prisma } from "@/lib/prisma";
+import { loadSafetyAttention } from "@/lib/safetyOverview";
 import { logoutAction } from "../logout/actions";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Issues' badge counts everything not yet resolved -- the same number as
   // the dashboard's "Open issues" tile and the Issues page's Open tab, so
   // the three never disagree about how much is outstanding.
-  const [unread, openIssues, linenProblems, myOpenTasks, me] = await Promise.all([
+  const [unread, openIssues, linenProblems, myOpenTasks, me, safetyAttention] = await Promise.all([
     unreadNotificationCount(db, session.user.id),
     db.issue.count({ where: { status: { not: "RESOLVED" } } }),
     // A problem the linen company has flagged and nobody has picked up yet.
@@ -34,6 +35,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     db.task.count({ where: { assignees: { some: { userId: session.user.id } }, status: { not: "DONE" } } }),
     // Their photo, for the Profile link in the bar.
     db.user.findUnique({ where: { id: session.user.id }, select: { name: true, photoPath: true } }),
+    // Health and safety checks overdue or coming up, for the flag on its tab.
+    loadSafetyAttention(db),
   ]);
   // The main headings, each with the pages that belong under it. Stock,
   // Laundry and Invoices follow the company's own switches. A heading that
@@ -71,11 +74,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       label: "Operations",
       // Opens on Tasks, the first tab: what needs doing comes before who is on the team.
       href: "/admin/team/tasks",
-      prefixes: ["/admin/team", "/admin/staff", "/admin/cleaners", "/admin/audit"],
+      prefixes: ["/admin/team", "/admin/staff", "/admin/cleaners", "/admin/audit", "/admin/safety"],
       count: myOpenTasks,
       countLabel: "tasks to do",
       tabs: [
         { href: "/admin/team/tasks", label: "Tasks", count: myOpenTasks, countLabel: "of your tasks to do", deep: true },
+        // Anything overdue or coming up across every property, in one place.
+        { href: "/admin/safety", label: "Health & safety", shortLabel: "Safety", count: safetyAttention.length, countLabel: "need attention" },
         { href: "/admin/team", label: "People" },
         { href: "/admin/audit", label: "Activity" },
       ],
