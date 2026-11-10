@@ -4,7 +4,7 @@ import {
   ISSUE_CATEGORY_ORDER,
   ISSUE_DESCRIPTION_MAX,
 } from "@/lib/issues";
-import { ACCEPTED_IMAGE_TYPES } from "@/lib/imageTypes";
+import { PICKER_IMAGE_TYPES } from "@/lib/imageTypes";
 import { inputCompact } from "@/lib/ui";
 import { PhotoPicker } from "@/components/PhotoPicker";
 
@@ -74,7 +74,7 @@ export function IssueFields({
         <label htmlFor={`${idPrefix}-photos`} className="text-sm font-medium">
           Photos <span className="font-normal text-zinc-500">(optional, but they help)</span>
         </label>
-        <PhotoPicker id={`${idPrefix}-photos`} accept={ACCEPTED_IMAGE_TYPES} />
+        <PhotoPicker id={`${idPrefix}-photos`} accept={PICKER_IMAGE_TYPES} />
       </div>
     </>
   );

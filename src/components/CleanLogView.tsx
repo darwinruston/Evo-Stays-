@@ -2,6 +2,7 @@ import type { StockLevelBand as PrismaStockLevelBand } from "@prisma/client";
 import { formatDuration, formatScheduledFor } from "@/lib/schedule";
 import { bandFromDb, STOCK_BAND_LABELS } from "@/lib/stock";
 import { card } from "@/lib/ui";
+import { SafeImage } from "@/components/SafeImage";
 
 type LogPhoto = { id: string; path: string; stage: "BEFORE" | "AFTER" };
 type LogStockUsage = {
@@ -28,8 +29,7 @@ function PhotoGroup({ title, photos, alt }: { title: string; photos: LogPhoto[];
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {photos.map((p) => (
           <li key={p.id} className={card("overflow-hidden")}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/api/photos/${p.path}`} alt={alt} className="h-32 w-full object-cover" />
+            <SafeImage src={`/api/photos/${p.path}`} alt={alt} className="h-32 w-full object-cover" />
           </li>
         ))}
       </ul>

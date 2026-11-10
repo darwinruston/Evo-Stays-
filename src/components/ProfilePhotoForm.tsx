@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { removeProfilePhoto, uploadProfilePhoto } from "@/app/account/actions";
 import { PROFILE_PHOTO_SIZE } from "@/lib/profile";
+import { PICKER_IMAGE_TYPES } from "@/lib/imageTypes";
 import { button } from "@/lib/ui";
 
 // Crops the middle square out of the picture and shrinks it, so what is sent
@@ -82,7 +83,7 @@ export function ProfilePhotoForm({ hasPhoto }: { hasPhoto: boolean }) {
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          accept={PICKER_IMAGE_TYPES}
           className="sr-only"
           tabIndex={-1}
           aria-label="Choose a profile photo"

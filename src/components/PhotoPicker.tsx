@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { button } from "@/lib/ui";
+import { PICKER_IMAGE_TYPES } from "@/lib/imageTypes";
+import { SafeImage } from "@/components/SafeImage";
 
 // A phone's camera hands back one photo per shot no matter what `multiple`
 // says, so a plain file input can never collect a set from it. This keeps its
@@ -11,7 +13,7 @@ import { button } from "@/lib/ui";
 // it would from a normal multi-file input).
 export function PhotoPicker({
   name = "photos",
-  accept = "image/*",
+  accept = PICKER_IMAGE_TYPES,
   required = false,
   id,
 }: {
@@ -99,8 +101,7 @@ export function PhotoPicker({
           <ul className="grid grid-cols-3 gap-2">
             {files.map((file, i) => (
               <li key={`${file.name}-${file.lastModified}-${i}`} className="relative overflow-hidden rounded-lg border border-black/10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previews[i]} alt={`Photo ${i + 1}`} className="h-20 w-full object-cover" />
+                <SafeImage src={previews[i]} alt={`Photo ${i + 1}`} className="h-20 w-full object-cover" />
                 <button
                   type="button"
                   onClick={() => setFiles((current) => current.filter((_, j) => j !== i))}

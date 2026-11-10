@@ -32,6 +32,7 @@ import {
   reportIssue,
 } from "../../actions";
 import { defaultArrivalTime, formatTimeOfDay } from "@/lib/arrival";
+import { SafeImage } from "@/components/SafeImage";
 import { getOrgModules } from "@/lib/modules";
 import { TeamSizeStepper } from "@/components/TeamSizeStepper";
 import { TeamSizeChange } from "@/components/TeamSizeChange";
@@ -50,8 +51,7 @@ function PhotoGrid({ paths, alt }: { paths: string[]; alt: string }) {
     <ul className="grid grid-cols-3 gap-2">
       {paths.map((path) => (
         <li key={path} className={card("overflow-hidden")}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/photos/${path}`} alt={alt} className="h-20 w-full object-cover" />
+          <SafeImage src={`/api/photos/${path}`} alt={alt} className="h-20 w-full object-cover" />
         </li>
       ))}
     </ul>

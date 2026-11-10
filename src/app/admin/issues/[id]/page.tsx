@@ -1,3 +1,4 @@
+import { SafeImage } from "@/components/SafeImage";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { IssueSeverity, IssueStatus } from "@prisma/client";
@@ -147,8 +148,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
             <li key={p.id} className={card("overflow-hidden")}>
               {/* Full-size in a new tab -- damage evidence is worth zooming into. */}
               <a href={`/api/photos/${p.path}`} target="_blank" rel="noreferrer">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/photos/${p.path}`} alt={`${title}: reported problem`} className="h-40 w-full object-cover" />
+                <SafeImage src={`/api/photos/${p.path}`} alt={`${title}: reported problem`} className="h-40 w-full object-cover" />
               </a>
             </li>
           ))}
