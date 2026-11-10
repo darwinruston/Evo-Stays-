@@ -5,6 +5,7 @@ import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { buildMonthGrid, toIsoDate, formatScheduledForWithDay } from "@/lib/schedule";
 import { button, card } from "@/lib/ui";
 import { blockDay, unblockDay } from "../actions";
+import { currentRegion } from "@/lib/region";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_LABELS = [
@@ -78,7 +79,7 @@ export default async function CleanerCalendarPage({
   const selectedDateLabel =
     selectedIso === todayIso
       ? "Today"
-      : new Date(selYear, selMonth - 1, selDay).toLocaleDateString("en-GB", {
+      : new Date(selYear, selMonth - 1, selDay).toLocaleDateString(currentRegion().locale, {
           weekday: "long",
           day: "numeric",
           month: "long",

@@ -2,6 +2,7 @@ import type { ScopedPrismaClient } from "@/lib/prisma";
 import { propertyDisplayName } from "@/lib/address";
 import { calendarDayKey as calendarDay, dayBounds, isDateOnly, toIsoDate } from "@/lib/schedule";
 import { notify, staffUserIds, type NotificationInput } from "@/lib/notify";
+import { currentRegion } from "@/lib/region";
 
 // What's known about the NEXT guests after a clean -- the thing that turns
 // "a clean on Friday" into "a clean on Friday that must be done by 3pm
@@ -132,14 +133,14 @@ export async function nextArrivalFrom(
 }
 
 function timeOfDay(date: Date): string {
-  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleTimeString(currentRegion().locale, { hour: "2-digit", minute: "2-digit" });
 }
 
 // "Fri 26 Sept, 15:00", or just "Fri 26 Sept" when the time isn't known --
 // formatScheduledFor can't be reused here, since an unknown-time arrival is
 // local midnight rather than the midnight-UTC form it recognises.
 export function formatArrival(t: Turnover): string {
-  const day = t.nextArrival.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const day = t.nextArrival.toLocaleDateString(currentRegion().locale, { weekday: "short", day: "numeric", month: "short" });
   return t.arrivalTimeKnown ? `${day}, ${timeOfDay(t.nextArrival)}` : day;
 }
 

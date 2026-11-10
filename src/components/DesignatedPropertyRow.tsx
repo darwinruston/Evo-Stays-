@@ -22,6 +22,7 @@ export function DesignatedPropertyRow({
   flatFee,
   hourlyRate,
   feeAction,
+  currencySymbol,
 }: {
   propertyName: string;
   propertyHref: string;
@@ -34,6 +35,8 @@ export function DesignatedPropertyRow({
   flatFee: number | null;
   hourlyRate: number | null;
   feeAction: (formData: FormData) => Promise<ActionResult>;
+  // The company's currency symbol, worked out on the server ("£", "$", "€").
+  currencySymbol: string;
 }) {
   const { open, setOpen, error, pending, submit } = useRevealForm(moveAction);
   const fee = useRevealForm(feeAction);
@@ -71,9 +74,9 @@ export function DesignatedPropertyRow({
           <p className="truncate text-sm text-zinc-500">{clientName}</p>
           <p className="mt-0.5 text-xs text-zinc-500">
             {flatFee !== null
-              ? `Paid £${flatFee.toFixed(2)} per clean, however long it takes`
+              ? `Paid ${currencySymbol}${flatFee.toFixed(2)} per clean, however long it takes`
               : hourlyRate !== null
-                ? `Paid by the hour (£${hourlyRate.toFixed(2)}/hr)`
+                ? `Paid by the hour (${currencySymbol}${hourlyRate.toFixed(2)}/hr)`
                 : "Paid by the hour, no hourly rate set"}{" "}
             {!fee.open && (
               <button
@@ -117,7 +120,7 @@ export function DesignatedPropertyRow({
         <form action={fee.submit} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor={`flatFee-${propertyHref}`} className="text-sm font-medium">
-              Flat fee per clean (£)
+              Flat fee per clean ({currencySymbol})
             </label>
             <input
               id={`flatFee-${propertyHref}`}

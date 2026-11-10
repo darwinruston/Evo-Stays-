@@ -4,7 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { BUSINESS_TYPE_LABELS, MODULE_LABELS, type Modules } from "@/lib/onboarding";
 import { SubmitButton } from "@/components/SubmitButton";
 import { card } from "@/lib/ui";
-import { updateModules } from "./actions";
+import { InfoTooltip } from "@/components/InfoTooltip";
+import { RegionFields } from "@/components/RegionFields";
+import { formatMoney, regionFor } from "@/lib/region";
+import { formatDateOnly, formatDateTime } from "@/lib/dateOnly";
+import { updateModules, updateRegion } from "./actions";
 
 export const metadata = { title: "Settings" };
 
@@ -16,9 +20,12 @@ export default async function SettingsPage() {
     getOrgModules(session.user.organizationId),
     prisma.organization.findUnique({
       where: { id: session.user.organizationId },
-      select: { name: true, businessType: true },
+      select: { name: true, businessType: true, country: true, currency: true },
     }),
   ]);
+
+  const region = regionFor(organization?.country, organization?.currency);
+  const now = new Date();
 
   return (
     <div className="flex max-w-xl flex-col gap-6">
@@ -29,6 +36,24 @@ export default async function SettingsPage() {
           {organization?.businessType ? ` · ${BUSINESS_TYPE_LABELS[organization.businessType]}` : ""}
         </p>
       </div>
+
+      <form action={updateRegion} className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-zinc-500">Where you work</h2>
+          <InfoTooltip text="Sets how money, dates and the clock are written, what an address code is called, and which health and safety starting list you get. Changing the currency does not convert amounts already recorded. Times follow the time zone of the server Evo Stays runs on. Only the United Kingdom has a full health and safety list so far: other countries get a general starting list, so always check your local rules." />
+        </div>
+
+        <div className={card("flex flex-col gap-4 p-4")}>
+          <RegionFields country={region.code} currency={region.currency} />
+          <p className="text-sm text-zinc-500">
+            Shown like this: {formatMoney(1234.5, region)} · {formatDateOnly(now)} · {formatDateTime(now)}
+          </p>
+        </div>
+
+        <div>
+          <SubmitButton pendingLabel="Saving…">Save country</SubmitButton>
+        </div>
+      </form>
 
       <form action={updateModules} className="flex flex-col gap-4">
         <div>

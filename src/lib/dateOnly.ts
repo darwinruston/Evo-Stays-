@@ -1,3 +1,5 @@
+import { currentRegion } from "@/lib/region";
+
 // Calendar dates (no time of day) held at midnight UTC, the same convention as
 // a date-only clean slot (see isDateOnly in src/lib/schedule.ts), so they never
 // shift a day with the server's timezone. Used by the health and safety checks
@@ -27,28 +29,39 @@ export function toDateInputValue(date: Date): string {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// "12 Nov 25".
+// "12 Nov 25", or "Nov 12, 25" where the company's country writes the month
+// first.
 export function formatDateOnly(date: Date): string {
-  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${pad(date.getUTCFullYear() % 100)}`;
+  const month = MONTHS[date.getUTCMonth()];
+  const year = pad(date.getUTCFullYear() % 100);
+  return currentRegion().dateOrder === "mdy" ? `${month} ${date.getUTCDate()}, ${year}` : `${date.getUTCDate()} ${month} ${year}`;
 }
 
-// A moment in time as UK wall-clock time: "12 Nov 25, 14:30". For things that
-// happened at a time of day, such as an update on a task.
+// A moment in time as wall-clock time: "12 Nov 25, 14:30" (or "Nov 12, 25,
+// 2:30 PM" where the company's country writes it that way). For things that
+// happened at a time of day, such as an update on a task. In the time zone of
+// the server, like every other time in the app (see src/lib/region.ts).
 export function formatDateTime(date: Date): string {
+  const region = currentRegion();
   const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/London",
+    new Intl.DateTimeFormat(region.locale, {
       day: "numeric",
       month: "numeric",
       year: "numeric",
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
-      hourCycle: "h23",
     })
       .formatToParts(date)
       .map((p) => [p.type, p.value]),
   );
-  return `${Number(parts.day)} ${MONTHS[Number(parts.month) - 1]} ${parts.year.slice(-2)}, ${parts.hour}:${parts.minute}`;
+  const month = MONTHS[Number(parts.month) - 1];
+  const year = String(parts.year).slice(-2);
+  // 24-hour clocks pad the hour ("09:05"); 12-hour ones do not ("9:05 AM").
+  const hour = parts.dayPeriod ? parts.hour : String(parts.hour).padStart(2, "0");
+  const clock = `${hour}:${parts.minute}${parts.dayPeriod ? ` ${String(parts.dayPeriod).toUpperCase()}` : ""}`;
+  return region.dateOrder === "mdy"
+    ? `${month} ${Number(parts.day)}, ${year}, ${clock}`
+    : `${Number(parts.day)} ${month} ${year}, ${clock}`;
 }
 
 // Adds whole months, stopping at the end of a shorter month rather than

@@ -1,5 +1,6 @@
 import { deadlinePassed, formatArrival, type Turnover } from "@/lib/turnover";
 import { card } from "@/lib/ui";
+import { currentRegion } from "@/lib/region";
 
 function ClockIcon({ className }: { className?: string }) {
   return (
@@ -28,7 +29,7 @@ export function TurnoverNotice({ turnover, className = "" }: { turnover: Turnove
   if (!turnover.sameDay) {
     return <p className={`text-sm text-zinc-500 ${className}`}>Next guests: {formatArrival(turnover)}</p>;
   }
-  const time = turnover.nextArrival.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const time = turnover.nextArrival.toLocaleTimeString(currentRegion().locale, { hour: "2-digit", minute: "2-digit" });
   return (
     <div className={`${card("flex items-center gap-3 border-2 border-zinc-900 p-4")} ${className}`}>
       <ClockIcon className="h-6 w-6 shrink-0" />

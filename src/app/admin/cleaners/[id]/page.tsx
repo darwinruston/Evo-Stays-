@@ -5,6 +5,7 @@ import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { AddPropertyForm } from "@/components/AddPropertyForm";
 import { Avatar } from "@/components/Avatar";
 import { DesignatedPropertyRow } from "@/components/DesignatedPropertyRow";
+import { currencySymbol } from "@/lib/region";
 import { EditableNumberField } from "@/components/EditableNumberField";
 import { EditCleanerDetailsForm } from "@/components/EditCleanerDetailsForm";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -196,6 +197,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
           <ul className="flex flex-col gap-2">
             {cleaner.designatedProperties.map((d) => (
               <DesignatedPropertyRow
+                currencySymbol={currencySymbol()}
                 key={d.id}
                 propertyName={propertyDisplayName(d.property)}
                 propertyHref={`/admin/properties/${d.propertyId}`}

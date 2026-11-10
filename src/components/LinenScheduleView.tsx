@@ -6,19 +6,20 @@ import { badge, button, card, inputCompact } from "@/lib/ui";
 import { LinenStopControls } from "@/components/LinenStopControls";
 import { setLinenArrival, clearLinenArrival, flagLinenIssue } from "@/app/linen/actions";
 import { resolveLinenIssue } from "@/app/admin/laundry/actions";
+import { currentRegion } from "@/lib/region";
 
 function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
 function dayHeading(day: Date): string {
-  return day.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  return day.toLocaleDateString(currentRegion().locale, { weekday: "long", day: "numeric", month: "long" });
 }
 
 function rangeLabel(from: Date, to: Date): string {
   const sameMonth = from.getMonth() === to.getMonth();
-  const start = from.toLocaleDateString("en-GB", sameMonth ? { day: "numeric" } : { day: "numeric", month: "short" });
-  const end = to.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const start = from.toLocaleDateString(currentRegion().locale, sameMonth ? { day: "numeric" } : { day: "numeric", month: "short" });
+  const end = to.toLocaleDateString(currentRegion().locale, { day: "numeric", month: "short" });
   return `${start} to ${end}`;
 }
 

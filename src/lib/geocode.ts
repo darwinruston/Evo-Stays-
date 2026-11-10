@@ -1,4 +1,5 @@
 import type { LatLng } from "@/lib/linenRoute";
+import { currentRegion } from "@/lib/region";
 
 // A UK postcode anywhere in an address: "E1W 1NJ", "S32 1AJ", "SW1A1AA".
 const UK_POSTCODE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
@@ -28,4 +29,11 @@ export async function geocodeUkAddress(address: string): Promise<LatLng | null> 
   } catch {
     return null;
   }
+}
+
+// Finds an address on the map with the lookup that suits the company's country
+// (see src/lib/region.ts). Where there is none yet it returns null, and the
+// route plan falls back to a typical drive time between stops.
+export async function geocodeAddress(address: string): Promise<LatLng | null> {
+  return currentRegion().lookup === "uk-postcodes" ? geocodeUkAddress(address) : null;
 }

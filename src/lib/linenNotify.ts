@@ -3,6 +3,7 @@ import { propertyDisplayName } from "@/lib/address";
 import { getOrgModules } from "@/lib/modules";
 import type { NotificationInput } from "@/lib/notify";
 import { isDateOnly, sameCalendarDay, toIsoDate } from "@/lib/schedule";
+import { currentRegion } from "@/lib/region";
 
 // Telling a linen company when something it has planned around has changed:
 // a clean at one of its properties was cancelled, moved to another day, or
@@ -67,7 +68,7 @@ export function describeLinenChange(
 }
 
 function dayLabel(date: Date): string {
-  return date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  return date.toLocaleDateString(currentRegion().locale, { weekday: "short", day: "numeric", month: "short" });
 }
 
 function clock(date: Date): string {

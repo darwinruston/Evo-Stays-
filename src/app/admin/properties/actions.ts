@@ -164,7 +164,7 @@ export async function updateProperty(id: string, formData: FormData) {
   const address = str(formData, "address");
   if (!address) throw new Error("Address is required");
 
-  // A changed address has to be found on the map again (see geocodeUkAddress):
+  // A changed address has to be found on the map again (see geocodeAddress):
   // the stored position belongs to the old one.
   const before = await db.property.findUnique({ where: { id }, select: { address: true } });
 

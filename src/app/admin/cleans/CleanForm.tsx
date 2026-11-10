@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { propertyDisplayName } from "@/lib/address";
-import { toDateTimeLocalValue } from "@/lib/schedule";
+import { toDateTimeLocalValue } from "@/lib/dateInputs";
 import { button, inputCompact } from "@/lib/ui";
 
 type CleanFields = {

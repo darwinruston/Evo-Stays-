@@ -19,6 +19,12 @@ export const MANAGEMENT_LABELS: Record<Management, string> = {
   HMO: "HMO (shared house)",
 };
 
+// "HMO" is a UK term (a house in multiple occupation), so outside the UK the
+// same kind of property is just called a shared house.
+export function managementLabel(management: Management, pack: SafetyPack = currentRegion().safetyPack): string {
+  return management === "HMO" && pack !== "uk" ? "Shared house" : MANAGEMENT_LABELS[management];
+}
+
 export const MANAGEMENT_HINTS: Record<Management, string> = {
   SHORT_LET: "holiday lets and short stays, with guests coming and going",
   LONG_LET: "a home let to one household on a tenancy",
@@ -131,9 +137,86 @@ export const SAFETY_CHECK_TEMPLATES: SafetyCheckTemplate[] = [
   },
 ];
 
-// The checks a property of this kind gets, in the order they are shown.
-export function templatesFor(management: Management): SafetyCheckTemplate[] {
-  return SAFETY_CHECK_TEMPLATES.filter((t) => t.appliesTo.includes(management));
+// The starting list for every country that has no list of its own yet. It makes
+// no claim about any country's law: it names the kinds of check most places
+// ask for, in plain words, and the company marks off what does not apply and
+// adds what its local rules require. The keys match the UK list where it is the
+// same kind of check, so changing country keeps the dates already recorded.
+export const GENERIC_SAFETY_CHECK_TEMPLATES: SafetyCheckTemplate[] = [
+  {
+    key: "local-permit",
+    title: "Local permit or registration",
+    what: "Any licence, permit or registration your area asks for to let the property. Check with your local authority.",
+    intervalMonths: 12,
+    appliesTo: ["SHORT_LET", "HMO"],
+  },
+  {
+    key: "gas-safety",
+    title: "Gas and heating appliance check",
+    what: "Check of gas and other fuel-burning appliances and pipework by a qualified engineer. Only if the property has them.",
+    intervalMonths: 12,
+    appliesTo: ALL,
+  },
+  {
+    key: "electrical",
+    title: "Electrical safety inspection",
+    what: "Inspection of the fixed electrics by a qualified electrician. How often depends on your local rules.",
+    intervalMonths: 60,
+    appliesTo: ALL,
+  },
+  {
+    key: "fire-risk",
+    title: "Fire safety assessment",
+    what: "Written assessment of fire risks and escape routes, reviewed regularly.",
+    intervalMonths: 12,
+    appliesTo: ["SHORT_LET", "HMO"],
+  },
+  {
+    key: "alarms",
+    title: "Smoke and carbon monoxide alarms tested",
+    what: "Test every alarm and replace flat batteries.",
+    intervalMonths: 1,
+    intervalFor: { LONG_LET: 6 },
+    appliesTo: ALL,
+  },
+  {
+    key: "fire-equipment",
+    title: "Fire extinguishers and fire blanket",
+    what: "Check they are in place, in date and serviced.",
+    intervalMonths: 12,
+    appliesTo: ["SHORT_LET", "HMO"],
+  },
+  {
+    key: "pat",
+    title: "Portable appliance testing",
+    what: "Test of the plug-in appliances tenants and guests use, such as kettles, toasters and lamps.",
+    intervalMonths: 12,
+    appliesTo: ["SHORT_LET", "HMO"],
+  },
+  {
+    key: "legionella",
+    title: "Water system safety check",
+    what: "Assessment of the water system for bacteria such as legionella, reviewed every couple of years or when it changes.",
+    intervalMonths: 24,
+    appliesTo: ALL,
+  },
+  {
+    key: "insurance",
+    title: "Building and liability insurance",
+    what: "The renewal date of the cover for the property.",
+    intervalMonths: 12,
+    appliesTo: ALL,
+  },
+];
+
+function listFor(pack: SafetyPack): SafetyCheckTemplate[] {
+  return pack === "uk" ? SAFETY_CHECK_TEMPLATES : GENERIC_SAFETY_CHECK_TEMPLATES;
+}
+
+// The checks a property of this kind gets, in the order they are shown. The
+// list follows the company's country (see src/lib/region.ts).
+export function templatesFor(management: Management, pack: SafetyPack = currentRegion().safetyPack): SafetyCheckTemplate[] {
+  return listFor(pack).filter((t) => t.appliesTo.includes(management));
 }
 
 export function defaultIntervalFor(template: SafetyCheckTemplate, management: Management): number {
@@ -141,13 +224,14 @@ export function defaultIntervalFor(template: SafetyCheckTemplate, management: Ma
 }
 
 import { addMonths, daysBetween, todayDateOnly } from "@/lib/dateOnly";
+import { currentRegion, type SafetyPack } from "@/lib/region";
 
 export const SAFETY_INTERVAL_MAX_MONTHS = 240;
 export const SAFETY_TITLE_MAX = 80;
 export const SAFETY_NOTE_MAX = 300;
 
-export function templateByKey(key: string | null): SafetyCheckTemplate | null {
-  return SAFETY_CHECK_TEMPLATES.find((t) => t.key === key) ?? null;
+export function templateByKey(key: string | null, pack: SafetyPack = currentRegion().safetyPack): SafetyCheckTemplate | null {
+  return listFor(pack).find((t) => t.key === key) ?? null;
 }
 
 export function dueDateFor(lastCompletedOn: Date, intervalMonths: number): Date {

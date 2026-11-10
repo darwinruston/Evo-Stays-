@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma, scopedDb, type ScopedPrismaClient } from "@/lib/prisma";
+import { regionFor, setRequestRegion } from "@/lib/region";
 
 const STAFF_ROLES = ["ADMIN", "OFFICE"];
 const CLEANER_ROLES = ["ADMIN", "CLEANER"];
@@ -25,12 +26,17 @@ function isPlatformOwner(email: string | null | undefined): boolean {
 // Skipped entirely when the owner is impersonating (see
 // src/app/impersonation/actions.ts) -- support access to a suspended
 // organisation is exactly the case that access still needs to work for.
+//
+// The same read also tells the rest of the request which country the company
+// works in (see src/lib/region.ts), so dates, money and the clock are written
+// the way that country writes them.
 async function redirectIfSuspended(organizationId: string, impersonatedBy?: string): Promise<void> {
-  if (impersonatedBy) return;
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { suspendedAt: true },
+    select: { suspendedAt: true, country: true, currency: true },
   });
+  setRequestRegion(regionFor(organization?.country, organization?.currency));
+  if (impersonatedBy) return;
   if (organization?.suspendedAt) redirect("/suspended");
 }
 

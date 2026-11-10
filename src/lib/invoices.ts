@@ -1,6 +1,7 @@
 import type { InvoiceCadence } from "@prisma/client";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { formatDate } from "@/lib/schedule";
+import { formatMoney } from "@/lib/region";
 
 // The period offered when generating, based on the cadence setting -- "the
 // most recent full period", never including today (a period ending today
@@ -49,7 +50,7 @@ export function formatPeriod(periodStart: Date, periodEnd: Date): string {
 }
 
 export function formatCurrency(amount: number): string {
-  return `£${amount.toFixed(2)}`;
+  return formatMoney(amount);
 }
 
 export function formatHours(hours: number): string {

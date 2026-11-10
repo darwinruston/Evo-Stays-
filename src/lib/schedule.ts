@@ -1,13 +1,18 @@
+import { currentRegion } from "@/lib/region";
+import { toIsoDate } from "@/lib/dateInputs";
+
+// Kept here too so existing imports keep working; the browser-safe versions
+// live in src/lib/dateInputs.ts.
+export { toIsoDate, toDateTimeLocalValue } from "@/lib/dateInputs";
+
 function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-// YYYY-MM-DD in local time -- used as both the calendar grid's per-day key
-// and the ?day= query param, so it must never drift with timezone/UTC
-// conversion the way toISOString() would. Internal/machine use only --
-// for anything a person reads, use formatDate below instead.
-export function toIsoDate(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+// How dates and times are written follows the company's country (see
+// src/lib/region.ts): the order of day and month, and 12 or 24-hour time.
+function locale(): string {
+  return currentRegion().locale;
 }
 
 // The inverse of toIsoDate -- "YYYY-MM-DD" from an <input type="date">,
@@ -21,19 +26,14 @@ export function parseIsoDate(raw: string): Date | null {
   return new Date(Number(y), Number(m) - 1, Number(d));
 }
 
-// dd/mm/yyyy, for every date shown as text to a person. Kept separate from
-// toIsoDate, which stays YYYY-MM-DD on purpose for sortable keys and
-// <input type="date"> values (that HTML attribute requires ISO format
-// regardless of display locale).
+// dd/mm/yyyy (or mm/dd/yyyy where the company's country writes it that way),
+// for every date shown as text to a person. Kept separate from toIsoDate,
+// which stays YYYY-MM-DD on purpose for sortable keys and <input type="date">
+// values (that HTML attribute requires ISO format regardless of display locale).
 export function formatDate(date: Date): string {
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
-}
-
-// Local-time value an <input type="datetime-local"> expects for its
-// defaultValue -- toISOString() would silently shift the displayed time by
-// the server's UTC offset.
-export function toDateTimeLocalValue(date: Date): string {
-  return `${toIsoDate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  return currentRegion().dateOrder === "mdy" ? `${month}/${day}/${date.getFullYear()}` : `${day}/${month}/${date.getFullYear()}`;
 }
 
 // A synced booking's checkout can arrive as just a date with no real time --
@@ -74,10 +74,12 @@ export function sameCalendarDay(a: Date | null, b: Date | null): boolean {
 }
 
 export function formatScheduledFor(date: Date): string {
+  // A date with no time is midnight UTC and is read as that calendar day, so it
+  // can never slip a day in a time zone behind UTC.
   if (isDateOnly(date)) {
-    return date.toLocaleString("en-GB", { day: "numeric", month: "short" });
+    return date.toLocaleString(locale(), { day: "numeric", month: "short", timeZone: "UTC" });
   }
-  return date.toLocaleString("en-GB", {
+  return date.toLocaleString(locale(), {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -94,9 +96,9 @@ export function formatScheduledFor(date: Date): string {
 // clean is for*, so those keep the plain form.
 export function formatScheduledForWithDay(date: Date): string {
   if (isDateOnly(date)) {
-    return date.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    return date.toLocaleString(locale(), { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   }
-  return date.toLocaleString("en-GB", {
+  return date.toLocaleString(locale(), {
     weekday: "short",
     day: "numeric",
     month: "short",

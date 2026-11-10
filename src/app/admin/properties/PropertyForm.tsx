@@ -1,6 +1,6 @@
 import { ACCESS_OPTIONS, parseAccessOptions } from "@/lib/accessOptions";
 import { PROPERTY_TYPE_LABELS } from "@/lib/accessOptions";
-import { MANAGEMENT_HINTS, MANAGEMENT_LABELS, MANAGEMENT_TYPES } from "@/lib/safetyChecks";
+import { MANAGEMENT_HINTS, MANAGEMENT_TYPES, managementLabel } from "@/lib/safetyChecks";
 import { button, inputCompact } from "@/lib/ui";
 
 type PropertyFields = {
@@ -150,7 +150,7 @@ export function PropertyForm({
         >
           {MANAGEMENT_TYPES.map((value) => (
             <option key={value} value={value}>
-              {MANAGEMENT_LABELS[value]}: {MANAGEMENT_HINTS[value]}
+              {managementLabel(value)}: {MANAGEMENT_HINTS[value]}
             </option>
           ))}
         </select>

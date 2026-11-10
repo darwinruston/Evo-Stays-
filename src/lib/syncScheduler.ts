@@ -4,6 +4,7 @@ import { checkAtRiskTurnovers } from "@/lib/turnover";
 import { checkUnconfirmedArrivals } from "@/lib/arrival";
 import { checkSafetyReminders } from "@/lib/safetyReminders";
 import { checkTaskReminders } from "@/lib/taskReminders";
+import { runForOrganization } from "@/lib/regionServer";
 
 const DEFAULT_INTERVAL_MINUTES = 30;
 // Far shorter than the sync interval: this one is a cheap local query, and
@@ -41,17 +42,21 @@ export function startSyncScheduler(): void {
       .findMany({ select: { id: true } })
       .then(async (organizations) => {
         for (const org of organizations) {
-          await checkAtRiskTurnovers(scopedDb(org.id)).catch((err) => {
-            console.error(`[turnover check] run failed for organisation ${org.id}:`, err);
-          });
-          await checkUnconfirmedArrivals(scopedDb(org.id)).catch((err) => {
-            console.error(`[arrival check] run failed for organisation ${org.id}:`, err);
-          });
-          await checkSafetyReminders(scopedDb(org.id)).catch((err) => {
-            console.error(`[safety check] run failed for organisation ${org.id}:`, err);
-          });
-          await checkTaskReminders(scopedDb(org.id)).catch((err) => {
-            console.error(`[task check] run failed for organisation ${org.id}:`, err);
+          await runForOrganization(org.id, async () => {
+            await checkAtRiskTurnovers(scopedDb(org.id)).catch((err) => {
+              console.error(`[turnover check] run failed for organisation ${org.id}:`, err);
+            });
+            await checkUnconfirmedArrivals(scopedDb(org.id)).catch((err) => {
+              console.error(`[arrival check] run failed for organisation ${org.id}:`, err);
+            });
+            await checkSafetyReminders(scopedDb(org.id)).catch((err) => {
+              console.error(`[safety check] run failed for organisation ${org.id}:`, err);
+            });
+            await checkTaskReminders(scopedDb(org.id)).catch((err) => {
+              console.error(`[task check] run failed for organisation ${org.id}:`, err);
+            });
+          }).catch((err) => {
+            console.error(`[background checks] could not start for organisation ${org.id}:`, err);
           });
         }
       })

@@ -43,7 +43,7 @@ import {
 } from "../actions";
 import { AddSafetyCheckForm, SafetyCheckCard } from "@/components/SafetyCheckCard";
 import {
-  MANAGEMENT_LABELS,
+  managementLabel,
   buildSafetyEntries,
   safetyState,
   safetyStatusLabel,
@@ -615,7 +615,7 @@ export default async function PropertyDetailPage({
               <InfoTooltip text="The checks this kind of property usually needs repeating, such as gas safety and electrical reports. Record the date each was completed and Evo Stays works out when it is next due and reminds your team beforehand. This is a starting list: what a property needs depends on where it is, so mark anything that does not apply and add your own." />
             </h2>
             <p className="text-sm text-zinc-500">
-              Checks for: {MANAGEMENT_LABELS[property.management]}.{" "}
+              Checks for: {managementLabel(property.management)}.{" "}
               <Link href={`/admin/properties/${property.id}/edit`} className="underline underline-offset-2">
                 Change how it is managed
               </Link>

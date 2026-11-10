@@ -4,11 +4,13 @@ import { requireStaff } from "@/lib/authz";
 import { updateLaundryFacility, deleteLaundryFacility, createLinenLogin, removeLinenLogin } from "../../actions";
 import { AddLinenLoginForm } from "@/components/AddLinenLoginForm";
 import { button, card, inputCompact } from "@/lib/ui";
+import { currentRegion } from "@/lib/region";
 
 export const metadata = { title: "Edit laundry company" };
 
 export default async function EditLaundryFacilityPage({ params }: { params: Promise<{ id: string }> }) {
   const { session, db } = await requireStaff();
+  const { postcodeLabel, lookup } = currentRegion();
   const { id } = await params;
 
   const facility = await db.laundryFacility.findUnique({
@@ -67,11 +69,13 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
               id="depotAddress"
               name="depotAddress"
               defaultValue={facility.depotAddress ?? ""}
-              placeholder="Address with a postcode"
+              placeholder={`Address with a ${postcodeLabel.toLowerCase()}`}
               className={inputCompact}
             />
             <p className="text-xs text-zinc-500">
-              Needs a UK postcode, which is how it&apos;s found on the map.
+              {lookup === "uk-postcodes"
+                ? "Needs a UK postcode, which is how it's found on the map."
+                : "Finding addresses on the map is not available for your country yet, so drive times use a typical figure."}
             </p>
           </div>
 

@@ -64,6 +64,12 @@ model Organization {
   // account's technical housekeeping staring back at them in a list of
   // customers.
   isPlatform            Boolean          @default(false)
+  // The country the company works in, an ISO code ("GB", "US"...), and the
+  // currency its amounts are written in. They decide how money and dates are
+  // written, the health and safety starter list, address labels and the address
+  // lookup (see src/lib/region.ts). The UK until a company says otherwise.
+  country               String           @default("GB")
+  currency              String           @default("GBP")
   // Informational only -- nothing automatically suspends an organisation
   // when this passes. Shown on the Organisations page as a due-soon/overdue
   // flag; whether to actually cut access off afterwards is still the

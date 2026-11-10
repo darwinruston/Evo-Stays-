@@ -1,6 +1,6 @@
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { propertyDisplayName } from "@/lib/address";
-import { geocodeUkAddress } from "@/lib/geocode";
+import { geocodeAddress } from "@/lib/geocode";
 import { planRoute, type LatLng, type RoutePlan, type StopInput } from "@/lib/linenRoute";
 import { dayBounds, isDateOnly } from "@/lib/schedule";
 import { estimateCleanMinutes, visitMinutes } from "@/lib/cleanDuration";
@@ -68,7 +68,7 @@ export async function loadLinenDay(
       ? { lat: facility.depotLatitude, lng: facility.depotLongitude }
       : null;
   if (!depot && facility.depotAddress) {
-    depot = await geocodeUkAddress(facility.depotAddress);
+    depot = await geocodeAddress(facility.depotAddress);
     if (depot) {
       await db.laundryFacility.update({
         where: { id: facility.id },
@@ -94,7 +94,7 @@ export async function loadLinenDay(
     let location: LatLng | null =
       p.latitude !== null && p.longitude !== null ? { lat: p.latitude, lng: p.longitude } : null;
     if (!location) {
-      location = await geocodeUkAddress(p.address);
+      location = await geocodeAddress(p.address);
       if (location) {
         await db.property.update({ where: { id: p.id }, data: { latitude: location.lat, longitude: location.lng } });
       }

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Organization" ADD COLUMN "country" TEXT NOT NULL DEFAULT 'GB',
+ADD COLUMN "currency" TEXT NOT NULL DEFAULT 'GBP';

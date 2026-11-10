@@ -11,11 +11,10 @@ import { TASK_PRIORITY_LABELS, taskHref } from "@/lib/tasks";
 const FIRST_HOUR = 8;
 const LAST_HOUR = 21;
 
-function ukHour(now: Date): number {
-  const hour = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" })
-    .formatToParts(now)
-    .find((p) => p.type === "hour")?.value;
-  return Number(hour);
+// The hour of the day where the server runs, the same clock every other time in
+// the app uses (see src/lib/region.ts).
+function localHour(now: Date): number {
+  return now.getHours();
 }
 
 // Run on the same timer as the other background checks (see
@@ -31,7 +30,7 @@ function ukHour(now: Date): number {
 // that check's own three reminders (src/lib/safetyReminders.ts). Returns how
 // many tasks it flagged.
 export async function checkTaskReminders(db: ScopedPrismaClient, now = new Date()): Promise<number> {
-  const hour = ukHour(now);
+  const hour = localHour(now);
   if (hour < FIRST_HOUR || hour >= LAST_HOUR) return 0;
 
   const today = todayDateOnly(now);
