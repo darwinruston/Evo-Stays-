@@ -273,8 +273,11 @@ export default async function CleanerCleanPage({
                     : "Tell the office what time you'll get there."}
                 </p>
               </div>
-              <div className="flex items-end gap-2">
-                <div className="flex flex-col gap-1">
+              <div className="flex items-end gap-3">
+                {/* The width is on this wrapper, not the input: the shared input
+                    style is full width, and a width class on it loses to that,
+                    which let the time box run under the button on a phone. */}
+                <div className="flex w-36 min-w-0 flex-col gap-1">
                   <label htmlFor="arrivalTime" className="text-xs text-zinc-500">
                     Arrival time
                   </label>
@@ -284,10 +287,10 @@ export default async function CleanerCleanPage({
                     type="time"
                     required
                     defaultValue={defaultArrivalTime(clean)}
-                    className={`${inputCompact} w-32`}
+                    className={inputCompact}
                   />
                 </div>
-                <button type="submit" className={button(clean.plannedArrivalAt ? "secondary" : "primary", "md")}>
+                <button type="submit" className={`shrink-0 ${button(clean.plannedArrivalAt ? "secondary" : "primary", "md")}`}>
                   {clean.plannedArrivalAt ? "Update" : "Confirm"}
                 </button>
               </div>
