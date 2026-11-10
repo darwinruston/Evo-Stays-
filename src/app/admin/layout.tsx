@@ -74,7 +74,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       label: "Operations",
       // Opens on Tasks, the first tab: what needs doing comes before who is on the team.
       href: "/admin/team/tasks",
-      prefixes: ["/admin/team", "/admin/staff", "/admin/cleaners", "/admin/audit", "/admin/safety"],
+      prefixes: ["/admin/team", "/admin/staff", "/admin/cleaners", "/admin/audit", "/admin/safety", "/admin/invoices"],
       count: myOpenTasks,
       countLabel: "tasks to do",
       tabs: [
@@ -82,6 +82,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         // Anything overdue or coming up across every property, in one place.
         { href: "/admin/safety", label: "Health & safety", shortLabel: "Safety", count: safetyAttention.length, countLabel: "need attention" },
         { href: "/admin/team", label: "People" },
+        // What the team is paid. Also a shortcut from Clients; the page is
+        // the same, and it lives here because it is about paying people.
+        ...(modules.invoicing ? [{ href: "/admin/invoices", label: "Invoices" }] : []),
         { href: "/admin/audit", label: "Activity" },
       ],
     },
@@ -89,7 +92,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       key: "clients",
       label: "Clients",
       href: "/admin/clients",
-      prefixes: ["/admin/clients", "/admin/invoices"],
+      prefixes: ["/admin/clients"],
       tabs: [
         { href: "/admin/clients", label: "Clients" },
         ...(modules.invoicing ? [{ href: "/admin/invoices", label: "Invoices" }] : []),

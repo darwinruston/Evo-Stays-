@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 export type SectionTab = {
   href: string;
@@ -29,20 +30,32 @@ function isCurrent(tab: SectionTab, pathname: string): boolean {
 export function SectionTabs({ sections }: { sections: Section[] }) {
   const pathname = usePathname();
   const section = sections.find((s) => s.tabs.some((t) => isCurrent(t, pathname)));
+  const currentRef = useRef<HTMLAnchorElement>(null);
+
+  // On a phone the row can be wider than the screen: bring the tab you are on
+  // into view. Only sideways (inline), so the page itself never jumps.
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [pathname]);
+
   if (!section || section.tabs.length < 2) return null;
 
   return (
-    <nav aria-label="Section" className="mb-6">
-      <ul className="flex gap-1 border-b border-black/10">
+    // The line under the tabs is on the nav, and the list sits one pixel over
+    // it, so the current tab's underline covers the line. The list scrolls
+    // sideways when the tabs do not all fit.
+    <nav aria-label="Section" className="mb-6 border-b border-black/10">
+      <ul className="-mb-px flex gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {section.tabs.map((tab) => {
           const current = isCurrent(tab, pathname);
           const count = tab.count ?? 0;
           return (
-            <li key={tab.href}>
+            <li key={tab.href} className="shrink-0">
               <Link
+                ref={current ? currentRef : undefined}
                 href={tab.href}
                 aria-current={current ? "page" : undefined}
-                className={`-mb-px flex items-center gap-1.5 border-b-2 px-2 py-2.5 text-sm font-medium whitespace-nowrap transition-colors sm:px-3 ${
+                className={`flex items-center gap-1.5 border-b-2 px-2 py-2.5 text-sm font-medium whitespace-nowrap transition-colors sm:px-3 ${
                   current ? "border-zinc-900 text-zinc-900" : "border-transparent text-zinc-500 hover:text-zinc-900"
                 }`}
               >
