@@ -5,7 +5,7 @@ import { formatCurrency, formatHours, formatPeriod, defaultPeriodForCadence } fr
 import { toIsoDate } from "@/lib/schedule";
 import { InvoicePeriodFields } from "@/components/InvoicePeriodFields";
 import { badge, button, card, inputCompact } from "@/lib/ui";
-import { updateBillingCadence, runInvoiceGeneration } from "./actions";
+import { updateBillingCadence, runInvoiceGeneration, sendUnsentToXero } from "./actions";
 
 export const metadata = { title: "Invoices" };
 
@@ -24,10 +24,12 @@ export default async function InvoicesPage({
     cleanerId?: string;
     propertyId?: string;
     clientId?: string;
+    xeroSent?: string;
+    xeroFailed?: string;
   }>;
 }) {
   const { session, db } = await requireStaff();
-  const { created, skipped, cleanerId, propertyId, clientId } = await searchParams;
+  const { created, skipped, cleanerId, propertyId, clientId, xeroSent, xeroFailed } = await searchParams;
 
   const settings = await db.billingSettings.upsert({
     where: { organizationId: session.user.organizationId },
@@ -70,6 +72,11 @@ export default async function InvoicesPage({
       property: { select: { nickname: true, name: true, address: true, client: { select: { name: true } } } },
     },
   });
+  // Whether bills can go to Xero: connected, with the account they are coded to
+  // chosen in Settings.
+  const xero = await db.xeroConnection.findUnique({ where: { organizationId: session.user.organizationId } });
+  const xeroReady = !!xero?.expenseAccountCode;
+  const unsentCount = xeroReady ? invoices.filter((inv) => !inv.xeroInvoiceId).length : 0;
   const filteredTotal = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
   return (
@@ -92,6 +99,19 @@ export default async function InvoicesPage({
             <p className="mt-1 text-zinc-600">
               Skipped (no hourly rate set): {skipped}. Set a rate on their cleaner page and
               generate again; already-billed visits won&apos;t be duplicated.
+            </p>
+          )}
+        </div>
+      )}
+
+      {xeroSent !== undefined && (
+        <div className={card("p-4 text-sm")}>
+          <p>
+            Sent {xeroSent} {xeroSent === "1" ? "invoice" : "invoices"} to Xero.
+          </p>
+          {xeroFailed && xeroFailed !== "0" && (
+            <p className="mt-1 text-red-700">
+              Xero refused one, so the rest were not sent. Open the invoice marked &ldquo;Not sent&rdquo; to see why.
             </p>
           )}
         </div>
@@ -182,6 +202,13 @@ export default async function InvoicesPage({
           {(cleanerId || propertyId || clientId) && invoices.length > 0 && (
             <p className="text-sm font-medium">Total: {formatCurrency(filteredTotal)}</p>
           )}
+          {unsentCount > 0 && (
+            <form action={sendUnsentToXero}>
+              <button type="submit" className={button("secondary", "sm")}>
+                Send {unsentCount} to Xero
+              </button>
+            </form>
+          )}
         </div>
         {invoices.length === 0 ? (
           <p className="text-sm text-zinc-600">
@@ -206,6 +233,11 @@ export default async function InvoicesPage({
                     <span className="text-sm text-zinc-500">
                       {formatHours(inv.totalHours)} · {formatCurrency(inv.totalAmount)}
                     </span>
+                    {xero && (
+                      <span className={badge(inv.xeroInvoiceId ? "solid" : "neutral")}>
+                        {inv.xeroInvoiceId ? "In Xero" : inv.xeroError ? "Not sent" : "Not in Xero"}
+                      </span>
+                    )}
                     <span className={badge(inv.paidAt ? "solid" : "neutral")}>
                       {inv.paidAt ? "Paid" : "Unpaid"}
                     </span>

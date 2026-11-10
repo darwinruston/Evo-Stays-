@@ -121,6 +121,7 @@ model Organization {
   cleanerUnavailability CleanerUnavailability[]
   stockUsageLogs        StockUsageLog[]
   billingSettings       BillingSettings?
+  xeroConnection        XeroConnection?
   invoices              Invoice[]
   invoiceLines          InvoiceLine[]
   laundryLoads          LaundryLoad[]
@@ -855,6 +856,15 @@ model Invoice {
   lines          InvoiceLine[]
   createdAt      DateTime      @default(now())
 
+  // Set once the invoice has been sent to the company's Xero account as a bill
+  // (see src/lib/xero.ts). xeroPaymentId is the payment recorded against that
+  // bill when it was marked paid here. xeroError holds the last thing Xero
+  // refused, shown beside a retry button, and cleared on the next success.
+  xeroInvoiceId  String?
+  xeroSyncedAt   DateTime?
+  xeroPaymentId  String?
+  xeroError      String?
+
   @@index([organizationId])
   @@index([cleanerId])
   @@index([propertyId])
@@ -1459,4 +1469,25 @@ model SafetyDocument {
 
   @@index([organizationId])
   @@index([checkId, createdAt])
+}
+
+// A company's link to its own Xero account (see src/lib/xero.ts). One per
+// company. The tokens are encrypted (src/lib/encryption.ts): they let this app
+// act in Xero as whoever connected it, so they are never stored in plain text
+// and never shown. expenseAccountCode and bankAccountId are chosen in Settings:
+// the cost account bills are coded to, and the bank account payments are
+// recorded from.
+model XeroConnection {
+  id                 String       @id @default(cuid())
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId     String       @unique
+  tenantId           String
+  tenantName         String
+  accessTokenEnc     String
+  refreshTokenEnc    String
+  accessExpiresAt    DateTime
+  expenseAccountCode String?
+  bankAccountId      String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 }

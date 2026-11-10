@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/authz";
 import { isCountryCode, isCurrencyCode } from "@/lib/region";
+import { logAudit } from "@/lib/audit";
+import { disconnectXero, listXeroAccounts } from "@/lib/xero";
 
 // Switching a part off only hides it and refuses new work in it: nothing
 // already recorded is deleted, so turning it back on brings it all back.
@@ -42,4 +44,38 @@ export async function updateRegion(formData: FormData) {
   revalidatePath("/admin", "layout");
   revalidatePath("/cleaner", "layout");
   revalidatePath("/linen", "layout");
+}
+
+// Which Xero accounts bills are coded to and payments are taken from. Checked
+// against Xero's own list, so a tampered form cannot point at an account that
+// is not in the company's chart of accounts.
+export async function saveXeroAccounts(formData: FormData) {
+  const { session, db } = await requireAdmin();
+  const expense = formData.get("expenseAccountCode");
+  const bank = formData.get("bankAccountId");
+  if (typeof expense !== "string" || typeof bank !== "string") return;
+
+  const accounts = await listXeroAccounts(db);
+  const expenseOk = expense === "" || accounts.expense.some((a) => a.code === expense);
+  const bankOk = bank === "" || accounts.bank.some((a) => a.id === bank);
+  if (!expenseOk || !bankOk) return;
+
+  await db.xeroConnection.update({
+    where: { organizationId: session.user.organizationId },
+    data: { expenseAccountCode: expense || null, bankAccountId: bank || null },
+  });
+  revalidatePath("/admin/settings");
+}
+
+export async function disconnectXeroAction() {
+  const { session, db } = await requireAdmin();
+  await disconnectXero(db);
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Staff",
+    entityId: session.user.id,
+    summary: "Disconnected Xero",
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/invoices");
 }

@@ -8,13 +8,15 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 import { RegionFields } from "@/components/RegionFields";
 import { formatMoney, regionFor } from "@/lib/region";
 import { formatDateOnly, formatDateTime } from "@/lib/dateOnly";
+import { XeroSettings } from "./XeroSettings";
 import { updateModules, updateRegion } from "./actions";
 
 export const metadata = { title: "Settings" };
 
 const ORDER: (keyof Modules)[] = ["sync", "invoicing", "laundry", "stock"];
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ xero?: string }> }) {
+  const { xero } = await searchParams;
   const { session } = await requireAdmin();
   const [modules, organization] = await Promise.all([
     getOrgModules(session.user.organizationId),
@@ -89,6 +91,8 @@ export default async function SettingsPage() {
           <SubmitButton pendingLabel="Saving…">Save settings</SubmitButton>
         </div>
       </form>
+
+      {modules.invoicing && <XeroSettings organizationId={session.user.organizationId} notice={xero} />}
     </div>
   );
 }

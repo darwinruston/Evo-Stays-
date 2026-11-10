@@ -10,6 +10,7 @@ import { assertModule } from "@/lib/modules";
 // comment on adjustInvoiceLineHours.
 import { generateInvoices, formatHours } from "@/lib/invoices";
 import { logAudit } from "@/lib/audit";
+import { recordXeroPayment, reverseXeroPayment, sendInvoiceToXero } from "@/lib/xero";
 
 function str(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
@@ -103,6 +104,9 @@ export async function adjustInvoiceLineHours(lineId: string, formData: FormData)
   if (line.invoice.paidAt) {
     throw new Error("Mark the invoice unpaid before adjusting a visit.");
   }
+  if (line.invoice.xeroInvoiceId) {
+    throw new Error("This invoice has been sent to Xero. Change the bill in Xero instead.");
+  }
   if (line.flatFee !== null) {
     throw new Error("This visit is billed at a flat fee, so its hours don't change what's paid.");
   }
@@ -150,6 +154,54 @@ export async function setInvoicePaid(id: string, paid: boolean) {
     data: { paidAt: paid ? new Date() : null },
   });
 
+  // An invoice already in Xero follows: paying it records the payment there,
+  // and un-paying it takes that payment back. A Xero problem never blocks the
+  // change here: it is saved on the invoice, shown on its page, and sending
+  // it again retries.
+  const invoice = await db.invoice.findUnique({ where: { id }, select: { xeroInvoiceId: true } });
+  if (invoice?.xeroInvoiceId) {
+    await (paid ? recordXeroPayment(db, id) : reverseXeroPayment(db, id));
+  }
+
   revalidatePath("/admin/invoices");
   revalidatePath(`/admin/invoices/${id}`);
+}
+
+// Sends one invoice to Xero as a bill (and its payment, if it is already paid).
+export async function sendInvoiceToXeroAction(id: string) {
+  const { session, db } = await requireStaff();
+  await assertModule(session.user.organizationId, "invoicing");
+  const result = await sendInvoiceToXero(db, id);
+  if (!("error" in result)) {
+    await logAudit(db, { actorId: session.user.id, entityType: "Invoice", entityId: id, summary: "Sent to Xero" });
+  }
+  revalidatePath("/admin/invoices");
+  revalidatePath(`/admin/invoices/${id}`);
+}
+
+// Sends every invoice not yet in Xero, one after another, then says how many
+// went and how many Xero refused (each refusal is shown on its own invoice).
+export async function sendUnsentToXero() {
+  const { session, db } = await requireStaff();
+  await assertModule(session.user.organizationId, "invoicing");
+  const unsent = await db.invoice.findMany({
+    where: { xeroInvoiceId: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  let sent = 0;
+  let failed = 0;
+  for (const { id } of unsent) {
+    const result = await sendInvoiceToXero(db, id);
+    if ("error" in result) {
+      failed += 1;
+      // The same fault (not connected, no account chosen) repeats for every
+      // invoice, so stop at the first rather than hammering Xero.
+      break;
+    }
+    sent += 1;
+    await logAudit(db, { actorId: session.user.id, entityType: "Invoice", entityId: id, summary: "Sent to Xero" });
+  }
+  revalidatePath("/admin/invoices");
+  redirect(`/admin/invoices?xeroSent=${sent}&xeroFailed=${failed}`);
 }

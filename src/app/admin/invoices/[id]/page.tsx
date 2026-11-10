@@ -5,7 +5,8 @@ import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
 import { badge, button, card, inputCompact } from "@/lib/ui";
-import { setInvoicePaid, adjustInvoiceLineHours } from "../actions";
+import { setInvoicePaid, adjustInvoiceLineHours, sendInvoiceToXeroAction } from "../actions";
+import { xeroBillUrl } from "@/lib/xero";
 
 // Below this, a visit is worth a second look before it gets paid or billed
 // -- a real turnover doesn't take under 10 minutes, so it's almost always a
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { db } = await requireStaff();
+  const { db, session } = await requireStaff();
   const { id } = await params;
 
   const invoice = await db.invoice.findUnique({
@@ -38,6 +39,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     },
   });
   if (!invoice) notFound();
+  const xero = await db.xeroConnection.findUnique({ where: { organizationId: session.user.organizationId } });
 
   // One invoice is one cleaner at one property, so its visits are all billed
   // the same way: every one at the agreed flat fee, or all by the hour.
@@ -138,7 +140,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     Only {formatHours(actualHours)} on site, worth checking before this gets paid.
                   </p>
                 )}
-                {!invoice.paidAt && !isFlat && (
+                {!invoice.paidAt && !invoice.xeroInvoiceId && !isFlat && (
                   <form
                     action={adjustInvoiceLineHours.bind(null, line.id)}
                     className="flex items-center gap-2"
@@ -170,11 +172,36 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </ul>
       </section>
 
-      <form action={setInvoicePaid.bind(null, invoice.id, !invoice.paidAt)}>
-        <button type="submit" className={button(invoice.paidAt ? "secondary" : "primary", "sm")}>
-          {invoice.paidAt ? "Mark as unpaid" : "Mark as paid"}
-        </button>
-      </form>
+      <div className="flex flex-wrap items-center gap-2">
+        <form action={setInvoicePaid.bind(null, invoice.id, !invoice.paidAt)}>
+          <button type="submit" className={button(invoice.paidAt ? "secondary" : "primary", "sm")}>
+            {invoice.paidAt ? "Mark as unpaid" : "Mark as paid"}
+          </button>
+        </form>
+        {xero && (!invoice.xeroInvoiceId || (invoice.paidAt && !invoice.xeroPaymentId)) && (
+          <form action={sendInvoiceToXeroAction.bind(null, invoice.id)}>
+            <button type="submit" className={button("secondary", "sm")}>
+              {invoice.xeroError ? "Try sending to Xero again" : invoice.xeroInvoiceId ? "Record payment in Xero" : "Send to Xero"}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {xero && (
+        <p className="text-sm text-zinc-600">
+          {invoice.xeroInvoiceId ? (
+            <>
+              In Xero as a bill{invoice.xeroPaymentId ? ", with its payment recorded" : invoice.paidAt ? ", but its payment is not recorded yet" : ""}.{" "}
+              <a href={xeroBillUrl(invoice.xeroInvoiceId)} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                Open in Xero
+              </a>
+            </>
+          ) : (
+            "Not sent to Xero yet."
+          )}
+        </p>
+      )}
+      {xero && invoice.xeroError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{invoice.xeroError}</p>}
 
       {activity.length > 0 && (
         <section className="flex flex-col gap-2">
