@@ -3,6 +3,7 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { formatCurrency, formatHours, formatPeriod, defaultPeriodForCadence } from "@/lib/invoices";
 import { toIsoDate } from "@/lib/schedule";
+import { InvoicePeriodFields } from "@/components/InvoicePeriodFields";
 import { badge, button, card, inputCompact } from "@/lib/ui";
 import { updateBillingCadence, runInvoiceGeneration } from "./actions";
 
@@ -123,32 +124,7 @@ export default async function InvoicesPage({
         </div>
 
         <form action={runInvoiceGeneration} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="periodStart" className="text-xs text-zinc-500">
-              From
-            </label>
-            <input
-              id="periodStart"
-              name="periodStart"
-              type="date"
-              defaultValue={toIsoDate(start)}
-              required
-              className={inputCompact}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="periodEnd" className="text-xs text-zinc-500">
-              To
-            </label>
-            <input
-              id="periodEnd"
-              name="periodEnd"
-              type="date"
-              defaultValue={toIsoDate(lastIncludedDay)}
-              required
-              className={inputCompact}
-            />
-          </div>
+          <InvoicePeriodFields initialFrom={toIsoDate(start)} initialTo={toIsoDate(lastIncludedDay)} />
           <button type="submit" className={button("primary", "sm")}>
             Generate invoices
           </button>
