@@ -81,10 +81,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         { href: "/admin/team/tasks", label: "Tasks", count: myOpenTasks, countLabel: "of your tasks to do", deep: true },
         // Anything overdue or coming up across every property, in one place.
         { href: "/admin/safety", label: "Health & safety", shortLabel: "Safety", count: safetyAttention.length, countLabel: "need attention" },
-        { href: "/admin/team", label: "People" },
         // What the team is paid. Also a shortcut from Clients; the page is
         // the same, and it lives here because it is about paying people.
         ...(modules.invoicing ? [{ href: "/admin/invoices", label: "Invoices" }] : []),
+        { href: "/admin/team", label: "People" },
         { href: "/admin/audit", label: "Activity" },
       ],
     },
