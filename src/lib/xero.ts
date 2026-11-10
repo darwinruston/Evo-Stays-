@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { propertyDisplayName } from "@/lib/address";
 import { formatDate, toIsoDate } from "@/lib/schedule";
@@ -148,6 +149,13 @@ function describeFailure(status: number, data: unknown, retryAfter: string | nul
   return `Xero returned an error (${status}).`;
 }
 
+// Xero refuses a retry that reuses a duplicate-protection key with different
+// contents, so the key carries a fingerprint of the request: the same request
+// sent twice is de-duplicated, a corrected one goes through.
+function keyFor(base: string, body: unknown): string {
+  return `${base}-${createHash("sha1").update(JSON.stringify(body)).digest("hex").slice(0, 12)}`;
+}
+
 async function xeroFetch<T>(
   db: ScopedPrismaClient,
   method: "GET" | "POST" | "PUT",
@@ -162,7 +170,7 @@ async function xeroFetch<T>(
       "xero-tenant-id": tenantId,
       Accept: "application/json",
       ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+      ...(options.idempotencyKey ? { "Idempotency-Key": keyFor(options.idempotencyKey, options.body) } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
     signal: AbortSignal.timeout(20000),
@@ -249,6 +257,9 @@ export async function sendInvoiceToXero(db: ScopedPrismaClient, invoiceId: strin
               Type: "ACCPAY",
               Contact: { ContactID: contactId },
               Date: toIsoDate(lastDay),
+              // Xero will not take a bill without one. Fourteen days after the
+              // period ends, since nothing here records agreed payment terms.
+              DueDate: toIsoDate(new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 14)),
               InvoiceNumber: billNumber(invoice.id),
               Reference: `${property}, ${formatDate(invoice.periodStart)} to ${formatDate(lastDay)}`,
               CurrencyCode: currentRegion().currency,
@@ -261,6 +272,10 @@ export async function sendInvoiceToXero(db: ScopedPrismaClient, invoiceId: strin
                 Quantity: 1,
                 UnitAmount: line.amount,
                 AccountCode: conn.expenseAccountCode,
+                // Said on every line: without it Xero applies the expense
+                // account's usual tax rate (20% VAT in the UK) and the bill
+                // comes out higher than the invoice here.
+                TaxType: "NONE",
               })),
             },
           ],
