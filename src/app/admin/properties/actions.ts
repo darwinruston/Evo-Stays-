@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Prisma, PropertyManagement, PropertyType } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireStaff } from "@/lib/authz";
+import { assertModule } from "@/lib/modules";
 import type { ActionResult } from "@/lib/actionResult";
 import { savePropertyPhotos, savePmsCoverPhoto } from "@/lib/uploads";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
@@ -350,6 +351,42 @@ export async function addPropertyStockLevel(propertyId: string, formData: FormDa
 
   await db.propertyStockLevel.create({
     data: { organizationId: session.user.organizationId, propertyId, stockItemId, band: bandToDb(band) },
+  });
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/stock");
+}
+
+// Puts every active item in the stock list on this property in one go, for a
+// new property that holds the lot. Items already on it are left as they are
+// (their current level is never reset). They all start at the level chosen,
+// which the cleaners correct on their first visit like any other.
+export async function addAllPropertyStock(propertyId: string, formData: FormData): Promise<ActionResult> {
+  const { session, db } = await requireStaff();
+  await assertModule(session.user.organizationId, "stock");
+
+  const band = formData.get("band");
+  if (typeof band !== "string" || !isStockLevelBand(band)) return { error: "Pick a level" };
+
+  const property = await db.property.findUnique({ where: { id: propertyId }, select: { id: true } });
+  if (!property) return { error: "Property not found" };
+
+  const [items, existing] = await Promise.all([
+    db.stockItem.findMany({ where: { active: true }, select: { id: true } }),
+    db.propertyStockLevel.findMany({ where: { propertyId }, select: { stockItemId: true } }),
+  ]);
+  const have = new Set(existing.map((l) => l.stockItemId));
+  const missing = items.filter((i) => !have.has(i.id));
+  if (missing.length === 0) return { error: "Every active item is already on this property" };
+
+  await db.propertyStockLevel.createMany({
+    data: missing.map((i) => ({
+      organizationId: session.user.organizationId,
+      propertyId,
+      stockItemId: i.id,
+      band: bandToDb(band),
+    })),
+    skipDuplicates: true,
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);

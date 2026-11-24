@@ -12,6 +12,7 @@ import { StockLevelToggle } from "@/components/StockLevelToggle";
 import { bandFromDb, isRunningLow } from "@/lib/stock";
 import { PropertyCover } from "@/components/PropertyCover";
 import { AddStockLevelForm } from "@/components/AddStockLevelForm";
+import { AddAllStockForm } from "@/components/AddAllStockForm";
 import { groupByStockZone, sortByStockZone, stockZoneFor } from "@/lib/stockZones";
 import { formatCurrency, formatHours, formatPeriod } from "@/lib/invoices";
 import { formatDate, formatScheduledFor } from "@/lib/schedule";
@@ -21,6 +22,7 @@ import {
   setPrimaryPhoto,
   deletePropertyPhoto,
   addPropertyStockLevel,
+  addAllPropertyStock,
   setPropertyStockLevel,
   removePropertyStockLevel,
   updatePropertyMinBillableHours,
@@ -586,7 +588,12 @@ export default async function PropertyDetailPage({
         ))}
 
         {availableItems.length > 0 ? (
-          <AddStockLevelForm action={addPropertyStockLevel.bind(null, property.id)} items={sortByStockZone(availableItems, (i) => i.name).map((i) => ({ id: i.id, name: i.name, areaName: stockZoneFor(i.name)?.name ?? null }))} />
+          <div className="flex flex-wrap items-start gap-2">
+            <AddStockLevelForm action={addPropertyStockLevel.bind(null, property.id)} items={sortByStockZone(availableItems, (i) => i.name).map((i) => ({ id: i.id, name: i.name, areaName: stockZoneFor(i.name)?.name ?? null }))} />
+            {availableItems.length > 1 && (
+              <AddAllStockForm action={addAllPropertyStock.bind(null, property.id)} count={availableItems.length} />
+            )}
+          </div>
         ) : (
           <p className="text-sm text-zinc-500">
             {property.stockLevels.length === 0 ? (
