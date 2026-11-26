@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
+import { isCleanFrequency } from "@/lib/cleanRepeat";
+import { startCleanSeries, stopCleanSeries } from "@/lib/cleanSeries";
+import { parseDateOnly } from "@/lib/dateOnly";
 import { createCleanRecord, CLEAN_STATUS_LABELS } from "@/lib/cleans";
 import { propertyDisplayName } from "@/lib/address";
 import { formatScheduledFor, isDateOnly, sameCalendarDay } from "@/lib/schedule";
@@ -49,6 +52,28 @@ export async function createClean(formData: FormData) {
   // from the input is what tells createCleanRecord to auto-assign.
   const assignedToId = str(formData, "assignedToId");
 
+  const frequency = str(formData, "repeat");
+  if (frequency) {
+    if (!isCleanFrequency(frequency)) throw new Error("Choose how often it repeats");
+    if (!scheduledFor) throw new Error("A repeating clean needs a date and time to start from");
+    const until = str(formData, "repeatUntil");
+    const series = await startCleanSeries(db, {
+      propertyId,
+      createdById: session.user.id,
+      assignedToId,
+      frequency,
+      startAt: scheduledFor,
+      endsOn: until ? parseDateOnly(until) : null,
+      guestCount: int(formData, "guestCount"),
+      instructions: str(formData, "instructions"),
+    });
+    revalidatePath("/admin/cleans");
+    revalidatePath("/cleaner");
+    // Nothing to show when every date is further off than the look-ahead, or
+    // already past.
+    redirect(series.firstCleanId ? `/admin/cleans/${series.firstCleanId}` : "/admin/cleans");
+  }
+
   const clean = await createCleanRecord(db, {
     propertyId,
     createdById: session.user.id,
@@ -65,6 +90,22 @@ export async function createClean(formData: FormData) {
   revalidatePath("/admin/cleans");
   revalidatePath("/cleaner");
   redirect(`/admin/cleans/${clean.id}`);
+}
+
+// Stops a repeating clean from this one onwards (see stopCleanSeries).
+export async function stopRepeating(cleanId: string) {
+  const { session, db } = await requireStaff();
+  const removed = await stopCleanSeries(db, cleanId);
+  await logAudit(db, {
+    actorId: session.user.id,
+    entityType: "Clean",
+    entityId: cleanId,
+    summary: `Stopped repeating, ${removed} later ${removed === 1 ? "clean" : "cleans"} removed`,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/cleans");
+  revalidatePath(`/admin/cleans/${cleanId}`);
+  revalidatePath("/cleaner");
 }
 
 export async function updateClean(id: string, formData: FormData) {

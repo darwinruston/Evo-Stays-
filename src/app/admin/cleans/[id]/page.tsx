@@ -2,11 +2,13 @@ import { formatTimeOfDay } from "@/lib/arrival";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
+import { formatDateOnly } from "@/lib/dateOnly";
 import { propertyDisplayName } from "@/lib/address";
 import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
 import { calendarDayKey, formatScheduledFor, formatScheduledForWithDay } from "@/lib/schedule";
 import { RescheduleClean } from "@/components/RescheduleClean";
-import { rescheduleClean, setCleanTeamSize } from "../actions";
+import { rescheduleClean, setCleanTeamSize, stopRepeating } from "../actions";
+import { CLEAN_FREQUENCY_LABELS } from "@/lib/cleanRepeat";
 import { CleanLogView } from "@/components/CleanLogView";
 import { TeamSizeChange } from "@/components/TeamSizeChange";
 import { badge, button, card } from "@/lib/ui";
@@ -52,6 +54,7 @@ export default async function CleanDetailPage({
       property: {
         select: {
           id: true,
+          nickname: true,
           name: true,
           address: true,
           bedrooms: true,
@@ -62,6 +65,7 @@ export default async function CleanDetailPage({
         },
       },
       assignedTo: { select: { id: true, name: true } },
+      series: { select: { frequency: true, endedAt: true, endsOn: true } },
       log: {
         include: {
           recordedBy: { select: { name: true } },
@@ -146,6 +150,16 @@ export default async function CleanDetailPage({
           <span className="text-zinc-500">Scheduled</span>
           <span>{clean.scheduledFor ? formatScheduledForWithDay(clean.scheduledFor) : "Not scheduled"}</span>
         </div>
+        {clean.series && (
+          <div className="flex justify-between gap-6 py-2 text-sm">
+            <span className="text-zinc-500">Repeats</span>
+            <span className="text-right">
+              {clean.series.endedAt
+                ? "Stopped"
+                : `${CLEAN_FREQUENCY_LABELS[clean.series.frequency]}${clean.series.endsOn ? ` until ${formatDateOnly(clean.series.endsOn)}` : ""}`}
+            </span>
+          </div>
+        )}
         {clean.status === "PENDING" && clean.assignedTo && clean.scheduledFor && (
           <div className="flex justify-between gap-6 py-2 text-sm">
             <span className="text-zinc-500">Cleaner arrival</span>
@@ -210,6 +224,24 @@ export default async function CleanDetailPage({
             cleanerName={clean.assignedTo?.name ?? null}
           />
         </section>
+      )}
+
+      {clean.series && !clean.series.endedAt && (
+        <details className="w-fit text-sm">
+          <summary className="cursor-pointer text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700">
+            Stop repeating
+          </summary>
+          <form action={stopRepeating.bind(null, clean.id)} className={card("mt-2 flex max-w-sm flex-col gap-3 p-4")}>
+            <p className="text-sm text-zinc-600">
+              This clean and earlier ones stay. Later ones that nobody has started are removed.
+            </p>
+            <div>
+              <button type="submit" className={button("secondary", "sm")}>
+                Stop and remove later cleans
+              </button>
+            </div>
+          </form>
+        </details>
       )}
 
       {clean.instructions && (

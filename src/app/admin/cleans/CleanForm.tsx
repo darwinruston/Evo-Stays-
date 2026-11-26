@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { propertyDisplayName } from "@/lib/address";
 import { toDateTimeLocalValue } from "@/lib/dateInputs";
+import { CLEAN_FREQUENCIES, CLEAN_FREQUENCY_LABELS } from "@/lib/cleanRepeat";
 import { button, inputCompact } from "@/lib/ui";
 
 type CleanFields = {
@@ -64,6 +65,8 @@ export function CleanForm({
   const [date, setDate] = useState(start.slice(0, 10));
   const [time, setTime] = useState(start.slice(11, 16));
   const scheduledFor = date && time ? `${date}T${time}` : "";
+  // Only offered when making a new clean.
+  const [repeat, setRepeat] = useState("");
 
   const selectedCleaner = cleaners.find((c) => c.id === assignedToId);
   const selectedDateIso = date; // "YYYY-MM-DD"
@@ -132,7 +135,7 @@ export function CleanForm({
                 id="scheduledDate"
                 type="date"
                 value={date}
-                required={!!time}
+                required={!!time || !!repeat}
                 onChange={(e) => setDate(e.target.value)}
                 className={inputCompact}
               />
@@ -148,7 +151,7 @@ export function CleanForm({
                 id="scheduledTime"
                 type="time"
                 value={time}
-                required={!!date}
+                required={!!date || !!repeat}
                 onChange={(e) => setTime(e.target.value)}
                 className={inputCompact}
               />
@@ -157,7 +160,9 @@ export function CleanForm({
           </div>
         </div>
         <p className="text-xs text-zinc-500">
-          Fill in both, or leave both blank to schedule it later.
+          {repeat
+            ? "The first clean. The others follow at the same time of day."
+            : "Fill in both, or leave both blank to schedule it later."}
         </p>
         {isUnavailable && (
           <p className="text-xs font-medium text-zinc-600">
@@ -166,6 +171,38 @@ export function CleanForm({
           </p>
         )}
       </fieldset>
+
+      {!clean && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="repeat" className="text-sm font-medium">
+              Repeats
+            </label>
+            <select id="repeat" name="repeat" value={repeat} onChange={(e) => setRepeat(e.target.value)} className={inputCompact}>
+              <option value="">Does not repeat</option>
+              {CLEAN_FREQUENCIES.map((f) => (
+                <option key={f} value={f}>
+                  {CLEAN_FREQUENCY_LABELS[f]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {repeat && (
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor="repeatUntil" className="text-sm font-medium">
+                Until (optional)
+              </label>
+              <input id="repeatUntil" name="repeatUntil" type="date" min={date || undefined} className={inputCompact} />
+            </div>
+          )}
+          {repeat && (
+            <p className="text-xs text-zinc-500 sm:col-span-2">
+              Cleans are added about 12 weeks ahead and keep coming until the date above, or until you stop it from
+              any one of them. Each can be changed on its own.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="guestCount" className="text-sm font-medium">

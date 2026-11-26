@@ -5,6 +5,7 @@ import { checkUnconfirmedArrivals } from "@/lib/arrival";
 import { checkSafetyReminders } from "@/lib/safetyReminders";
 import { checkTaskReminders } from "@/lib/taskReminders";
 import { runForOrganization } from "@/lib/regionServer";
+import { topUpCleanSeries } from "@/lib/cleanSeries";
 
 const DEFAULT_INTERVAL_MINUTES = 30;
 // Far shorter than the sync interval: this one is a cheap local query, and
@@ -43,6 +44,9 @@ export function startSyncScheduler(): void {
       .then(async (organizations) => {
         for (const org of organizations) {
           await runForOrganization(org.id, async () => {
+            await topUpCleanSeries(scopedDb(org.id)).catch((err) => {
+              console.error(`[repeating cleans] run failed for organisation ${org.id}:`, err);
+            });
             await checkAtRiskTurnovers(scopedDb(org.id)).catch((err) => {
               console.error(`[turnover check] run failed for organisation ${org.id}:`, err);
             });

@@ -137,6 +137,7 @@ model Organization {
   taskComments          TaskComment[]
   taskAssignees         TaskAssignee[]
   safetyDocuments       SafetyDocument[]
+  cleanSeries           CleanSeries[]
 }
 
 // A lead from the public "Register interest" page (src/app/signup/) --
@@ -235,6 +236,8 @@ model User {
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
 
+  createdCleanSeries    CleanSeries[] @relation("CleanSeriesCreator")
+  assignedCleanSeries   CleanSeries[] @relation("CleanSeriesAssignee")
   @@index([organizationId])
 }
 
@@ -549,6 +552,7 @@ model Property {
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
+  cleanSeries           CleanSeries[]
   @@unique([organizationId, pmsProvider, pmsListingId])
   @@index([clientId])
   @@index([organizationId])
@@ -625,6 +629,9 @@ model Clean {
   // pass. Cleared whenever the clean is rescheduled -- a new date is a new
   // deadline, worth its own alert.
   atRiskNotifiedAt          DateTime?
+  // Set on the cleans a repeating series made (see src/lib/cleanSeries.ts).
+  series                    CleanSeries?          @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  seriesId                  String?
   // The time the cleaner has said they'll arrive, on the clean's own day.
   // Null means not confirmed yet. Cleared whenever the clean is moved or
   // handed to someone else -- a new slot or a new person needs a fresh
@@ -642,6 +649,44 @@ model Clean {
   @@index([propertyId])
   @@index([assignedToId])
   @@index([scheduledFor])
+  @@index([seriesId])
+}
+
+enum CleanFrequency {
+  WEEKLY
+  FORTNIGHTLY
+  FOUR_WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+// A clean that repeats. This is only the pattern: the cleans it makes are
+// ordinary Clean rows, made a few weeks ahead (see src/lib/cleanSeries.ts).
+model CleanSeries {
+  id             String         @id @default(cuid())
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
+  createdBy      User           @relation("CleanSeriesCreator", fields: [createdById], references: [id])
+  createdById    String
+  // Null means auto-assign chooses for each date.
+  assignedTo     User?          @relation("CleanSeriesAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedToId   String?
+  frequency      CleanFrequency
+  startAt        DateTime
+  // Last day (midnight UTC), or null to carry on until stopped.
+  endsOn         DateTime?
+  guestCount     Int?
+  instructions   String?
+  // Which occurrence is made next. Only ever goes up.
+  nextIndex      Int            @default(0)
+  endedAt        DateTime?
+  createdAt      DateTime       @default(now())
+  cleans         Clean[]
+
+  @@index([organizationId])
+  @@index([propertyId])
 }
 
 // The permanent record of a completed turnover. Separate from Clean so the
