@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import Link from "next/link";
 import { requireLinen } from "@/lib/authz";
 import { unreadNotificationCount } from "@/lib/notificationViews";
@@ -44,9 +45,9 @@ export default async function LinenLayout({ children }: { children: React.ReactN
               <Avatar name={me?.name ?? session.user.name ?? "Profile"} photoPath={me?.photoPath ?? null} size={32} />
             </Link>
             <form action={logoutAction}>
-              <button type="submit" className={button("secondary", "sm")}>
+              <PendingButton className={button("secondary", "sm")}>
                 Sign out
-              </button>
+              </PendingButton>
             </form>
           </div>
         </nav>

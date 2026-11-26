@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/actionResult";
 import { ActionForm } from "@/components/ActionForm";
 import { ACCESS_OPTIONS, parseAccessOptions } from "@/lib/accessOptions";
@@ -328,9 +329,9 @@ export function PropertyForm({
       )}
 
       <div>
-        <button type="submit" className={button("primary", "sm")}>
+        <PendingButton className={button("primary", "sm")}>
           {submitLabel}
-        </button>
+        </PendingButton>
       </div>
     </ActionForm>
   );

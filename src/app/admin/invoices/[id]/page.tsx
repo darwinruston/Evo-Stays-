@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -162,9 +163,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                       defaultValue={Math.round(line.hours * 100) / 100}
                       className={`${inputCompact} w-24`}
                     />
-                    <button type="submit" className={button("secondary", "sm")}>
+                    <PendingButton className={button("secondary", "sm")}>
                       Save
-                    </button>
+                    </PendingButton>
                   </ActionForm>
                 )}
               </li>
@@ -175,15 +176,15 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
       <div className="flex flex-wrap items-center gap-2">
         <form action={setInvoicePaid.bind(null, invoice.id, !invoice.paidAt)}>
-          <button type="submit" className={button(invoice.paidAt ? "secondary" : "primary", "sm")}>
+          <PendingButton className={button(invoice.paidAt ? "secondary" : "primary", "sm")}>
             {invoice.paidAt ? "Mark as unpaid" : "Mark as paid"}
-          </button>
+          </PendingButton>
         </form>
         {xero && (!invoice.xeroInvoiceId || (invoice.paidAt && !invoice.xeroPaymentId)) && (
           <form action={sendInvoiceToXeroAction.bind(null, invoice.id)}>
-            <button type="submit" className={button("secondary", "sm")}>
+            <PendingButton className={button("secondary", "sm")}>
               {invoice.xeroError ? "Try sending to Xero again" : invoice.xeroInvoiceId ? "Record payment in Xero" : "Send to Xero"}
-            </button>
+            </PendingButton>
           </form>
         )}
       </div>

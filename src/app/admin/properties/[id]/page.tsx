@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { stockSuits } from "@/lib/dishwasherStock";
@@ -196,9 +197,9 @@ export default async function PropertyDetailPage({
             className={`${inputCompact} w-24`}
           />
         </div>
-        <button type="submit" className={button("secondary", "sm")}>
+        <PendingButton className={button("secondary", "sm")}>
           Save
-        </button>
+        </PendingButton>
         <p className="w-full text-xs text-zinc-500">Clear the field and save to remove the limit.</p>
       </form>
     </details>
@@ -458,9 +459,9 @@ export default async function PropertyDetailPage({
                     </div>
                   </Link>
                   <form action={setLaundryLoadCollected.bind(null, load.id, property.id, true)}>
-                    <button type="submit" className={button("secondary", "sm")}>
+                    <PendingButton className={button("secondary", "sm")}>
                       Mark as returned
-                    </button>
+                    </PendingButton>
                   </form>
                 </li>
               );
@@ -491,13 +492,12 @@ export default async function PropertyDetailPage({
                   <p className="text-sm">{item.text}</p>
                 </div>
                 <form action={removePropertyChecklistItem.bind(null, property.id, item.id)}>
-                  <button
-                    type="submit"
+                  <PendingButton
                     aria-label={`Remove ${item.text}`}
                     className="text-xs text-zinc-400 hover:text-red-600"
                   >
                     ✕
-                  </button>
+                  </PendingButton>
                 </form>
               </li>
             ))}
@@ -549,9 +549,9 @@ export default async function PropertyDetailPage({
                   className={inputCompact}
                 />
               </div>
-              <button type="submit" className={button("primary", "sm")}>
+              <PendingButton className={button("primary", "sm")}>
                 Add
-              </button>
+              </PendingButton>
             </ActionForm>
           </details>
 
@@ -590,13 +590,12 @@ export default async function PropertyDetailPage({
                   <div className="flex shrink-0 items-center gap-2">
                     <StockLevelIndicator band={bandFromDb(level.band)} compact />
                     <ActionForm action={removePropertyStockLevel.bind(null, property.id, level.id)}>
-                      <button
-                        type="submit"
+                      <PendingButton
                         aria-label={`Remove ${level.stockItem.name}`}
                         className="text-xs text-zinc-400 hover:text-red-600"
                       >
                         ✕
-                      </button>
+                      </PendingButton>
                     </ActionForm>
                   </div>
                 </div>
@@ -729,9 +728,9 @@ export default async function PropertyDetailPage({
                     <span className={badge("solid")}>Cover</span>
                   ) : (
                     <ActionForm action={setPrimaryPhoto.bind(null, property.id, img.id)}>
-                      <button type="submit" className={button("ghost", "sm")}>
+                      <PendingButton className={button("ghost", "sm")}>
                         Make cover
-                      </button>
+                      </PendingButton>
                     </ActionForm>
                   )}
                   <ConfirmAction
@@ -770,9 +769,9 @@ export default async function PropertyDetailPage({
               className="text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-black/[0.06] file:px-3 file:py-1.5 file:text-sm file:font-medium"
             />
             <div>
-              <button type="submit" className={button("primary", "sm")}>
+              <PendingButton className={button("primary", "sm")}>
                 Upload
-              </button>
+              </PendingButton>
             </div>
           </ActionForm>
         </details>
@@ -819,9 +818,9 @@ export default async function PropertyDetailPage({
                     className={`${inputCompact} w-28`}
                   />
                 </div>
-                <button type="submit" className={button("secondary", "sm")}>
+                <PendingButton className={button("secondary", "sm")}>
                   Save
-                </button>
+                </PendingButton>
                 <p className="w-full text-xs text-zinc-500">Clear the field and save to turn it off.</p>
               </form>
             </details>
@@ -845,9 +844,9 @@ export default async function PropertyDetailPage({
                 className={`${inputCompact} w-28`}
               />
             </div>
-            <button type="submit" className={button("secondary", "sm")}>
+            <PendingButton className={button("secondary", "sm")}>
               Save
-            </button>
+            </PendingButton>
           </form>
         )}
       </section>
@@ -940,9 +939,9 @@ export default async function PropertyDetailPage({
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <ActionForm action={syncPropertyCalendarFeed.bind(null, property.id, feed.id)}>
-                        <button type="submit" className={button("secondary", "sm")}>
+                        <PendingButton className={button("secondary", "sm")}>
                           Sync now
-                        </button>
+                        </PendingButton>
                       </ActionForm>
                       <ConfirmAction
                         action={removePropertyCalendarFeed.bind(null, property.id, feed.id)}
@@ -999,9 +998,9 @@ export default async function PropertyDetailPage({
                     className={`${inputCompact} w-full`}
                   />
                 </div>
-                <button type="submit" className={button("primary", "sm")}>
+                <PendingButton className={button("primary", "sm")}>
                   Add
-                </button>
+                </PendingButton>
               </ActionForm>
             </details>
           )}
@@ -1047,9 +1046,9 @@ export default async function PropertyDetailPage({
                 className={`${inputCompact} w-40`}
               />
             </div>
-            <button type="submit" className={button("primary", "sm")}>
+            <PendingButton className={button("primary", "sm")}>
               Link
-            </button>
+            </PendingButton>
           </ActionForm>
         ) : (
           <div className={card("flex flex-col gap-2 p-4")}>
@@ -1074,9 +1073,9 @@ export default async function PropertyDetailPage({
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <ActionForm action={syncPropertyPmsListing.bind(null, property.id)}>
-                  <button type="submit" className={button("secondary", "sm")}>
+                  <PendingButton className={button("secondary", "sm")}>
                     Sync now
-                  </button>
+                  </PendingButton>
                 </ActionForm>
                 <ConfirmAction
                   action={removePropertyPmsListing.bind(null, property.id)}

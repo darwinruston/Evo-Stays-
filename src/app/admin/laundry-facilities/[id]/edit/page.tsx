@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
@@ -183,9 +184,9 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
         </div>
 
         <div>
-          <button type="submit" className={button("primary", "sm")}>
+          <PendingButton className={button("primary", "sm")}>
             Save changes
-          </button>
+          </PendingButton>
         </div>
       </ActionForm>
 

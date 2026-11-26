@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/actionResult";
 import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
@@ -113,9 +114,9 @@ export function ClientForm({
       )}
 
       <div>
-        <button type="submit" className={button("primary", "sm")}>
+        <PendingButton className={button("primary", "sm")}>
           {submitLabel}
-        </button>
+        </PendingButton>
       </div>
     </ActionForm>
   );

@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma, scopedDb } from "@/lib/prisma";
@@ -171,20 +172,20 @@ export default async function OrganizationsPage() {
                         className={`${inputCompact} w-40`}
                       />
                     </div>
-                    <button type="submit" className={button("secondary", "sm")}>
+                    <PendingButton className={button("secondary", "sm")}>
                       Save
-                    </button>
+                    </PendingButton>
                   </ActionForm>
                   <div className="flex flex-wrap gap-3">
                     <form action={impersonateOrganization.bind(null, org.id)}>
-                      <button type="submit" className={button("ghost", "sm")}>
+                      <PendingButton className={button("ghost", "sm")}>
                         View as this organisation
-                      </button>
+                      </PendingButton>
                     </form>
                     <form action={setOrganizationSuspended.bind(null, org.id, !org.suspendedAt)}>
-                      <button type="submit" className={button(org.suspendedAt ? "secondary" : "danger", "sm")}>
+                      <PendingButton className={button(org.suspendedAt ? "secondary" : "danger", "sm")}>
                         {org.suspendedAt ? "Reactivate" : "Suspend"}
-                      </button>
+                      </PendingButton>
                     </form>
                   </div>
                 </li>
@@ -242,9 +243,9 @@ export default async function OrganizationsPage() {
           </div>
 
           <div>
-            <button type="submit" className={button("primary", "sm")}>
+            <PendingButton className={button("primary", "sm")}>
               Create organisation
-            </button>
+            </PendingButton>
           </div>
         </ActionForm>
       </section>

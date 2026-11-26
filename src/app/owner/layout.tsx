@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import Link from "next/link";
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -45,9 +46,9 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
             </div>
           </div>
           <form action={logoutAction}>
-            <button type="submit" className={button("secondary", "sm")}>
+            <PendingButton className={button("secondary", "sm")}>
               Sign out
-            </button>
+            </PendingButton>
           </form>
         </nav>
       </header>

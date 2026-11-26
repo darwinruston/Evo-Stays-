@@ -1,5 +1,6 @@
 "use client";
 
+import { startNavigation } from "@/components/NavigationProgress";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AUDIT_ENTITY_LABELS, type AuditEntityType } from "@/lib/audit";
 import { inputCompact } from "@/lib/ui";
@@ -11,11 +12,16 @@ export function AuditFilters({ people }: { people: { id: string; name: string }[
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  function go(href: string) {
+    startNavigation(href);
+    router.push(href);
+  }
+
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
-    router.push(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
+    go(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
   }
 
   return (

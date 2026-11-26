@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
+import { NavigationProgress } from "@/components/NavigationProgress";
 import { PwaRegister } from "@/components/PwaRegister";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
@@ -47,6 +49,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" data-scroll-behavior="smooth" className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}>
       <body className="min-h-full flex flex-col">
         <PwaRegister />
+        {/* Suspense because it reads the address, which fixed pages do not
+            know until they reach the browser. */}
+        <Suspense>
+          <NavigationProgress />
+        </Suspense>
         <OfflineBanner />
         {children}
       </body>

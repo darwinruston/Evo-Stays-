@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { formatTimeOfDay } from "@/lib/arrival";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -236,9 +237,9 @@ export default async function CleanDetailPage({
               This clean and earlier ones stay. Later ones that nobody has started are removed.
             </p>
             <div>
-              <button type="submit" className={button("secondary", "sm")}>
+              <PendingButton className={button("secondary", "sm")}>
                 Stop and remove later cleans
-              </button>
+              </PendingButton>
             </div>
           </form>
         </details>

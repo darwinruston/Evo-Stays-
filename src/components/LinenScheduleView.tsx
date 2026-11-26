@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import Link from "next/link";
 import { formatClock, type LinenDay } from "@/lib/linenPlan";
 import { formatMinutes } from "@/lib/cleanDuration";
@@ -189,9 +190,9 @@ export function LinenScheduleView({
                               placeholder="Optional note back to them"
                               className={`${inputCompact} max-w-xs flex-1`}
                             />
-                            <button type="submit" className={button("secondary", "sm")}>
+                            <PendingButton className={button("secondary", "sm")}>
                               Mark resolved
-                            </button>
+                            </PendingButton>
                           </form>
                         )}
                       </div>

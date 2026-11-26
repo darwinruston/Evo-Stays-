@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/actionResult";
 import { ActionForm } from "@/components/ActionForm";
 import { stockSuits } from "@/lib/dishwasherStock";
@@ -301,9 +302,9 @@ export default async function CleanerCleanPage({
                     className={inputCompact}
                   />
                 </div>
-                <button type="submit" className={`w-full shrink-0 sm:w-auto ${button(clean.plannedArrivalAt ? "secondary" : "primary", "md")}`}>
+                <PendingButton className={`w-full shrink-0 sm:w-auto ${button(clean.plannedArrivalAt ? "secondary" : "primary", "md")}`}>
                   {clean.plannedArrivalAt ? "Update" : "Confirm"}
-                </button>
+                </PendingButton>
               </div>
             </ActionForm>
           )}
@@ -337,9 +338,9 @@ export default async function CleanerCleanPage({
                 Count everyone who is here to clean, you included. Hourly pay is for everyone on the clean.
               </p>
             </section>
-            <button type="submit" className={`w-full ${button("primary", "lg")}`}>
+            <PendingButton className={`w-full ${button("primary", "lg")}`}>
               I&apos;ve arrived, check in
-            </button>
+            </PendingButton>
           </ActionForm>
         </>
       )}

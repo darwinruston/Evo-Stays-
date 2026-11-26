@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
@@ -138,17 +139,17 @@ export default async function InvoicesPage({
                 ))}
               </select>
             </div>
-            <button type="submit" className={button("secondary", "sm")}>
+            <PendingButton className={button("secondary", "sm")}>
               Save
-            </button>
+            </PendingButton>
           </ActionForm>
         </div>
 
         <ActionForm action={runInvoiceGeneration} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-4">
           <InvoicePeriodFields initialFrom={toIsoDate(start)} initialTo={toIsoDate(lastIncludedDay)} />
-          <button type="submit" className={button("primary", "sm")}>
+          <PendingButton className={button("primary", "sm")}>
             Generate invoices
-          </button>
+          </PendingButton>
           <p className="w-full text-xs text-zinc-500">
             Both dates are included in full. Only picks up completed cleans not already on an
             invoice, safe to run again over an overlapping period.
@@ -205,9 +206,9 @@ export default async function InvoicesPage({
           )}
           {unsentCount > 0 && (
             <form action={sendUnsentToXero}>
-              <button type="submit" className={button("secondary", "sm")}>
+              <PendingButton className={button("secondary", "sm")}>
                 Send {unsentCount} to Xero
-              </button>
+              </PendingButton>
             </form>
           )}
         </div>

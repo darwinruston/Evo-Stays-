@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { button } from "@/lib/ui";
 import { stopImpersonating } from "@/app/impersonation/actions";
 
@@ -14,9 +15,9 @@ export function ImpersonationBanner({ organizationName }: { organizationName: st
         account.
       </p>
       <form action={stopImpersonating}>
-        <button type="submit" className={`${button("ghost", "sm")} text-white hover:bg-white/10`}>
+        <PendingButton className={`${button("ghost", "sm")} text-white hover:bg-white/10`}>
           Return to Organisations
-        </button>
+        </PendingButton>
       </form>
     </div>
   );

@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/actionResult";
 import { ActionForm } from "@/components/ActionForm";
 import { STOCK_BAND_LABELS, type StockLevelBand } from "@/lib/stock";
@@ -30,15 +31,14 @@ export function StockLevelToggle({
   return (
     <ActionForm action={action} className="grid grid-cols-4 gap-1">
       {BAND_ORDER.map((band) => (
-        <button
+        <PendingButton
           key={band}
-          type="submit"
           name="band"
           value={band}
           className={`${button(band === current ? "primary" : "secondary", "sm")} ${band === current ? CHOSEN[band] : ""} !px-1 !py-1.5 text-xs`}
         >
           {STOCK_BAND_LABELS[band]}
-        </button>
+        </PendingButton>
       ))}
     </ActionForm>
   );

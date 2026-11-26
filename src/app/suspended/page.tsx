@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { EvoTick } from "@/components/EvoTick";
@@ -26,9 +27,9 @@ export default async function SuspendedPage() {
           mistake, or to sort out reactivating it.
         </p>
         <form action={logoutAction} className="mt-2">
-          <button type="submit" className={button("secondary", "sm")}>
+          <PendingButton className={button("secondary", "sm")}>
             Sign out
-          </button>
+          </PendingButton>
         </form>
       </div>
     </div>

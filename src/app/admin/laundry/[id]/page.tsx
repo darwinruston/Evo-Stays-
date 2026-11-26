@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -52,9 +53,9 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
       </div>
 
       <form action={setLaundryLoadCollected.bind(null, load.id, null, !load.collectedAt)}>
-        <button type="submit" className={button(load.collectedAt ? "secondary" : "primary", "sm")}>
+        <PendingButton className={button(load.collectedAt ? "secondary" : "primary", "sm")}>
           {load.collectedAt ? "Mark as not returned" : "Mark as returned"}
-        </button>
+        </PendingButton>
       </form>
 
       {load.receiptPath && (

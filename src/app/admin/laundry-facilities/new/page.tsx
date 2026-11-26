@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
@@ -33,9 +34,9 @@ export default async function NewLaundryFacilityPage() {
         </div>
 
         <div>
-          <button type="submit" className={button("primary", "sm")}>
+          <PendingButton className={button("primary", "sm")}>
             Create facility
-          </button>
+          </PendingButton>
         </div>
       </ActionForm>
     </div>

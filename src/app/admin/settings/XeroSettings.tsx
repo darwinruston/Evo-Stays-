@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { headers } from "next/headers";
 import { scopedDb } from "@/lib/prisma";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -73,9 +74,9 @@ export async function XeroSettings({ organizationId, notice }: { organizationId:
               Connected to <strong>{connection.tenantName}</strong>
             </p>
             <form action={disconnectXeroAction}>
-              <button type="submit" className={button("secondary", "sm")}>
+              <PendingButton className={button("secondary", "sm")}>
                 Disconnect
-              </button>
+              </PendingButton>
             </form>
           </div>
 

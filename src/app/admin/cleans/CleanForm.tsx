@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingButton } from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/actionResult";
 import { ActionForm } from "@/components/ActionForm";
 import { useState } from "react";
@@ -261,9 +262,9 @@ export function CleanForm({
       )}
 
       <div>
-        <button type="submit" className={button("primary", "sm")}>
+        <PendingButton className={button("primary", "sm")}>
           {submitLabel}
-        </button>
+        </PendingButton>
       </div>
     </ActionForm>
   );

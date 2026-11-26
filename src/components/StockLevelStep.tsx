@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingButton } from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/actionResult";
 import { ActionForm } from "@/components/ActionForm";
 import { useState } from "react";
@@ -73,9 +74,9 @@ export function StockLevelStep({
         <p className="mt-1 text-sm text-zinc-600">{reason}</p>
       </div>
 
-      <button type="submit" name="band" value={selected} className={`w-full ${button("primary", "lg")}`}>
+      <PendingButton name="band" value={selected} className={`w-full ${button("primary", "lg")}`}>
         Confirm: {STOCK_BAND_LABELS[selected]}
-      </button>
+      </PendingButton>
 
       <div className="flex flex-col gap-2">
         <p className="text-xs text-zinc-500">Not right? Tap the actual level, then confirm above.</p>

@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -56,9 +57,9 @@ export default async function MessagesPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <form action={setContactMessageHandled.bind(null, m.id, !m.handledAt)}>
-                        <button type="submit" className="text-xs text-zinc-600 hover:underline">
+                        <PendingButton className="text-xs text-zinc-600 hover:underline">
                           {m.handledAt ? "Mark as waiting" : "Mark as dealt with"}
-                        </button>
+                        </PendingButton>
                       </form>
                       <ConfirmAction
                         action={deleteContactMessage.bind(null, m.id)}

@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
@@ -27,9 +28,9 @@ export default async function NewStockItemPage() {
         </div>
 
         <div>
-          <button type="submit" className={button("primary", "sm")}>
+          <PendingButton className={button("primary", "sm")}>
             Create item
-          </button>
+          </PendingButton>
         </div>
       </ActionForm>
     </div>

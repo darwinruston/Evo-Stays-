@@ -1,5 +1,6 @@
 "use client";
 
+import { startNavigation } from "@/components/NavigationProgress";
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
@@ -24,13 +25,18 @@ export function CleanFilters({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  function go(href: string) {
+    startNavigation(href);
+    router.push(href);
+  }
   const [open, setOpen] = useState(false);
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
-    router.push(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
+    go(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
   }
 
   const activeCount = ["status", "propertyId", "cleanerId"].filter((key) => searchParams.get(key)).length;
@@ -50,7 +56,7 @@ export function CleanFilters({
         {hasFilters && (
           <button
             type="button"
-            onClick={() => router.push(pathname)}
+            onClick={() => go(pathname)}
             className="text-xs text-zinc-500 underline underline-offset-2"
           >
             Clear filters

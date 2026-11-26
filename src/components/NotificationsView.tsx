@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { emailConfigured } from "@/lib/email";
 import { formatScheduledFor } from "@/lib/schedule";
@@ -43,9 +44,9 @@ export async function NotificationsView({
         <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Notifications</h1>
         {unread > 0 && (
           <form action={markAllNotificationsRead}>
-            <button type="submit" className={button("secondary", "sm")}>
+            <PendingButton className={button("secondary", "sm")}>
               Mark all as read
-            </button>
+            </PendingButton>
           </form>
         )}
       </div>
@@ -102,9 +103,9 @@ export async function NotificationsView({
               Email isn&apos;t set up on this server yet. This takes effect once it is.
             </p>
           )}
-          <button type="submit" className={`w-fit ${button("secondary", "sm")}`}>
+          <PendingButton className={`w-fit ${button("secondary", "sm")}`}>
             Save
-          </button>
+          </PendingButton>
         </form>
       </section>
     </div>

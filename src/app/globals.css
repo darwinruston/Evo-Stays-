@@ -74,3 +74,23 @@ body {
     display: flex;
   }
 }
+
+/* The bar across the top while a page is on its way (NavigationProgress). It
+   waits a moment, so quick pages never flash it, then creeps towards the end
+   without reaching it. */
+.navigation-progress {
+  opacity: 0;
+  transform-origin: left;
+  animation: navigation-progress 12s cubic-bezier(0.05, 0.7, 0.1, 1) 120ms forwards;
+}
+
+@keyframes navigation-progress {
+  from {
+    opacity: 1;
+    transform: scaleX(0.08);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(0.94);
+  }
+}

@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireCleaner } from "@/lib/authz";
@@ -195,17 +196,17 @@ export default async function CleanerCalendarPage({
           <div className={card("flex items-center justify-between gap-3 p-3.5")}>
             <p className="text-sm text-zinc-600">You&apos;ve marked this day unavailable.</p>
             <form action={unblockDay.bind(null, selectedBlocked.id)}>
-              <button type="submit" className={button("secondary", "sm")}>
+              <PendingButton className={button("secondary", "sm")}>
                 Unblock
-              </button>
+              </PendingButton>
             </form>
           </div>
         ) : (
           <ActionForm action={blockDay}>
             <input type="hidden" name="date" value={selectedIso} />
-            <button type="submit" className={button("secondary", "sm")}>
+            <PendingButton className={button("secondary", "sm")}>
               Block this day
-            </button>
+            </PendingButton>
           </ActionForm>
         )}
       </div>

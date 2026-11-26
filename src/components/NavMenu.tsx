@@ -1,5 +1,6 @@
 "use client";
 
+import { PendingButton } from "@/components/PendingButton";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -189,9 +190,9 @@ export function NavMenu({
           </div>
         )}
         <form action={logoutAction}>
-          <button type="submit" className={signOutClass}>
+          <PendingButton className={signOutClass}>
             Sign out
-          </button>
+          </PendingButton>
         </form>
       </div>
 
@@ -227,9 +228,9 @@ export function NavMenu({
             </>
           )}
           <form action={logoutAction} className="mt-1">
-            <button type="submit" className={`${signOutClass} w-full`}>
+            <PendingButton className={`${signOutClass} w-full`}>
               Sign out
-            </button>
+            </PendingButton>
           </form>
         </div>
       )}

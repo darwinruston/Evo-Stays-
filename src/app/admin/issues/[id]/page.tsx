@@ -1,3 +1,4 @@
+import { PendingButton } from "@/components/PendingButton";
 import { ActionForm } from "@/components/ActionForm";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { SafeImage } from "@/components/SafeImage";
@@ -251,9 +252,9 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
               Whoever reported it is notified when it&apos;s marked resolved, with this note.
             </p>
           </div>
-          <button type="submit" className={`w-fit ${button("primary", "sm")}`}>
+          <PendingButton className={`w-fit ${button("primary", "sm")}`}>
             Save
-          </button>
+          </PendingButton>
         </ActionForm>
       </section>
 
