@@ -63,6 +63,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       countLabel: "linen problems",
       tabs: [
         { href: "/admin/cleans", label: "Cleans" },
+        // Everyone's month, with the days cleaners cannot work.
+        { href: "/admin/cleans/calendar", label: "Calendar" },
         ...(modules.stock ? [{ href: "/admin/stock", label: "Stock" }] : []),
         ...(modules.laundry
           ? [{ href: "/admin/laundry", label: "Laundry", count: linenProblems, countLabel: "linen problems" }]

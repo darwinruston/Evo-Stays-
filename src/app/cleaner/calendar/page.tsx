@@ -8,25 +8,7 @@ import { buildMonthGrid, toIsoDate, formatScheduledForWithDay } from "@/lib/sche
 import { button, card } from "@/lib/ui";
 import { blockDay, unblockDay } from "../actions";
 import { currentRegion } from "@/lib/region";
-
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTH_LABELS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-function parseMonth(raw: string | undefined): { year: number; monthIndex0: number } {
-  if (raw && /^\d{4}-\d{2}$/.test(raw)) {
-    const [y, m] = raw.split("-").map(Number);
-    if (m >= 1 && m <= 12) return { year: y, monthIndex0: m - 1 };
-  }
-  const now = new Date();
-  return { year: now.getFullYear(), monthIndex0: now.getMonth() };
-}
-
-function monthParam(year: number, monthIndex0: number): string {
-  return `${year}-${String(monthIndex0 + 1).padStart(2, "0")}`;
-}
+import { MONTH_LABELS, WEEKDAY_LABELS, monthParam, parseMonth } from "@/lib/calendarMonth";
 
 export const metadata = { title: "Calendar" };
 

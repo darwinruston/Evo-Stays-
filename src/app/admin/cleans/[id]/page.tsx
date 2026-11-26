@@ -36,18 +36,29 @@ export default async function CleanDetailPage({
   // Forwarded from the Cleans list's own filter query string (see
   // src/app/admin/cleans/page.tsx) so "← Cleans" can return to the same
   // filtered view instead of always resetting to the unfiltered list.
-  searchParams: Promise<{ status?: string; propertyId?: string; cleanerId?: string }>;
+  // from=calendar, with the month and day, when it was opened from there.
+  searchParams: Promise<{
+    status?: string;
+    propertyId?: string;
+    cleanerId?: string;
+    from?: string;
+    month?: string;
+    day?: string;
+  }>;
 }) {
   const { db } = await requireStaff();
   const { id } = await params;
-  const { status, propertyId, cleanerId } = await searchParams;
+  const { status, propertyId, cleanerId, from, month, day } = await searchParams;
 
   const backParams = new URLSearchParams();
   if (status) backParams.set("status", status);
   if (propertyId) backParams.set("propertyId", propertyId);
   if (cleanerId) backParams.set("cleanerId", cleanerId);
   const backQuery = backParams.toString();
-  const backHref = `/admin/cleans${backQuery ? `?${backQuery}` : ""}`;
+  const fromCalendar = from === "calendar";
+  const backHref = fromCalendar
+    ? `/admin/cleans/calendar?${new URLSearchParams({ month: month ?? "", day: day ?? "" })}`
+    : `/admin/cleans${backQuery ? `?${backQuery}` : ""}`;
 
   const clean = await db.clean.findUnique({
     where: { id },
@@ -119,7 +130,7 @@ export default async function CleanDetailPage({
     <div className="flex flex-col gap-8">
       <div>
         <Link href={backHref} className="text-sm text-zinc-500 hover:text-zinc-900">
-          ← Cleans
+          ← {fromCalendar ? "Calendar" : "Cleans"}
         </Link>
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
