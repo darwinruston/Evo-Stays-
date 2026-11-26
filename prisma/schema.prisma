@@ -181,6 +181,10 @@ model User {
   // exactly one account.
   email                String                  @unique
   passwordHash         String
+  // True from being invited until they choose a password (see
+  // src/lib/invites.ts). Until then passwordHash is a random value nobody
+  // knows, so the login cannot be used.
+  invitePending        Boolean                 @default(false)
   // Their own profile photo (see src/lib/profilePhotos.ts), shown in the top
   // bar and on their profile page. Optional; an initials circle shows without
   // one.

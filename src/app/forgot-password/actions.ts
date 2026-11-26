@@ -1,5 +1,6 @@
 "use server";
 
+import { emailConfigured } from "@/lib/email";
 import { normaliseEmail } from "@/lib/emailAddress";
 import { authPrisma } from "@/lib/prisma";
 import { issuePasswordResetLink } from "@/lib/passwordResetEmail";
@@ -29,7 +30,9 @@ export async function requestPasswordReset(
     (await authPrisma.user.findUnique({ where: { email: normaliseEmail(email) } })) ??
     (await authPrisma.user.findUnique({ where: { email } }));
 
-  if (user) await issuePasswordResetLink(user);
+  // Someone still holding an invite, with no email set up to send anything:
+  // issuing a reset would only cancel the invite link they were given.
+  if (user && !(user.invitePending && !emailConfigured())) await issuePasswordResetLink(user);
 
   return GENERIC_MESSAGE;
 }

@@ -42,7 +42,12 @@ export async function resetPassword(
   // $transaction, setting the RLS session variable by hand.
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${user.organizationId}, TRUE)`;
-    await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+    // Setting a password finishes an invite too, and signs out anywhere the
+    // old password was used.
+    await tx.user.update({
+      where: { id: user.id },
+      data: { passwordHash, invitePending: false, sessionVersion: { increment: 1 } },
+    });
     await tx.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } });
   });
 

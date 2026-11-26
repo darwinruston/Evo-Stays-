@@ -7,7 +7,8 @@ import { Avatar } from "@/components/Avatar";
 import { AddTeamMemberForm } from "@/components/AddTeamMemberForm";
 import { StaffRow } from "@/components/StaffRow";
 import { badge, card } from "@/lib/ui";
-import { createTeamMember, updateStaff, deleteStaff } from "./actions";
+import { createTeamMember, updateStaff, deleteStaff, newInviteLink } from "./actions";
+import { PendingInvites } from "@/components/PendingInvites";
 import { InfoTooltip } from "@/components/InfoTooltip";
 
 export const metadata = { title: "People" };
@@ -49,6 +50,15 @@ export default async function TeamPage() {
       : [],
   ]);
 
+  // Invited but not set up yet. Office staff can only re-invite cleaners, so
+  // that is all they are shown.
+  const waiting = await db.user.findMany({
+    where: { invitePending: true, role: isAdmin ? { in: ["ADMIN", "OFFICE", "CLEANER"] } : "CLEANER" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true, role: true },
+  });
+  const roleName: Record<string, string> = { ADMIN: "Admin", OFFICE: "Office", CLEANER: "Cleaner" };
+
   const thisWeek = new Map(thisWeekByCleaner.map((g) => [g.assignedToId as string, g._count._all]));
 
   return (
@@ -66,6 +76,16 @@ export default async function TeamPage() {
           <AddTeamMemberForm action={createTeamMember} cleanersOnly={!isAdmin} />
         </div>
       </div>
+
+      {waiting.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
+            Waiting to join <span className="text-sm font-normal text-zinc-500">({waiting.length})</span>
+            <InfoTooltip text="Invited but not yet set up. If their link expired or got lost, make a new one: the old link stops working." />
+          </h2>
+          <PendingInvites people={waiting.map((w) => ({ ...w, role: roleName[w.role] }))} newLink={newInviteLink} />
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">

@@ -1,5 +1,6 @@
 "use server";
 
+import { cancelInviteLinks } from "@/lib/invites";
 import { normaliseEmail } from "@/lib/emailAddress";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -53,10 +54,12 @@ export async function updateCleaner(id: string, formData: FormData): Promise<Act
       // A new password also bumps sessionVersion, which signs this person
       // out everywhere they're logged in (see the jwt callback in src/auth.ts).
       ...(password
-        ? { passwordHash: await bcrypt.hash(password, 10), sessionVersion: { increment: 1 } }
+        ? { passwordHash: await bcrypt.hash(password, 10), sessionVersion: { increment: 1 }, invitePending: false }
         : {}),
     },
   });
+
+  if (password) await cancelInviteLinks(id);
 
   if (before.name !== name) {
     await logAudit(db, {

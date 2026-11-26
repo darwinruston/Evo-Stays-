@@ -7,6 +7,7 @@ import type { Role } from "@prisma/client";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { requireAdmin, requireStaff } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
+import { cancelInviteLinks, createInviteLink, unusablePasswordHash, type InviteResult } from "@/lib/invites";
 import { SYSTEM_USER_ID_PREFIX, isSystemSyncUserId } from "@/lib/systemUser";
 import type { ActionResult } from "@/lib/actionResult";
 
@@ -45,7 +46,7 @@ async function otherAdminCount(db: ScopedPrismaClient, excludingId: string): Pro
 
 // Adds someone to the team with the role they will work in. A cleaner's pay
 // rate and properties are set afterwards on their own page.
-export async function createTeamMember(formData: FormData): Promise<ActionResult> {
+export async function createTeamMember(formData: FormData): Promise<InviteResult> {
   // Office staff can add cleaners, as they always could; the other roles carry
   // more access, so only an Admin can hand them out.
   const { session, db } = await requireStaff();
@@ -59,8 +60,11 @@ export async function createTeamMember(formData: FormData): Promise<ActionResult
   if (role !== "CLEANER" && session.user.role !== "ADMIN") {
     return { error: "Only an Admin can add Office or Admin logins" };
   }
-  if (!name || !email || !password) return { error: "Name, email and password are all required" };
-  if (password.length < 8) return { error: "Password must be at least 8 characters" };
+  // Either they get a link to choose their own password, or whoever is adding
+  // them types one in.
+  const invite = str(formData, "method") !== "password";
+  if (!name || !email) return { error: "Name and email are both required" };
+  if (!invite && (!password || password.length < 8)) return { error: "Password must be at least 8 characters" };
 
   const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) return { error: "That email address already has a login" };
@@ -70,7 +74,8 @@ export async function createTeamMember(formData: FormData): Promise<ActionResult
       organizationId: session.user.organizationId,
       name,
       email,
-      passwordHash: await bcrypt.hash(password, 10),
+      passwordHash: invite || !password ? await unusablePasswordHash() : await bcrypt.hash(password, 10),
+      invitePending: invite,
       role,
     },
     select: { id: true },
@@ -80,10 +85,28 @@ export async function createTeamMember(formData: FormData): Promise<ActionResult
     actorId: session.user.id,
     entityType: "Staff",
     entityId: created.id,
-    summary: `Added ${ROLE_LABELS[role]} login: ${name} (${email})`,
+    summary: `${invite ? "Invited" : "Added"} ${ROLE_LABELS[role]} login: ${name} (${email})`,
   });
 
   revalidatePath("/admin/team");
+  if (invite) return { inviteLink: await createInviteLink(created.id), name };
+}
+
+// A fresh link for someone who has not set themselves up yet: the old one
+// expired, or was lost. The previous link stops working. Only ever for a
+// pending invite, so this can never be used to take over a login in use.
+export async function newInviteLink(id: string): Promise<InviteResult> {
+  const { session, db } = await requireStaff();
+
+  const person = await db.user.findFirst({
+    where: { id, invitePending: true },
+    select: { name: true, role: true },
+  });
+  if (!person) return { error: "They have already set up their login" };
+  if (person.role !== "CLEANER" && session.user.role !== "ADMIN") {
+    return { error: "Only an Admin can invite Office or Admin logins" };
+  }
+  return { inviteLink: await createInviteLink(id), name: person.name };
 }
 
 // Name, email, role, and (optionally) a new password. Blank password means
@@ -129,10 +152,12 @@ export async function updateStaff(id: string, formData: FormData): Promise<Actio
       // A new password also bumps sessionVersion, which signs this person
       // out everywhere they're logged in (see the jwt callback in src/auth.ts).
       ...(password
-        ? { passwordHash: await bcrypt.hash(password, 10), sessionVersion: { increment: 1 } }
+        ? { passwordHash: await bcrypt.hash(password, 10), sessionVersion: { increment: 1 }, invitePending: false }
         : {}),
     },
   });
+
+  if (password) await cancelInviteLinks(id);
 
   const changes: string[] = [];
   if (before.name !== name) changes.push(`renamed from ${before.name} to ${name}`);

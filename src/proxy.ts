@@ -26,7 +26,7 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/reset-password/");
+  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/reset-password/") || pathname.startsWith("/invite/");
 }
 
 export default auth((req) => {
