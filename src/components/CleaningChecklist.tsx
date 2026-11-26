@@ -6,7 +6,13 @@ import { card } from "@/lib/ui";
 // recorded. `extras` are this property's own additions (see
 // PropertyChecklistItem in schema.prisma), marked so a cleaner who knows the
 // standard list by heart can spot at a glance what's different here.
-export function CleaningChecklist({ extras = [] }: { extras?: { room: string; text: string }[] }) {
+export function CleaningChecklist({
+  extras = [],
+  noDishwasher = false,
+}: {
+  extras?: { room: string; text: string }[];
+  noDishwasher?: boolean;
+}) {
   return (
     // A grid, not a single flex column -- the cleaner's own page never
     // renders this wider than its phone-first max-w-md, so it always stays
@@ -14,7 +20,7 @@ export function CleaningChecklist({ extras = [] }: { extras?: { room: string; te
     // it fans the room cards out sideways instead of stacking every one of
     // them into one long scroll.
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {mergeChecklist(extras).map(({ room, items }) => (
+      {mergeChecklist(extras, { noDishwasher }).map(({ room, items }) => (
         <div key={room} className={card("p-3")}>
           <h3 className="text-sm font-semibold text-zinc-900 [overflow-wrap:anywhere]">{room}</h3>
           <ul className="mt-1.5 flex flex-col gap-1">

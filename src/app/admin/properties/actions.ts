@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma, PropertyManagement, PropertyType } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
+import { correctionsFrom } from "@/lib/amenities";
+import { syncAmenities } from "@/lib/pms/sync";
 import { requireStaff } from "@/lib/authz";
 import { assertModule } from "@/lib/modules";
 import type { ActionResult } from "@/lib/actionResult";
@@ -912,4 +914,29 @@ export async function removeSafetyDocument(propertyId: string, documentId: strin
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);
+}
+
+// Staff's tick boxes. Stored as differences from the listing (see
+// correctionsFrom), so the listing still updates the ones they agreed with.
+export async function saveAmenities(propertyId: string, formData: FormData) {
+  const { db } = await requireStaff();
+  const property = await db.property.findUnique({ where: { id: propertyId }, select: { amenities: true } });
+  if (!property) throw new Error("Property not found");
+
+  const ticked = new Set(formData.getAll("amenity").map(String));
+  await db.property.update({
+    where: { id: propertyId },
+    data: { ...correctionsFrom(property.amenities, ticked), amenitiesCheckedAt: new Date() },
+  });
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/properties");
+}
+
+export async function refreshAmenities(propertyId: string) {
+  const { db } = await requireStaff();
+  const read = await syncAmenities(db, propertyId);
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin/properties");
+  // Said out loud: a button that quietly does nothing reads as broken.
+  redirect(`/admin/properties/${propertyId}?amenities=${read ? "read" : "failed"}`);
 }

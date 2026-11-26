@@ -523,6 +523,16 @@ model Property {
   // 32-bit INT range too. Never used numerically, only as an opaque id sent
   // back to the provider, so there's no reason it needs to be one.
   pmsListingId       String?
+
+  // What is in the property (see src/lib/amenities.ts). amenities is the
+  // booking system's list, as sent. amenityAdded / amenityRemoved are staff
+  // corrections to the ones that matter, and amenitiesCheckedAt is when staff
+  // last saved them.
+  amenities          String[]  @default([])
+  amenitiesSyncedAt  DateTime?
+  amenitiesCheckedAt DateTime?
+  amenityAdded       String[]  @default([])
+  amenityRemoved     String[]  @default([])
   pmsLastSyncedAt    DateTime?
   pmsLastSyncError   String?
   images             PropertyImage[]

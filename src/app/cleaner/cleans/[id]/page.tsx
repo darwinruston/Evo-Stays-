@@ -1,3 +1,4 @@
+import { knownNoDishwasher } from "@/lib/amenities";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCleaner } from "@/lib/authz";
@@ -298,7 +299,7 @@ export default async function CleanerCleanPage({
               </div>
             </form>
           )}
-          <PropertyDetails property={clean.property} />
+          <PropertyDetails property={clean.property} showAmenities />
           {knownIssues.length > 0 && (
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-medium text-zinc-500">Known issues ({knownIssues.length})</h2>
@@ -315,7 +316,7 @@ export default async function CleanerCleanPage({
           )}
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-medium text-zinc-500">Cleaning checklist</h2>
-            <CleaningChecklist extras={clean.property.checklistItems} />
+            <CleaningChecklist extras={clean.property.checklistItems} noDishwasher={knownNoDishwasher(clean.property)} />
           </section>
           <form action={checkInClean.bind(null, clean.id)} className="flex flex-col gap-5">
             {/* A helper or a whole team may arrive: everyone on the clean is
@@ -461,7 +462,7 @@ export default async function CleanerCleanPage({
           )}
 
           <DetailsCard summary="Cleaning checklist">
-            <CleaningChecklist extras={clean.property.checklistItems} />
+            <CleaningChecklist extras={clean.property.checklistItems} noDishwasher={knownNoDishwasher(clean.property)} />
           </DetailsCard>
 
           {referencePhotos.length > 0 && (
@@ -471,7 +472,7 @@ export default async function CleanerCleanPage({
           )}
 
           <DetailsCard summary="Property details">
-            <PropertyDetails property={clean.property} />
+            <PropertyDetails property={clean.property} showAmenities />
           </DetailsCard>
         </>
       )}

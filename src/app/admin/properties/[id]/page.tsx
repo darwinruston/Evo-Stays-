@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyDetails } from "@/components/PropertyDetails";
+import { PropertyAmenitiesSection } from "@/components/PropertyAmenitiesSection";
+import { knownNoDishwasher } from "@/lib/amenities";
 import { FetchCoverPhotoButton } from "@/components/FetchCoverPhotoButton";
 import { getPmsAdapter } from "@/lib/pms/registry";
 import { getOrgModules } from "@/lib/modules";
@@ -23,6 +25,8 @@ import {
   deletePropertyPhoto,
   addPropertyStockLevel,
   addAllPropertyStock,
+  saveAmenities,
+  refreshAmenities,
   setPropertyStockLevel,
   removePropertyStockLevel,
   updatePropertyMinBillableHours,
@@ -77,12 +81,12 @@ export default async function PropertyDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; amenities?: string }>;
 }) {
   const { session, db } = await requireStaff();
   const modules = await getOrgModules(session.user.organizationId);
   const { id } = await params;
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, amenities: amenitiesResult } = await searchParams;
   const visibleTabs = TABS.filter(
     (t) => (t !== "billing" || modules.invoicing) && (t !== "syncing" || modules.sync),
   );
@@ -329,6 +333,18 @@ export default async function PropertyDetailPage({
         <div className="flex flex-col gap-8">
       <PropertyDetails property={property} />
 
+      <PropertyAmenitiesSection
+        property={property}
+        source={
+          property.pmsListingId && property.client.pmsProvider && getPmsAdapter(property.client.pmsProvider).fetchAmenities
+            ? getPmsAdapter(property.client.pmsProvider).displayName
+            : null
+        }
+        save={saveAmenities.bind(null, property.id)}
+        refresh={refreshAmenities.bind(null, property.id)}
+        result={amenitiesResult}
+      />
+
       {/* Up top, straight after the property itself -- who's actually
           designated here is the other thing worth knowing before anything
           else on the page. */}
@@ -539,7 +555,7 @@ export default async function PropertyDetailPage({
                 the one place CleaningChecklist actually gets to use its
                 grid columns instead of stacking into one long list. */}
             <div className="mt-2 max-w-3xl">
-              <CleaningChecklist extras={property.checklistItems} />
+              <CleaningChecklist extras={property.checklistItems} noDishwasher={knownNoDishwasher(property)} />
             </div>
           </details>
         </div>

@@ -31,7 +31,7 @@ export default async function CleanerPropertyPage({ params }: { params: Promise<
         </h1>
       </div>
 
-      <PropertyDetails property={property} />
+      <PropertyDetails property={property} showAmenities />
 
       {property.images.length > 0 && (
         <section className="flex flex-col gap-3">

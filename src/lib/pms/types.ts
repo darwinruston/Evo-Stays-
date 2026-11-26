@@ -59,4 +59,7 @@ export type PmsAdapter = {
     endDate: Date | null,
   ): Promise<PmsReservation[]>;
   fetchCoverPhotoUrl?(credentials: PmsCredentials, listingId: string): Promise<string | null>;
+  // The names of what the listing says is in the property. Null when it could
+  // not be read (so what is stored is left alone). Optional, like the above.
+  fetchAmenities?(credentials: PmsCredentials, listingId: string): Promise<string[] | null>;
 };

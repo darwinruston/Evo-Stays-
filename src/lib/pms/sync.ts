@@ -23,6 +23,25 @@ import {
 // an ever-growing full-history fetch the way an iCal feed never requires.
 const LOOKBACK_DAYS = 7;
 
+const AMENITIES_EVERY_MS = 24 * 60 * 60 * 1000;
+
+// Reads a property's amenities from its booking system and stores them. False
+// when there is nothing to read from, or it could not be read.
+export async function syncAmenities(db: ScopedPrismaClient, propertyId: string): Promise<boolean> {
+  const property = await db.property.findUniqueOrThrow({
+    where: { id: propertyId },
+    select: { pmsListingId: true, client: { select: { pmsProvider: true, pmsCredentials: true } } },
+  });
+  const { pmsProvider, pmsCredentials } = property.client;
+  if (!property.pmsListingId || !pmsProvider || !pmsCredentials) return false;
+  const adapter = getPmsAdapter(pmsProvider);
+  if (!adapter.fetchAmenities) return false;
+  const amenities = await adapter.fetchAmenities(decryptPmsCredentials(pmsCredentials), property.pmsListingId);
+  if (!amenities) return false;
+  await db.property.update({ where: { id: propertyId }, data: { amenities, amenitiesSyncedAt: new Date() } });
+  return true;
+}
+
 // Node's fetch throws a bare `TypeError: fetch failed` for anything at the
 // network layer (DNS, connection refused, TLS) -- accurate, but meaningless
 // to whoever's staring at it on the property page. Translated here into
@@ -54,6 +73,7 @@ export async function syncPmsListing(
     select: {
       pmsListingId: true,
       syncHorizonDays: true,
+      amenitiesSyncedAt: true,
       nickname: true,
       name: true,
       address: true,
@@ -81,6 +101,13 @@ export async function syncPmsListing(
   }
 
   const adapter = getPmsAdapter(property.client.pmsProvider);
+
+  // Amenities change rarely, so they are read at most once a day (and straight
+  // away for a new property). Kept apart from the reservations: a problem
+  // reading them never affects the cleans.
+  if (!property.amenitiesSyncedAt || Date.now() - property.amenitiesSyncedAt.getTime() > AMENITIES_EVERY_MS) {
+    await syncAmenities(db, propertyId).catch(() => undefined);
+  }
   const horizon = property.syncHorizonDays;
   const cutoff = horizon !== null ? new Date(Date.now() + horizon * 24 * 60 * 60 * 1000) : null;
   const lookback = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);

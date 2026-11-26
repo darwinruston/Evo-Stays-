@@ -1,5 +1,6 @@
 import { ACCESS_OPTION_LABELS, PROPERTY_TYPE_LABELS, parseAccessOptions } from "@/lib/accessOptions";
 import { badge, card } from "@/lib/ui";
+import { presentKeyAmenities, type PropertyAmenities } from "@/lib/amenities";
 
 type PropertyLike = {
   address: string;
@@ -10,7 +11,7 @@ type PropertyLike = {
   accessOptions: unknown;
   accessNotes: string | null;
   notes: string | null;
-};
+} & Partial<PropertyAmenities>;
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -24,8 +25,24 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 // Read-only view of a property's details. Shared by the admin detail page
 // and the client portal so a host sees exactly the same facts staff do --
 // there's nothing here worth hiding from the person who owns the place.
-export function PropertyDetails({ property }: { property: PropertyLike }) {
+export function PropertyDetails({
+  property,
+  showAmenities = false,
+}: {
+  property: PropertyLike;
+  // For the cleaner's screens: the property page has its own fuller section.
+  showAmenities?: boolean;
+}) {
   const access = parseAccessOptions(property.accessOptions);
+  const amenities = showAmenities
+    ? presentKeyAmenities({
+        amenities: property.amenities ?? [],
+        amenitiesSyncedAt: property.amenitiesSyncedAt ?? null,
+        amenitiesCheckedAt: property.amenitiesCheckedAt ?? null,
+        amenityAdded: property.amenityAdded ?? [],
+        amenityRemoved: property.amenityRemoved ?? [],
+      })
+    : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -36,6 +53,19 @@ export function PropertyDetails({ property }: { property: PropertyLike }) {
         <Row label="Bathrooms" value={property.bathrooms ?? "–"} />
         <Row label="Sleeps" value={property.maxOccupancy ?? "–"} />
       </div>
+
+      {amenities.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold text-zinc-900">In the property</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {amenities.map((a) => (
+              <span key={a.id} className={badge("neutral")}>
+                {a.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold text-zinc-900">Access</h2>

@@ -56,10 +56,16 @@ export type ChecklistRoom = { room: string; items: ChecklistItem[] };
 // ("Hot tub", "Garden") gets a card of its own after the standard ones, in
 // the order those rooms were first added. Matching is case-insensitive for
 // the same reason as normaliseRoom -- older rows may predate it.
-export function mergeChecklist(extras: { room: string; text: string }[] = []): ChecklistRoom[] {
+export function mergeChecklist(
+  extras: { room: string; text: string }[] = [],
+  // Set for a property known to have none (see knownNoDishwasher).
+  options: { noDishwasher?: boolean } = {},
+): ChecklistRoom[] {
   const rooms: ChecklistRoom[] = CLEANING_CHECKLIST.map(({ room, items }) => ({
     room,
-    items: items.map((text) => ({ text, propertySpecific: false })),
+    items: items
+      .filter((text) => !(options.noDishwasher && text.startsWith("dishwasher")))
+      .map((text) => ({ text, propertySpecific: false })),
   }));
   for (const extra of extras) {
     const room = normaliseRoom(extra.room);

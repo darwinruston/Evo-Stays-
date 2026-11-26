@@ -207,6 +207,29 @@ async function listListings(credentials: PmsCredentials): Promise<PmsListing[]> 
   }));
 }
 
+// The listing's amenities. Confirmed against a live account: they come only with
+// GET /listings/{id}?include_related_objects=1, as {amenities: [{name, ...}]}
+// beside the listing. Null on any failure, so a bad day at Hostify never wipes
+// what is already stored.
+async function fetchAmenities(credentials: PmsCredentials, listingId: string): Promise<string[] | null> {
+  try {
+    const res = await fetch(
+      `${HOSTIFY_BASE_URL}/listings/${encodeURIComponent(listingId)}?include_related_objects=1`,
+      { headers: { "x-api-key": apiKeyOf(credentials) }, signal: AbortSignal.timeout(15000) },
+    );
+    const body = (await res.json()) as { success?: boolean; amenities?: { name?: string | null }[] };
+    if (!res.ok || !body.success || !Array.isArray(body.amenities)) {
+      console.warn(`[hostify amenities] listing ${listingId}: refused (${res.status})`);
+      return null;
+    }
+    return [...new Set(body.amenities.map((a) => a.name?.trim() ?? "").filter(Boolean))];
+  } catch (err) {
+    const cause = err instanceof Error && err.cause instanceof Error ? ` (${err.cause.message})` : "";
+    console.warn(`[hostify amenities] listing ${listingId}: ${err instanceof Error ? err.message : "failed"}${cause}`);
+    return null;
+  }
+}
+
 type HostifyListingPhoto = {
   photo: string; // full resolution -- what actually gets saved as the cover
   thumbnail: string;
@@ -253,4 +276,5 @@ export const hostifyAdapter: PmsAdapter = {
   listListings,
   fetchReservations,
   fetchCoverPhotoUrl,
+  fetchAmenities,
 };
