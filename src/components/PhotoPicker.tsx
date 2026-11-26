@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { button } from "@/lib/ui";
 import { PICKER_IMAGE_TYPES } from "@/lib/imageTypes";
+import { shrinkPhoto } from "@/lib/shrinkPhoto";
 import { SafeImage } from "@/components/SafeImage";
 
 // A phone's camera hands back one photo per shot no matter what `multiple`
@@ -23,6 +24,7 @@ export function PhotoPicker({
   id?: string;
 }) {
   const [files, setFiles] = useState<File[]>([]);
+  const [preparing, setPreparing] = useState(0);
   const realInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const libraryInput = useRef<HTMLInputElement>(null);
@@ -37,12 +39,24 @@ export function PhotoPicker({
     realInput.current.files = transfer.files;
   }, [files]);
 
-  function add(list: FileList | null) {
+  // Stops the form going while a photo is still being made smaller, which
+  // would leave that photo behind.
+  useEffect(() => {
+    realInput.current?.setCustomValidity(preparing > 0 ? "One moment, your photos are still being prepared." : "");
+  }, [preparing]);
+
+  async function add(list: FileList | null) {
     if (!list || list.length === 0) return;
     // Copied before the caller clears the input: the FileList is live, and
-    // the state updater below runs later, by which point it would be empty.
+    // would be empty by the time the photos below are ready.
     const picked = Array.from(list);
-    setFiles((current) => [...current, ...picked]);
+    setPreparing((n) => n + picked.length);
+    // One at a time, so a large set doesn't run an older phone out of memory.
+    for (const file of picked) {
+      const smaller = await shrinkPhoto(file);
+      setFiles((current) => [...current, smaller]);
+      setPreparing((n) => n - 1);
+    }
   }
 
   return (
@@ -92,6 +106,12 @@ export function PhotoPicker({
         aria-hidden="true"
         className="sr-only"
       />
+
+      {preparing > 0 && (
+        <p role="status" className="text-xs text-zinc-500">
+          Preparing {preparing} {preparing === 1 ? "photo" : "photos"}…
+        </p>
+      )}
 
       {files.length > 0 && (
         <div>
