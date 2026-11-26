@@ -1,3 +1,4 @@
+import { currentRegion } from "@/lib/region";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
@@ -31,6 +32,7 @@ export default async function EditCleanPage({ params }: { params: Promise<{ id: 
       </div>
 
       <CleanForm
+        dateFormat={currentRegion().dateOrder === "mdy" ? "mm/dd/yyyy" : "dd/mm/yyyy"}
         action={updateClean.bind(null, clean.id)}
         clean={clean}
         properties={[]}

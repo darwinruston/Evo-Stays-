@@ -33,6 +33,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.ghost-text {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  padding-left: 0.75rem;
+  color: #a1a1aa;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* iPhones and iPads draw date and time boxes at a width of their own and can
    ignore the width they are given, so they spill over whatever sits beside
    them. Only Safari on iOS understands -webkit-touch-callout, so desktop
@@ -53,5 +66,11 @@ body {
   input::-webkit-date-and-time-value {
     margin: 0;
     text-align: left;
+  }
+
+  /* Ghost text over an empty date or time box, which iOS otherwise leaves
+     completely blank. Other browsers show their own (dd/mm/yyyy, --:--). */
+  .ghost-text {
+    display: flex;
   }
 }

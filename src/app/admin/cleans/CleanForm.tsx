@@ -40,6 +40,7 @@ export function CleanForm({
   defaultPropertyId,
   propertyMaxOccupancy,
   submitLabel,
+  dateFormat,
 }: {
   action: (formData: FormData) => void;
   clean?: CleanFields;
@@ -51,14 +52,21 @@ export function CleanForm({
   // gets a generic placeholder instead of a per-property one.
   propertyMaxOccupancy?: number | null;
   submitLabel: string;
+  // How a date is written for this company, shown as ghost text in the empty
+  // date box ("dd/mm/yyyy", or "mm/dd/yyyy").
+  dateFormat: string;
 }) {
   const [assignedToId, setAssignedToId] = useState(clean?.assignedToId ?? "");
-  const [scheduledFor, setScheduledFor] = useState(
-    clean?.scheduledFor ? toDateTimeLocalValue(clean.scheduledFor) : "",
-  );
+  // Date and time are two boxes: one combined box counted as empty until both
+  // halves were filled, so a date on its own was silently saved as "not
+  // scheduled". Now each asks for the other.
+  const start = clean?.scheduledFor ? toDateTimeLocalValue(clean.scheduledFor) : "";
+  const [date, setDate] = useState(start.slice(0, 10));
+  const [time, setTime] = useState(start.slice(11, 16));
+  const scheduledFor = date && time ? `${date}T${time}` : "";
 
   const selectedCleaner = cleaners.find((c) => c.id === assignedToId);
-  const selectedDateIso = scheduledFor.slice(0, 10); // "YYYY-MM-DDTHH:mm" -> "YYYY-MM-DD"
+  const selectedDateIso = date; // "YYYY-MM-DD"
   const isUnavailable = !!selectedCleaner?.unavailableDates.includes(selectedDateIso);
 
   return (
@@ -111,26 +119,53 @@ export function CleanForm({
         </select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="scheduledFor" className="text-sm font-medium">
-          Scheduled for
-        </label>
-        <input
-          id="scheduledFor"
-          name="scheduledFor"
-          type="datetime-local"
-          value={scheduledFor}
-          onChange={(e) => setScheduledFor(e.target.value)}
-          className={inputCompact}
-        />
-        <p className="text-xs text-zinc-500">Leave blank to schedule it later.</p>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 text-sm font-medium">When is the clean?</legend>
+        <input type="hidden" name="scheduledFor" value={scheduledFor} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor="scheduledDate" className="text-xs text-zinc-500">
+              Date
+            </label>
+            <div className="relative">
+              <input
+                id="scheduledDate"
+                type="date"
+                value={date}
+                required={!!time}
+                onChange={(e) => setDate(e.target.value)}
+                className={inputCompact}
+              />
+              {!date && <span className="ghost-text" aria-hidden="true">Tap to choose ({dateFormat})</span>}
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor="scheduledTime" className="text-xs text-zinc-500">
+              Start time
+            </label>
+            <div className="relative">
+              <input
+                id="scheduledTime"
+                type="time"
+                value={time}
+                required={!!date}
+                onChange={(e) => setTime(e.target.value)}
+                className={inputCompact}
+              />
+              {!time && <span className="ghost-text" aria-hidden="true">Tap to choose, e.g. 11:00</span>}
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-zinc-500">
+          Fill in both, or leave both blank to schedule it later.
+        </p>
         {isUnavailable && (
           <p className="text-xs font-medium text-zinc-600">
             {selectedCleaner!.name} has marked this day unavailable. You can still assign them,
             just worth checking first.
           </p>
         )}
-      </div>
+      </fieldset>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="guestCount" className="text-sm font-medium">

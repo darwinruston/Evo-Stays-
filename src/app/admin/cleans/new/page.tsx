@@ -1,3 +1,4 @@
+import { currentRegion } from "@/lib/region";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { CleanForm } from "../CleanForm";
@@ -41,6 +42,7 @@ export default async function NewCleanPage({
         </p>
       ) : (
         <CleanForm
+          dateFormat={currentRegion().dateOrder === "mdy" ? "mm/dd/yyyy" : "dd/mm/yyyy"}
           action={createClean}
           properties={properties}
           cleaners={cleaners}
