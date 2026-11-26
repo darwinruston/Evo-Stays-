@@ -113,10 +113,10 @@ export function TaskDetail({
       <header className="flex flex-col gap-5 lg:col-start-1">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={badge(done ? "solid" : task.status === "IN_PROGRESS" ? "outline" : "neutral")}>
+            <span className={badge(done ? "success" : task.status === "IN_PROGRESS" ? "info" : "neutral")}>
               {TASK_STATUS_LABELS[task.status]}
             </span>
-            {task.overdue && <span className={badge("outline")}>Overdue</span>}
+            {task.overdue && <span className={badge("danger")}>Overdue</span>}
           </div>
           <h1
             className={`text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl ${
@@ -231,7 +231,7 @@ export function TaskDetail({
               )}
             </Row>
             <Row label="Importance">
-              <span className={badge(task.priority === "URGENT" ? "solid" : task.priority === "HIGH" ? "outline" : "neutral")}>
+              <span className={badge(task.priority === "URGENT" ? "danger" : task.priority === "HIGH" ? "warning" : "neutral")}>
                 {TASK_PRIORITY_LABELS[task.priority]}
               </span>
             </Row>

@@ -110,7 +110,7 @@ export default async function TeamPage() {
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 font-medium">
                     {s.name}
-                    <span className={badge(s.role === "ADMIN" ? "solid" : "neutral")}>
+                    <span className={badge(s.role === "ADMIN" ? "info" : "neutral")}>
                       {s.role === "ADMIN" ? "Admin" : "Office"}
                     </span>
                     {s.id === session.user.id && <span className="text-xs font-normal text-zinc-500">You</span>}

@@ -48,9 +48,9 @@ export default async function SafetyOverviewPage() {
           </h1>
         </div>
         <ul className="flex flex-wrap gap-2 text-sm">
-          <li className={badge(overdue.length > 0 ? "solid" : "neutral")}>{overdue.length} overdue</li>
-          <li className={badge(comingUp.length > 0 ? "outline" : "neutral")}>{comingUp.length} coming up</li>
-          <li className={badge("neutral")}>{rest.upToDate} up to date</li>
+          <li className={badge(overdue.length > 0 ? "danger" : "neutral")}>{overdue.length} overdue</li>
+          <li className={badge(comingUp.length > 0 ? "warning" : "neutral")}>{comingUp.length} coming up</li>
+          <li className={badge("success")}>{rest.upToDate} up to date</li>
         </ul>
       </div>
 
@@ -118,7 +118,7 @@ function Group({ title, rows, hasTask }: { title: string; rows: SafetyAttentionR
                   {formatDateOnly(row.dueOn)}
                 </span>
                 <span className="col-span-2 md:col-span-1">
-                  <span className={badge(row.state === "overdue" ? "solid" : "outline")}>
+                  <span className={badge(row.state === "overdue" ? "danger" : "warning")}>
                     {safetyStatusLabel(row.state, row.days)}
                   </span>
                 </span>

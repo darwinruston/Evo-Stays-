@@ -44,7 +44,7 @@ export default async function MessagesPage() {
                       <p className="flex flex-wrap items-center gap-2 font-medium">
                         {m.name}
                         {m.company ? <span className="font-normal text-zinc-500">({m.company})</span> : null}
-                        <span className={badge(m.handledAt ? "neutral" : "solid")}>{m.handledAt ? "Dealt with" : "Waiting"}</span>
+                        <span className={badge(m.handledAt ? "success" : "warning")}>{m.handledAt ? "Dealt with" : "Waiting"}</span>
                       </p>
                       <p className="text-sm text-zinc-600">
                         <a href={`mailto:${m.email}`} className="underline underline-offset-2">

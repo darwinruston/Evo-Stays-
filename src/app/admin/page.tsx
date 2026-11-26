@@ -73,16 +73,16 @@ export default async function AdminHomePage() {
   ).length;
 
   const tiles = [
-    { href: "/admin/clients", label: "Clients", value: clients },
-    { href: "/admin/properties", label: "Properties", value: properties },
-    { href: "/admin/cleans", label: "Cleans outstanding", value: upcoming },
-    { href: "/admin/cleans", label: "Unscheduled cleans", value: unscheduled },
-    ...(modules.stock ? [{ href: "/admin/stock", label: "Properties running low", value: lowProperties }] : []),
-    { href: "/admin/issues", label: "Open issues", value: openIssues },
+    { href: "/admin/clients", label: "Clients", value: clients, watch: false },
+    { href: "/admin/properties", label: "Properties", value: properties, watch: false },
+    { href: "/admin/cleans", label: "Cleans outstanding", value: upcoming, watch: false },
+    { href: "/admin/cleans", label: "Unscheduled cleans", value: unscheduled, watch: true },
+    ...(modules.stock ? [{ href: "/admin/stock", label: "Properties running low", value: lowProperties, watch: true }] : []),
+    { href: "/admin/issues", label: "Open issues", value: openIssues, watch: true },
     // Unfinished cleans today whose next guests also arrive today -- the
     // ones with a hard deadline. Reuses the week's turnovers map, since
     // today is inside that window.
-    { href: "/admin/cleans", label: "Same-day turnovers today", value: sameDayToday },
+    { href: "/admin/cleans", label: "Same-day turnovers today", value: sameDayToday, watch: true },
   ];
 
   const clashes = sameDayCounts(thisWeek);
@@ -111,9 +111,17 @@ export default async function AdminHomePage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {tiles.map((t) => (
-          <Link key={t.label} href={t.href} className={card("p-5 transition-colors hover:bg-black/[0.02]")}>
+          <Link
+            key={t.label}
+            href={t.href}
+            className={card(
+              `border-l-4 p-5 transition-colors hover:bg-teal-50/50 ${t.watch && t.value > 0 ? "border-amber-400" : "border-teal-600"}`,
+            )}
+          >
             <p className="text-sm text-zinc-500">{t.label}</p>
-            <p className="mt-1 text-3xl font-semibold tracking-tight">{t.value}</p>
+            <p className={`mt-1 text-3xl font-semibold tracking-tight ${t.watch && t.value > 0 ? "text-amber-700" : "text-teal-900"}`}>
+              {t.value}
+            </p>
           </Link>
         ))}
       </div>

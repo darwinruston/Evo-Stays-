@@ -93,7 +93,7 @@ export async function NotificationsView({
               type="checkbox"
               name="enabled"
               defaultChecked={user.emailNotifications}
-              className="mt-0.5 h-4 w-4 accent-zinc-900"
+              className="mt-0.5 h-4 w-4 accent-teal-700"
             />
             <span className="min-w-0 [overflow-wrap:anywhere]">Also email these to {user.email}</span>
           </label>

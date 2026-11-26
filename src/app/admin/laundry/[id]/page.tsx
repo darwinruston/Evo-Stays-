@@ -44,7 +44,7 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
               {formatDate(load.createdAt)} · logged by {load.recordedBy.name}
             </p>
           </div>
-          <span className={badge(load.collectedAt ? "solid" : "neutral")}>
+          <span className={badge(load.collectedAt ? "success" : "warning")}>
             {load.collectedAt ? `Returned ${formatDate(load.collectedAt)}` : "Still out"}
           </span>
         </div>

@@ -131,7 +131,7 @@ export default async function CleanerCalendarPage({
                 className={
                   "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border text-sm transition-colors " +
                   (isSelected
-                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    ? "border-teal-700 bg-teal-700 text-white"
                     : isToday
                       ? "border-black/25 font-medium"
                       : isBlocked
@@ -143,7 +143,7 @@ export default async function CleanerCalendarPage({
                 <span>{date.getDate()}</span>
                 {dayCleans.length > 0 ? (
                   <span
-                    className={"h-1.5 w-1.5 rounded-full " + (isSelected ? "bg-white" : "bg-zinc-900")}
+                    className={"h-1.5 w-1.5 rounded-full " + (isSelected ? "bg-white" : "bg-teal-600")}
                   />
                 ) : (
                   isBlocked && (

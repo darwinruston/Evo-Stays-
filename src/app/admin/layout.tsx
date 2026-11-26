@@ -143,7 +143,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen">
       {impersonatedOrganization && <ImpersonationBanner organizationName={impersonatedOrganization.name} />}
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-t-[3px] border-b border-t-teal-600 border-b-black/5 bg-background/80 backdrop-blur-md">
         <nav className="relative flex items-center gap-6 px-4 py-4 sm:px-6 lg:px-10">
           <Link href="/admin" aria-label="Evo Stays home" className="shrink-0">
             <EvoTick className="h-6 w-auto" />

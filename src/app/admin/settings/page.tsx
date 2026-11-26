@@ -80,7 +80,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                   name={key}
                   aria-label={MODULE_LABELS[key].name}
                   defaultChecked={modules[key]}
-                  className="mt-1 h-5 w-5 shrink-0 accent-zinc-900"
+                  className="mt-1 h-5 w-5 shrink-0 accent-teal-700"
                 />
               </label>
             </li>

@@ -2,14 +2,11 @@ import { STOCK_BAND_LABELS, type StockLevelBand } from "@/lib/stock";
 
 const FILLED_SEGMENTS: Record<StockLevelBand, number> = { high: 3, medium: 2, low: 1, none: 0 };
 
-// Three dots rather than a coloured badge -- the app is strictly monochrome
-// (see globals.css), so severity has to read from fill and weight, not
-// colour. Same visual language as the turnover Progress bar in
-// src/app/cleaner/cleans/[id]/page.tsx: filled bg-zinc-900 vs faint bg-black/10,
-// just round instead of bars, and sized to be read at a glance rather than
-// squinted at. "None" still renders three empty dots rather than
-// disappearing, so a glance at the row tells you it was checked and found
-// empty, not that it was never configured.
+// Three dots: how many are filled says the level, and the colour says it again
+// at a glance. "None" still shows three empty dots rather than disappearing, so
+// you can see it was checked and found empty, not never set up.
+const FILL: Record<StockLevelBand, string> = { high: "bg-emerald-500", medium: "bg-amber-400", low: "bg-rose-500", none: "bg-rose-500" };
+
 export function StockLevelIndicator({ band, compact = false }: { band: StockLevelBand; compact?: boolean }) {
   const filled = FILLED_SEGMENTS[band];
 
@@ -19,12 +16,12 @@ export function StockLevelIndicator({ band, compact = false }: { band: StockLeve
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className={`${compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} rounded-full ${i < filled ? "bg-zinc-900" : "bg-black/10"}`}
+            className={`${compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} rounded-full ${i < filled ? FILL[band] : "bg-black/10"}`}
           />
         ))}
       </span>
       {!compact && (
-        <span className={`text-sm font-semibold ${band === "none" ? "text-zinc-900" : "text-zinc-600"}`}>
+        <span className={`text-sm font-semibold ${band === "none" ? "text-rose-700" : "text-zinc-600"}`}>
           {STOCK_BAND_LABELS[band]}
         </span>
       )}

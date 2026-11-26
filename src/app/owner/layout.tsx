@@ -20,7 +20,7 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-t-[3px] border-b border-t-teal-600 border-b-black/5 bg-background/80 backdrop-blur-md">
         <nav className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-6">
             <Link href="/owner" aria-label="Evo Stays home" className="flex shrink-0 items-center gap-2.5">
@@ -37,7 +37,7 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
               <Link href="/owner/messages" className="flex items-center gap-1.5 hover:text-zinc-900">
                 Messages
                 {unhandledMessages > 0 && (
-                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-xs font-medium text-white">
+                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-teal-700 px-1.5 text-xs font-medium text-white">
                     {unhandledMessages}
                   </span>
                 )}

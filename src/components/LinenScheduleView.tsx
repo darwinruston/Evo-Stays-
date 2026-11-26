@@ -82,7 +82,7 @@ export function LinenScheduleView({
           <section key={dayIso} className="flex flex-col gap-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
               {dayHeading(data.day)}
-              {dayIso === todayIso && <span className={badge("solid")}>Today</span>}
+              {dayIso === todayIso && <span className={badge("info")}>Today</span>}
             </h2>
 
             <ol className="flex flex-col gap-3">
@@ -123,15 +123,15 @@ export function LinenScheduleView({
                     {mode === "staff" && (
                       <p className="flex flex-wrap items-center gap-2 text-sm text-zinc-600">
                         {stop.cleanerName ?? "Cleaner"} arrives {formatClock(stop.cleanerArrival!)}
-                        <span className={badge(stop.arrivalConfirmed ? "neutral" : "outline")}>
+                        <span className={badge(stop.arrivalConfirmed ? "success" : "warning")}>
                           {stop.arrivalConfirmed ? "Confirmed" : "Not confirmed"}
                         </span>
-                        {stop.tight && <span className={badge("outline")}>Short clean</span>}
+                        {stop.tight && <span className={badge("warning")}>Short clean</span>}
                       </p>
                     )}
 
                     {stop.lateByMinutes > 0 && (
-                      <p role="alert" className={`${badge("solid")} w-fit`}>
+                      <p role="alert" className={`${badge("danger")} w-fit`}>
                         {stop.chosen === "set"
                           ? `Can't get here by the time chosen: earliest ${formatClock(stop.plannedArrival)}`
                           : `Can't be here before ${formatClock(stop.plannedArrival)}, ${stop.lateByMinutes} min too late`}
@@ -171,7 +171,7 @@ export function LinenScheduleView({
                       <div className="flex flex-col gap-2 rounded-lg bg-black/[0.04] p-3 text-sm">
                         <p className="flex items-center gap-2 font-medium">
                           Linen company problem
-                          <span className={badge(visit.issueResolvedAt ? "neutral" : "solid")}>
+                          <span className={badge(visit.issueResolvedAt ? "success" : "danger")}>
                             {visit.issueResolvedAt ? "Resolved" : "Needs picking up"}
                           </span>
                         </p>

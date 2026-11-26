@@ -128,7 +128,7 @@ export function AddTeamMemberForm({
             value="invite"
             checked={method === "invite"}
             onChange={() => setMethod("invite")}
-            className="mt-1 accent-zinc-900"
+            className="mt-1 accent-teal-700"
           />
           <span>
             Send them an invite link
@@ -142,7 +142,7 @@ export function AddTeamMemberForm({
             value="password"
             checked={method === "password"}
             onChange={() => setMethod("password")}
-            className="mt-1 accent-zinc-900"
+            className="mt-1 accent-teal-700"
           />
           <span>
             I&apos;ll set a password

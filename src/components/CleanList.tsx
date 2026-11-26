@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CleanStatus } from "@prisma/client";
-import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
+import { CLEAN_STATUS_LABELS, CLEAN_STATUS_TONES, isCleanFinished } from "@/lib/cleans";
 import { calendarDayKey, formatScheduledForWithDay, groupCleansByTime } from "@/lib/schedule";
 import { badge, card } from "@/lib/ui";
 import { CleanPrepSummary } from "@/components/CleanPrepSummary";
@@ -58,21 +58,21 @@ function CleanRows({ rows }: { rows: CleanRow[] }) {
                 </p>
                 {c.subtitle && <p className="truncate text-xs text-zinc-400">{c.subtitle}</p>}
                 {c.prep && <CleanPrepSummary prep={c.prep} className="mt-0.5 text-xs" />}
-                {c.clash && <span className={`mt-1.5 mr-1.5 ${badge("outline")}`}>{c.clash}</span>}
+                {c.clash && <span className={`mt-1.5 mr-1.5 ${badge("warning")}`}>{c.clash}</span>}
                 {c.arrival &&
                   (c.arrival === "Arrival not confirmed" ? (
-                    <span className={`mt-1.5 mr-1.5 ${badge("outline")}`}>{c.arrival}</span>
+                    <span className={`mt-1.5 mr-1.5 ${badge("warning")}`}>{c.arrival}</span>
                   ) : (
                     <p className="mt-0.5 text-xs text-zinc-500">{c.arrival}</p>
                   ))}
                 {label &&
                   (label.urgent ? (
-                    <span className={`mt-1.5 ${badge("solid")}`}>{label.text}</span>
+                    <span className={`mt-1.5 ${badge("danger")}`}>{label.text}</span>
                   ) : (
                     <p className="mt-0.5 text-xs text-zinc-500">{label.text}</p>
                   ))}
               </div>
-              <span className="shrink-0 text-sm text-zinc-500">{CLEAN_STATUS_LABELS[c.status]}</span>
+              <span className={`shrink-0 ${badge(CLEAN_STATUS_TONES[c.status])}`}>{CLEAN_STATUS_LABELS[c.status]}</span>
             </Link>
           </li>
         );

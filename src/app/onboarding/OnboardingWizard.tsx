@@ -75,7 +75,7 @@ export function OnboardingWizard({
         <div className="mt-3 flex items-center gap-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10" aria-hidden>
             <div
-              className="h-full rounded-full bg-zinc-900 transition-all"
+              className="h-full rounded-full bg-teal-700 transition-all"
               style={{ width: `${(Math.min(step, total) / total) * 100}%` }}
             />
           </div>
@@ -137,7 +137,7 @@ export function OnboardingWizard({
                   </div>
                   <span
                     className={`mt-0.5 inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      modules[key] ? "bg-zinc-900 text-white" : "bg-black/[0.05] text-zinc-600"
+                      modules[key] ? "bg-teal-700 text-white" : "bg-black/[0.05] text-zinc-600"
                     }`}
                   >
                     {modules[key] ? "On" : "Off"}

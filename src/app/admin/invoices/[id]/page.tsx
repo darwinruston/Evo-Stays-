@@ -74,7 +74,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               </Link>
             </p>
           </div>
-          <span className={badge(invoice.paidAt ? "solid" : "neutral")}>
+          <span className={badge(invoice.paidAt ? "success" : "warning")}>
             {invoice.paidAt ? `Paid ${formatDate(invoice.paidAt)}` : "Unpaid"}
           </span>
         </div>

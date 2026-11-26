@@ -54,7 +54,7 @@ export function StaffRow({
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-medium">
             {name}
-            <span className={badge(role === "ADMIN" ? "solid" : "neutral")}>
+            <span className={badge(role === "ADMIN" ? "info" : "neutral")}>
               {role === "ADMIN" ? "Admin" : "Office"}
             </span>
             {isSelf && <span className="text-xs font-normal text-zinc-500">You</span>}

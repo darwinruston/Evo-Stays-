@@ -272,27 +272,27 @@ export default async function PropertyDetailPage({
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {openIssues.length > 0 && (
-                <Link href="?tab=overview#issues" className={badge("solid")}>
+                <Link href="?tab=overview#issues" className={badge("warning")}>
                   {openIssues.length} open {openIssues.length === 1 ? "issue" : "issues"}
                 </Link>
               )}
               {lowStockCount > 0 && (
-                <Link href="?tab=checklist" className={badge("solid")}>
+                <Link href="?tab=checklist" className={badge("warning")}>
                   {lowStockCount} running low
                 </Link>
               )}
               {safetyAttention > 0 && (
-                <Link href="?tab=safety" className={badge("solid")}>
+                <Link href="?tab=safety" className={badge("warning")}>
                   {safetyAttention} safety {safetyAttention === 1 ? "check" : "checks"} due
                 </Link>
               )}
               {syncFailing && (
-                <Link href="?tab=syncing" className={badge("solid")}>
+                <Link href="?tab=syncing" className={badge("danger")}>
                   Sync problem
                 </Link>
               )}
               {openIssues.length === 0 && lowStockCount === 0 && !syncFailing && safetyAttention === 0 && (
-                <span className={badge("neutral")}>All good</span>
+                <span className={badge("success")}>All good</span>
               )}
             </div>
           </div>
@@ -318,15 +318,15 @@ export default async function PropertyDetailPage({
                   aria-current={active ? "page" : undefined}
                   className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
                     active
-                      ? "border-zinc-900 text-zinc-900"
+                      ? "border-teal-700 text-teal-900"
                       : "border-transparent text-zinc-500 hover:text-zinc-900"
                   }`}
                 >
                   {t.label}
                   {t.alert === "dot" ? (
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-900" aria-label="needs attention" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label="needs attention" />
                   ) : t.alert ? (
-                    <span className="rounded-full bg-zinc-900 px-1.5 text-xs leading-5 text-white">{t.alert}</span>
+                    <span className="rounded-full bg-teal-700 px-1.5 text-xs leading-5 text-white">{t.alert}</span>
                   ) : null}
                 </Link>
               </li>
@@ -871,7 +871,7 @@ export default async function PropertyDetailPage({
                     <span className="text-sm text-zinc-500">
                       {formatHours(inv.totalHours)} · {formatCurrency(inv.totalAmount)}
                     </span>
-                    <span className={badge(inv.paidAt ? "solid" : "neutral")}>
+                    <span className={badge(inv.paidAt ? "success" : "warning")}>
                       {inv.paidAt ? "Paid" : "Unpaid"}
                     </span>
                   </div>

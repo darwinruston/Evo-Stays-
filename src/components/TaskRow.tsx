@@ -69,14 +69,14 @@ export function TaskRow({ task }: { task: TaskRowData }) {
         {/* On a phone these three sit on one line under the title; on a wide screen they are columns. */}
         <div className="col-start-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500 md:contents md:text-sm md:text-zinc-900">
           <span>
-            <span className={badge(task.priority === "URGENT" ? "solid" : task.priority === "HIGH" ? "outline" : "neutral")}>
+            <span className={badge(task.priority === "URGENT" ? "danger" : task.priority === "HIGH" ? "warning" : "neutral")}>
               {TASK_PRIORITY_LABELS[task.priority]}
             </span>
           </span>
           <span className="min-w-0 truncate">
             <TaskAssignees people={task.assignees} wholeTeam={task.wholeTeam} layout="inline" />
           </span>
-          <span className={task.overdue ? "font-medium text-zinc-900" : task.dueLabel ? "" : "text-zinc-400"}>
+          <span className={task.overdue ? "font-medium text-rose-700" : task.dueLabel ? "" : "text-zinc-400"}>
             {task.dueLabel ? (task.overdue ? `Overdue, ${task.dueLabel}` : task.dueLabel) : "No due date"}
           </span>
         </div>
@@ -97,7 +97,7 @@ export function StatusMark({ status }: { status: TaskRowData["status"] }) {
     <span
       aria-hidden="true"
       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center self-start rounded-full border md:self-center ${
-        done ? "border-zinc-900 bg-zinc-900 text-white" : status === "IN_PROGRESS" ? "border-zinc-900" : "border-zinc-300"
+        done ? "border-emerald-600 bg-emerald-600 text-white" : status === "IN_PROGRESS" ? "border-teal-700 text-teal-700" : "border-zinc-300"
       }`}
     >
       {done && (

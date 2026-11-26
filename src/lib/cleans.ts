@@ -1,4 +1,5 @@
 import type { CleanStatus } from "@prisma/client";
+import type { BadgeTone } from "@/lib/ui";
 import type { ScopedPrismaClient } from "@/lib/prisma";
 import { autoAssignCleaner } from "@/lib/autoAssign";
 import { calendarDayKey, toIsoDate } from "@/lib/schedule";
@@ -58,6 +59,13 @@ export async function getCleanerOptions(db: ScopedPrismaClient) {
     unavailableDates: c.unavailability.map((u) => toIsoDate(u.date)),
   }));
 }
+
+export const CLEAN_STATUS_TONES: Record<CleanStatus, BadgeTone> = {
+  PENDING: "neutral",
+  IN_PROGRESS: "info",
+  COMPLETED: "success",
+  CANCELLED: "neutral",
+};
 
 export const CLEAN_STATUS_LABELS: Record<CleanStatus, string> = {
   PENDING: "Not started",

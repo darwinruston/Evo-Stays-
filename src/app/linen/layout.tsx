@@ -18,7 +18,7 @@ export default async function LinenLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-t-[3px] border-b border-t-teal-600 border-b-black/5 bg-background/80 backdrop-blur-md">
         <nav className="relative flex items-center justify-between gap-4 px-4 py-3">
           <Link href="/linen" aria-label="Evo Stays home" className="shrink-0">
             <EvoTick className="h-6 w-auto" />
@@ -31,7 +31,7 @@ export default async function LinenLayout({ children }: { children: React.ReactN
             >
               <BellIcon className="h-5 w-5" />
               {unread > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-xs font-medium text-white">
+                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-teal-700 px-1.5 text-xs font-medium text-white">
                   {unread}
                 </span>
               )}

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
 import { formatDateOnly } from "@/lib/dateOnly";
 import { propertyDisplayName } from "@/lib/address";
-import { CLEAN_STATUS_LABELS, isCleanFinished } from "@/lib/cleans";
+import { CLEAN_STATUS_LABELS, isCleanFinished, CLEAN_STATUS_TONES } from "@/lib/cleans";
 import { calendarDayKey, formatScheduledFor, formatScheduledForWithDay } from "@/lib/schedule";
 import { RescheduleClean } from "@/components/RescheduleClean";
 import { rescheduleClean, setCleanTeamSize, stopRepeating } from "../actions";
@@ -142,7 +142,7 @@ export default async function CleanDetailPage({
       <div className={card("divide-y divide-black/5 px-4 py-1")}>
         <div className="flex justify-between gap-6 py-2 text-sm">
           <span className="text-zinc-500">Status</span>
-          <span className={badge(clean.status === "COMPLETED" ? "solid" : "neutral")}>
+          <span className={badge(CLEAN_STATUS_TONES[clean.status])}>
             {CLEAN_STATUS_LABELS[clean.status]}
           </span>
         </div>
@@ -167,7 +167,7 @@ export default async function CleanDetailPage({
               <span>Confirmed for {formatTimeOfDay(clean.plannedArrivalAt)}</span>
             ) : (
               <span className="flex items-center gap-2">
-                <span className={badge("outline")}>Not confirmed</span>
+                <span className={badge("warning")}>Not confirmed</span>
               </span>
             )}
           </div>
@@ -176,7 +176,7 @@ export default async function CleanDetailPage({
           <div className="flex justify-between gap-6 py-2 text-sm">
             <span className="text-zinc-500">Next guests</span>
             <span className="flex items-center gap-2">
-              {turnover.sameDay && <span className={badge("solid")}>Same-day</span>}
+              {turnover.sameDay && <span className={badge("warning")}>Same-day</span>}
               {formatArrival(turnover)}
               {!turnover.arrivalTimeKnown && <span className="text-zinc-400">(time not known)</span>}
             </span>

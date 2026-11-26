@@ -31,8 +31,8 @@ type NavItem = {
 };
 
 const linkClass =
-  "rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-black/5 hover:text-zinc-950";
-const currentClass = "bg-black/[0.06] font-medium text-zinc-950";
+  "rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-teal-50 hover:text-teal-900";
+const currentClass = "bg-teal-100/70 font-medium text-teal-900";
 
 function isCurrent(item: NavItem, pathname: string): boolean {
   return (item.activePrefixes ?? []).some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -49,7 +49,7 @@ function CountBadge({ item, className }: { item: NavItem; className: string }) {
   if (count <= 0) return null;
   return (
     <span
-      className={`inline-flex min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-xs font-medium text-white ${className}`}
+      className={`inline-flex min-w-5 items-center justify-center rounded-full bg-teal-700 px-1.5 text-xs font-medium text-white ${className}`}
     >
       <span className="sr-only">(</span>
       {count > 99 ? "99+" : count}
@@ -84,7 +84,7 @@ function NavLink({
         aria-current={current ? "page" : undefined}
         className={
           iconOnly
-            ? `flex items-center rounded-full p-0.5 ring-offset-2 transition-shadow hover:ring-2 hover:ring-black/10 ${current ? "ring-2 ring-zinc-900" : ""}`
+            ? `flex items-center rounded-full p-0.5 ring-offset-2 transition-shadow hover:ring-2 hover:ring-black/10 ${current ? "ring-2 ring-teal-700" : ""}`
             : `${classes} inline-flex items-center gap-2`
         }
       >

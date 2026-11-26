@@ -50,7 +50,7 @@ export function PropertyAmenitiesSection({
                   name="amenity"
                   value={a.id}
                   defaultChecked={hasAmenity(property, a)}
-                  className="h-4 w-4 accent-zinc-900"
+                  className="h-4 w-4 accent-teal-700"
                 />
                 {a.label}
                 {(property.amenityAdded.includes(a.id) ||

@@ -134,7 +134,7 @@ export function LinenStopControls({
         <div className="flex flex-col gap-1 rounded-lg bg-black/[0.04] p-3 text-sm">
           <p className="flex items-center gap-2 font-medium">
             {issue.resolved ? "Problem resolved" : "Problem flagged"}
-            <span className={badge(issue.resolved ? "neutral" : "solid")}>{issue.resolved ? "Resolved" : "Office told"}</span>
+            <span className={badge(issue.resolved ? "success" : "warning")}>{issue.resolved ? "Resolved" : "Office told"}</span>
           </p>
           <p className="text-zinc-600">You said: {issue.note}</p>
           {issue.resolved && issue.resolutionNote && <p className="text-zinc-600">Office: {issue.resolutionNote}</p>}

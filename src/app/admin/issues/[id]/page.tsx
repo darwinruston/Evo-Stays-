@@ -94,10 +94,10 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{ISSUE_CATEGORY_LABELS[issue.category]}</h1>
-          <span className={badge(issue.severity === "URGENT" ? "solid" : "outline")}>
+          <span className={badge(issue.severity === "URGENT" ? "danger" : issue.severity === "MEDIUM" ? "warning" : "outline")}>
             {ISSUE_SEVERITY_LABELS[issue.severity]}
           </span>
-          <span className={badge(issue.status === "RESOLVED" ? "neutral" : "outline")}>
+          <span className={badge(issue.status === "RESOLVED" ? "success" : "info")}>
             {issue.taskId ? "Moved to a task" : ISSUE_STATUS_LABELS[issue.status]}
           </span>
         </div>

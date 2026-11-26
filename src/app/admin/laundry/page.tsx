@@ -114,7 +114,7 @@ export default async function LaundryPage() {
                     <span className={badge("neutral")}>
                       {load.logs.length} {load.logs.length === 1 ? "visit" : "visits"}
                     </span>
-                    <span className={badge(load.collectedAt ? "solid" : "neutral")}>
+                    <span className={badge(load.collectedAt ? "success" : "warning")}>
                       {load.collectedAt ? "Returned" : "Out"}
                     </span>
                   </div>

@@ -3,6 +3,13 @@ import { button } from "@/lib/ui";
 
 const BAND_ORDER: StockLevelBand[] = ["high", "medium", "low", "none"];
 
+const CHOSEN: Record<StockLevelBand, string> = {
+  high: "!bg-emerald-600",
+  medium: "!bg-amber-600",
+  low: "!bg-orange-700",
+  none: "!bg-rose-700",
+};
+
 // Same tap-a-level interaction as the cleaner's stock step (see
 // StockLevelStep in src/app/cleaner/cleans/[id]/page.tsx) -- nobody counts
 // bin bags exactly, whether some were just used or a fresh case just
@@ -26,7 +33,7 @@ export function StockLevelToggle({
           type="submit"
           name="band"
           value={band}
-          className={`${button(band === current ? "primary" : "secondary", "sm")} !px-1 !py-1.5 text-xs`}
+          className={`${button(band === current ? "primary" : "secondary", "sm")} ${band === current ? CHOSEN[band] : ""} !px-1 !py-1.5 text-xs`}
         >
           {STOCK_BAND_LABELS[band]}
         </button>

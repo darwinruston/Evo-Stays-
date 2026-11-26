@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
-import { CLEAN_STATUS_LABELS } from "@/lib/cleans";
+import { CLEAN_STATUS_LABELS, CLEAN_STATUS_TONES } from "@/lib/cleans";
 import { formatScheduledFor, formatScheduledForWithDay } from "@/lib/schedule";
 import { PropertyDetails } from "@/components/PropertyDetails";
 import { CleanLogView } from "@/components/CleanLogView";
@@ -237,7 +237,7 @@ export default async function CleanerCleanPage({
         </h1>
         <p className="mt-1 flex items-center gap-2 text-sm text-zinc-500">
           {clean.scheduledFor ? formatScheduledForWithDay(clean.scheduledFor) : "Not scheduled"}
-          <span className={badge(clean.status === "COMPLETED" ? "solid" : "neutral")}>
+          <span className={badge(CLEAN_STATUS_TONES[clean.status])}>
             {CLEAN_STATUS_LABELS[clean.status]}
           </span>
         </p>

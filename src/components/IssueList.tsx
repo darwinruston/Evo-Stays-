@@ -25,7 +25,7 @@ export type IssueRow = {
 // Urgent reads as the one badge that shouts; everything else stays quiet,
 // same restraint as the rest of the UI (see BADGE_TONES in src/lib/ui.ts).
 function SeverityBadge({ severity }: { severity: IssueSeverity }) {
-  return <span className={badge(severity === "URGENT" ? "solid" : "outline")}>{ISSUE_SEVERITY_LABELS[severity]}</span>;
+  return <span className={badge(severity === "URGENT" ? "danger" : severity === "MEDIUM" ? "warning" : "outline")}>{ISSUE_SEVERITY_LABELS[severity]}</span>;
 }
 
 function IssueRowBody({
@@ -43,7 +43,7 @@ function IssueRowBody({
         <p className="font-medium">{ISSUE_CATEGORY_LABELS[issue.category]}</p>
         {showSeverity && <SeverityBadge severity={issue.severity} />}
         {showStatus && issue.status !== "OPEN" && (
-          <span className={badge("neutral")}>{ISSUE_STATUS_LABELS[issue.status]}</span>
+          <span className={badge(issue.status === "RESOLVED" ? "success" : "info")}>{ISSUE_STATUS_LABELS[issue.status]}</span>
         )}
       </div>
       <p className="line-clamp-2 text-sm text-zinc-600 [overflow-wrap:anywhere]">{issue.description}</p>

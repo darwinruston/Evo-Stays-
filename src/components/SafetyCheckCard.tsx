@@ -60,7 +60,19 @@ export function SafetyCheckCard(props: SafetyCheckCardProps) {
           <h3 className="font-medium">{props.title}</h3>
           {props.what && <p className="mt-0.5 text-sm text-zinc-500">{props.what}</p>}
         </div>
-        <span className={badge(props.attention ? "solid" : "neutral")}>{props.statusLabel}</span>
+        <span
+          className={badge(
+            props.statusLabel.startsWith("Overdue")
+              ? "danger"
+              : props.attention
+                ? "warning"
+                : props.statusLabel === "Up to date"
+                  ? "success"
+                  : "neutral",
+          )}
+        >
+          {props.statusLabel}
+        </span>
       </div>
 
       {!props.notNeeded && props.lastDone && (

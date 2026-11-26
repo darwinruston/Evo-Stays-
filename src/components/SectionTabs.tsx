@@ -56,7 +56,7 @@ export function SectionTabs({ sections }: { sections: Section[] }) {
                 href={tab.href}
                 aria-current={current ? "page" : undefined}
                 className={`flex items-center gap-1.5 border-b-2 px-2 py-2.5 text-sm font-medium whitespace-nowrap transition-colors sm:px-3 ${
-                  current ? "border-zinc-900 text-zinc-900" : "border-transparent text-zinc-500 hover:text-zinc-900"
+                  current ? "border-teal-700 text-teal-900" : "border-transparent text-zinc-500 hover:text-zinc-900"
                 }`}
               >
                 {tab.shortLabel ? (
@@ -68,7 +68,7 @@ export function SectionTabs({ sections }: { sections: Section[] }) {
                   tab.label
                 )}
                 {count > 0 && (
-                  <span className="rounded-full bg-zinc-900 px-1.5 text-xs leading-5 text-white">
+                  <span className="rounded-full bg-teal-700 px-1.5 text-xs leading-5 text-white">
                     {count > 99 ? "99+" : count}
                     <span className="sr-only"> {tab.countLabel ?? "new"}</span>
                   </span>

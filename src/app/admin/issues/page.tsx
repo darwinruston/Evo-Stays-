@@ -96,7 +96,7 @@ export default async function IssuesPage({
             href={hrefFor(v)}
             aria-current={v === view ? "page" : undefined}
             className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              v === view ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-black/5 hover:text-zinc-950"
+              v === view ? "bg-teal-700 text-white" : "text-zinc-600 hover:bg-black/5 hover:text-zinc-950"
             }`}
           >
             {VIEWS[v].label}

@@ -234,11 +234,11 @@ export default async function InvoicesPage({
                       {formatHours(inv.totalHours)} · {formatCurrency(inv.totalAmount)}
                     </span>
                     {xero && (
-                      <span className={badge(inv.xeroInvoiceId ? "solid" : "neutral")}>
+                      <span className={badge(inv.xeroInvoiceId ? "success" : inv.xeroError ? "danger" : "neutral")}>
                         {inv.xeroInvoiceId ? "In Xero" : inv.xeroError ? "Not sent" : "Not in Xero"}
                       </span>
                     )}
-                    <span className={badge(inv.paidAt ? "solid" : "neutral")}>
+                    <span className={badge(inv.paidAt ? "success" : "warning")}>
                       {inv.paidAt ? "Paid" : "Unpaid"}
                     </span>
                   </div>

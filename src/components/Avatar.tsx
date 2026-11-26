@@ -37,7 +37,7 @@ export function Avatar({
   return (
     <div
       style={{ width: size, height: size }}
-      className="flex shrink-0 items-center justify-center rounded-full bg-black/10 font-medium text-zinc-600"
+      className="flex shrink-0 items-center justify-center rounded-full bg-teal-100 font-medium text-teal-800"
     >
       {initials}
     </div>
