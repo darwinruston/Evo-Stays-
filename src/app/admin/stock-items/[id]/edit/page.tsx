@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -26,7 +27,7 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Edit stock item</h1>
       </div>
 
-      <form action={updateStockItem.bind(null, item.id)} className="flex max-w-lg flex-col gap-4">
+      <ActionForm action={updateStockItem.bind(null, item.id)} className="flex max-w-lg flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="name" className="text-sm font-medium">
             Name
@@ -44,7 +45,7 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
             Save changes
           </button>
         </div>
-      </form>
+      </ActionForm>
 
       <section className="flex flex-col items-start gap-2 border-t border-black/5 pt-6">
         <h2 className="text-sm font-medium text-zinc-500">Delete</h2>

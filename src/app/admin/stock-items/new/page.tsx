@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { createStockItem } from "../actions";
@@ -17,7 +18,7 @@ export default async function NewStockItemPage() {
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">New stock item</h1>
       </div>
 
-      <form action={createStockItem} className="flex max-w-lg flex-col gap-4">
+      <ActionForm action={createStockItem} className="flex max-w-lg flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="name" className="text-sm font-medium">
             Name
@@ -30,7 +31,7 @@ export default async function NewStockItemPage() {
             Create item
           </button>
         </div>
-      </form>
+      </ActionForm>
     </div>
   );
 }

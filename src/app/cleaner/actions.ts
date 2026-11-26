@@ -9,6 +9,7 @@ import { assertModule, getOrgModules } from "@/lib/modules";
 import { linenNoticesFor } from "@/lib/linenNotify";
 import { notify } from "@/lib/notify";
 import { savePropertyPhotos } from "@/lib/uploads";
+import { photoProblem } from "@/lib/imageTypes";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
 import { dayBounds, parseIsoDate } from "@/lib/schedule";
 import { plannedArrivalFor } from "@/lib/arrival";
@@ -36,27 +37,29 @@ function str(formData: FormData, key: string): string | null {
 // having rendered the button is not the authorisation. The same goes for the
 // stage checks below: the turnover is a forced march in the UI, and these
 // make it one in the data too rather than only on screen.
-async function ownCleanOrThrow(db: ScopedPrismaClient, cleanId: string, userId: string) {
-  const clean = await db.clean.findFirst({
+function ownClean(db: ScopedPrismaClient, cleanId: string, userId: string) {
+  return db.clean.findFirst({
     where: { id: cleanId, assignedToId: userId },
     include: { log: { include: { photos: true, stockUsage: true } } },
   });
-  if (!clean) throw new Error("Clean not found");
-  return clean;
 }
+
+// Said when the office has moved or removed the clean while the page was open.
+const NOT_YOURS = "This clean is no longer on your list. It may have been moved to someone else.";
 
 // The cleaner saying what time they'll get there. The time is on the clean's
 // own day: they pick an hour and minute, not a date. Can be changed any
 // number of times until they check in.
-export async function confirmArrival(cleanId: string, formData: FormData) {
+export async function confirmArrival(cleanId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
-  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+  const clean = await ownClean(db, cleanId, session.user.id);
+  if (!clean) return { error: NOT_YOURS };
 
-  if (clean.status !== "PENDING") throw new Error("This clean has already been started.");
-  if (!clean.scheduledFor) throw new Error("This clean doesn't have a date yet.");
+  if (clean.status !== "PENDING") return { error: "This clean has already been started." };
+  if (!clean.scheduledFor) return { error: "This clean doesn't have a date yet." };
 
   const plannedArrivalAt = plannedArrivalFor(clean.scheduledFor, str(formData, "arrivalTime") ?? "");
-  if (!plannedArrivalAt) throw new Error("Enter the time you'll arrive.");
+  if (!plannedArrivalAt) return { error: "Enter the time you'll arrive." };
 
   await db.clean.update({ where: { id: cleanId }, data: { plannedArrivalAt } });
   // The linen company plans its window around this time.
@@ -76,16 +79,17 @@ export async function confirmArrival(cleanId: string, formData: FormData) {
 // Also where the cleaner says how many of them are cleaning (a helper or a
 // whole team may arrive together): the hours are billed for everyone, see
 // src/lib/invoices.ts. Left blank it is one person, as it always was.
-export async function checkInClean(cleanId: string, formData: FormData) {
+export async function checkInClean(cleanId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
-  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+  const clean = await ownClean(db, cleanId, session.user.id);
+  if (!clean) return { error: NOT_YOURS };
 
   if (clean.status !== "PENDING") {
-    throw new Error("This clean has already been started.");
+    return { error: "This clean has already been started." };
   }
   const rawTeam = formData.get("teamSize");
   const teamSize = rawTeam === null ? 1 : parseTeamSize(rawTeam);
-  if (teamSize === null) throw new Error(`The team can be 1 to ${TEAM_SIZE_MAX} people.`);
+  if (teamSize === null) return { error: `The team can be 1 to ${TEAM_SIZE_MAX} people.` };
 
   const arrivedAt = new Date();
   // The clean and its brand-new log need to land together -- the scoped
@@ -117,7 +121,8 @@ export async function checkInClean(cleanId: string, formData: FormData) {
 // progress; staff can correct it afterwards (until it is invoiced).
 export async function updateTeamSize(cleanId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
-  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+  const clean = await ownClean(db, cleanId, session.user.id);
+  if (!clean) return { error: NOT_YOURS };
 
   if (clean.status !== "IN_PROGRESS" || !clean.log) return { error: "Check in first." };
   const teamSize = parseTeamSize(formData.get("teamSize"));
@@ -143,12 +148,13 @@ export async function uploadCleanPhotos(
   cleanId: string,
   stage: "BEFORE" | "AFTER",
   formData: FormData,
-) {
+): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
-  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+  const clean = await ownClean(db, cleanId, session.user.id);
+  if (!clean) return { error: NOT_YOURS };
 
   if (clean.status !== "IN_PROGRESS") {
-    throw new Error("Check in before adding photos.");
+    return { error: "Check in before adding photos." };
   }
 
   // IN_PROGRESS means someone is standing in the property, so the visit
@@ -170,21 +176,24 @@ export async function uploadCleanPhotos(
 
   const already = log.photos.some((p) => p.stage === stage);
   if (already) {
-    throw new Error(`The ${stage.toLowerCase()} photos for this clean are already recorded.`);
+    return { error: `The ${stage.toLowerCase()} photos for this clean are already recorded.` };
   }
   // After photos can't be filed before the before photos exist -- otherwise
   // a direct POST could jump the queue the UI is enforcing.
   if (stage === "AFTER" && !log.photos.some((p) => p.stage === "BEFORE")) {
-    throw new Error("Add the before photos first.");
+    return { error: "Add the before photos first." };
   }
 
   const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length === 0) {
-    throw new Error("Pick at least one photo.");
+    return { error: "Pick at least one photo." };
   }
 
   // Stored under the property's own folder, so the single per-property check
   // in /api/photos covers these without a second rule.
+  const problem = photoProblem(files);
+  if (problem) return { error: problem };
+
   const paths = await savePropertyPhotos(clean.propertyId, files);
   await db.cleanPhoto.createMany({
     data: paths.map((path) => ({
@@ -231,27 +240,28 @@ async function configuredStockItemIds(
 // cleaner topped it up from what they carry. Keeping a distinct restock
 // count would mean typing a second number, which is exactly the friction
 // this flow is for avoiding.
-export async function recordStockLevel(cleanId: string, stockItemId: string, formData: FormData) {
+export async function recordStockLevel(cleanId: string, stockItemId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
   await assertModule(session.user.organizationId, "stock");
-  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+  const clean = await ownClean(db, cleanId, session.user.id);
+  if (!clean) return { error: NOT_YOURS };
 
   if (clean.status !== "IN_PROGRESS" || !clean.log) {
-    throw new Error("Check in before recording stock.");
+    return { error: "Check in before recording stock." };
   }
 
   const level = await db.propertyStockLevel.findFirst({
     where: { propertyId: clean.propertyId, stockItemId },
   });
-  if (!level) throw new Error("That item isn't configured on this property.");
+  if (!level) return { error: "That item is no longer on this property's stock list." };
 
   if (clean.log.stockUsage.some((u) => u.stockItemId === stockItemId)) {
-    throw new Error("That item has already been recorded for this clean.");
+    return { error: "That item has already been recorded for this clean." };
   }
 
   const band = formData.get("band");
   if (typeof band !== "string" || !isStockLevelBand(band)) {
-    throw new Error("Pick a level.");
+    return { error: "Pick a level." };
   }
   const dbBand = bandToDb(band);
 
@@ -269,23 +279,24 @@ export async function recordStockLevel(cleanId: string, stockItemId: string, for
   revalidatePath(`/admin/properties/${clean.propertyId}`);
 }
 
-export async function completeClean(cleanId: string, formData: FormData) {
+export async function completeClean(cleanId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
-  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+  const clean = await ownClean(db, cleanId, session.user.id);
+  if (!clean) return { error: NOT_YOURS };
 
   if (clean.status !== "IN_PROGRESS" || !clean.log) {
-    throw new Error("Check in before checking out.");
+    return { error: "Check in before checking out." };
   }
 
   const stages = new Set(clean.log.photos.map((p) => p.stage));
   if (!stages.has("BEFORE") || !stages.has("AFTER")) {
-    throw new Error("Both before and after photos are needed before checking out.");
+    return { error: "Both before and after photos are needed before checking out." };
   }
 
   const itemIds = await configuredStockItemIds(db, clean.propertyId, session.user.organizationId);
   const recorded = new Set(clean.log.stockUsage.map((u) => u.stockItemId));
   if (itemIds.some((id) => !recorded.has(id))) {
-    throw new Error("Stock counts are needed before checking out.");
+    return { error: "Stock counts are needed before checking out." };
   }
 
   // Optional -- only worth writing when there's actually something to flag.
@@ -322,7 +333,8 @@ export async function reportIssue(
   formData: FormData,
 ): Promise<IssueFormState> {
   const { session, db } = await requireCleaner();
-  const clean = await ownCleanOrThrow(db, cleanId, session.user.id);
+  const clean = await ownClean(db, cleanId, session.user.id);
+  if (!clean) return { error: NOT_YOURS, attempt: (prev.attempt ?? 0) + 1 };
 
   if (clean.status !== "IN_PROGRESS") {
     return { error: "Check in before reporting a problem.", attempt: (prev.attempt ?? 0) + 1 };
@@ -409,12 +421,12 @@ export async function createLaundryLoad(
 // then leaves this cleaner out of consideration for anything scheduled that
 // day. Staff can still assign them by hand regardless (see the warning in
 // CleanForm.tsx); this only changes what auto-assign guesses.
-export async function blockDay(formData: FormData) {
+export async function blockDay(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
 
   const raw = str(formData, "date");
   const date = raw ? parseIsoDate(raw) : null;
-  if (!date) throw new Error("Choose a date");
+  if (!date) return { error: "Choose a date." };
 
   const { start, end } = dayBounds(date);
   const existingClean = await db.clean.findFirst({
@@ -426,9 +438,9 @@ export async function blockDay(formData: FormData) {
     select: { id: true },
   });
   if (existingClean) {
-    throw new Error(
-      "You already have a clean scheduled that day. Ask an admin to reassign it before blocking the day.",
-    );
+    return {
+      error: "You already have a clean scheduled that day. Ask an admin to reassign it before blocking the day.",
+    };
   }
 
   try {

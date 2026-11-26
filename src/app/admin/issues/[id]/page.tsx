@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { SafeImage } from "@/components/SafeImage";
 import Link from "next/link";
@@ -198,7 +199,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-zinc-900">Progress</h2>
-        <form action={updateIssue.bind(null, issue.id)} className={card("flex flex-col gap-4 p-4")}>
+        <ActionForm action={updateIssue.bind(null, issue.id)} className={card("flex flex-col gap-4 p-4")}>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="status" className="text-sm font-medium">
               Status
@@ -253,7 +254,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
           <button type="submit" className={`w-fit ${button("primary", "sm")}`}>
             Save
           </button>
-        </form>
+        </ActionForm>
       </section>
 
       {activity.length > 0 && (

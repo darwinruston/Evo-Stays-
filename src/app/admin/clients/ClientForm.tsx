@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/lib/actionResult";
+import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
 import { PmsCredentialFields } from "@/components/PmsCredentialFields";
 import { PMS_PROVIDERS } from "@/lib/pms/registry";
@@ -26,7 +28,7 @@ export function ClientForm({
   submitLabel,
   showPms = true,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<ActionResult>;
   client?: ClientFields;
   submitLabel: string;
   // False for a company that doesn't sync bookings (see Settings), unless
@@ -34,7 +36,7 @@ export function ClientForm({
   showPms?: boolean;
 }) {
   return (
-    <form action={action} className="flex max-w-lg flex-col gap-4">
+    <ActionForm action={action} className="flex max-w-lg flex-col gap-4">
       <div className="flex items-center gap-4">
         <Avatar name={client?.name ?? "?"} photoPath={client?.photoPath} size={56} />
         <div className="flex flex-col gap-1.5">
@@ -115,6 +117,6 @@ export function ClientForm({
           {submitLabel}
         </button>
       </div>
-    </form>
+    </ActionForm>
   );
 }

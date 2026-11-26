@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
@@ -72,7 +73,7 @@ export default async function ImportPmsListingsPage({ params }: { params: Promis
           Every listing on this {adapter.displayName} account is already imported.
         </p>
       ) : (
-        <form action={importPmsListings.bind(null, client.id)} className="flex flex-col gap-4">
+        <ActionForm action={importPmsListings.bind(null, client.id)} className="flex flex-col gap-4">
           <input type="hidden" name="listingsJson" value={JSON.stringify(notImported)} />
           <ul className="flex flex-col gap-2">
             {notImported.map((listing) => (
@@ -102,7 +103,7 @@ export default async function ImportPmsListingsPage({ params }: { params: Promis
             Each property pulls its details, cover photo, and reservations from {adapter.displayName} in
             turn, which can take a while for more than a couple of properties.
           </p>
-        </form>
+        </ActionForm>
       )}
 
       {alreadyImported.length > 0 && (

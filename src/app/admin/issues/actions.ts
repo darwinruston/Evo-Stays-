@@ -84,16 +84,16 @@ export async function createIssue(prev: IssueFormState, formData: FormData): Pro
 // Also where staff correct the system's severity -- triage is theirs.
 // Changing it marks the issue severityOverridden (the automatic reason is
 // kept as the record of what the system thought).
-export async function updateIssue(id: string, formData: FormData) {
+export async function updateIssue(id: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const status = formData.get("status");
-  if (!isIssueStatus(status)) throw new Error("Pick a status.");
+  if (!isIssueStatus(status)) return { error: "Pick a status." };
   const severity = formData.get("severity");
-  if (!isIssueSeverity(severity)) throw new Error("Pick a severity.");
+  if (!isIssueSeverity(severity)) return { error: "Pick a severity." };
   const resolutionNote = str(formData, "resolutionNote");
   if (resolutionNote && resolutionNote.length > ISSUE_DESCRIPTION_MAX) {
-    throw new Error(`Keep the note under ${ISSUE_DESCRIPTION_MAX} characters.`);
+    return { error: `Keep the note under ${ISSUE_DESCRIPTION_MAX} characters.` };
   }
 
   const before = await db.issue.findUniqueOrThrow({ where: { id } });

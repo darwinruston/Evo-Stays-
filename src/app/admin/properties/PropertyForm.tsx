@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/lib/actionResult";
+import { ActionForm } from "@/components/ActionForm";
 import { ACCESS_OPTIONS, parseAccessOptions } from "@/lib/accessOptions";
 import { PROPERTY_TYPE_LABELS } from "@/lib/accessOptions";
 import { MANAGEMENT_HINTS, MANAGEMENT_TYPES, managementLabel } from "@/lib/safetyChecks";
@@ -35,7 +37,7 @@ export function PropertyForm({
   showPhotos = false,
   linenCompanies = [],
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<ActionResult>;
   property?: PropertyFields;
   clients: { id: string; name: string }[];
   defaultClientId?: string;
@@ -48,7 +50,7 @@ export function PropertyForm({
   const selected = parseAccessOptions(property?.accessOptions);
 
   return (
-    <form action={action} className="flex max-w-lg flex-col gap-4">
+    <ActionForm action={action} className="flex max-w-lg flex-col gap-4">
       {property ? (
         <input type="hidden" name="clientId" value={property.clientId} />
       ) : (
@@ -330,6 +332,6 @@ export function PropertyForm({
           {submitLabel}
         </button>
       </div>
-    </form>
+    </ActionForm>
   );
 }

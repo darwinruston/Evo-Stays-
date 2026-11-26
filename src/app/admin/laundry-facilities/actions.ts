@@ -15,11 +15,11 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-export async function createLaundryFacility(formData: FormData) {
+export async function createLaundryFacility(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
-  if (!name) throw new Error("Name is required");
+  if (!name) return { error: "Enter a name." };
 
   await db.laundryFacility.create({ data: { organizationId: session.user.organizationId, name } });
 
@@ -67,11 +67,11 @@ function minutes(formData: FormData, key: string, fallback: number, min: number,
   return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
 }
 
-export async function updateLaundryFacility(id: string, formData: FormData) {
+export async function updateLaundryFacility(id: string, formData: FormData): Promise<ActionResult> {
   const { db } = await requireStaff();
 
   const name = str(formData, "name");
-  if (!name) throw new Error("Name is required");
+  if (!name) return { error: "Enter a name." };
 
   const before = await db.laundryFacility.findUnique({ where: { id }, select: { depotAddress: true } });
   const depotAddress = str(formData, "depotAddress");
@@ -100,7 +100,7 @@ export async function updateLaundryFacility(id: string, formData: FormData) {
   redirect("/admin/laundry-facilities");
 }
 
-export async function deleteLaundryFacility(id: string) {
+export async function deleteLaundryFacility(id: string): Promise<ActionResult> {
   const { db } = await requireStaff();
 
   // A facility with loads against it stays as the record of where that
@@ -108,9 +108,9 @@ export async function deleteLaundryFacility(id: string) {
   // under every load logged against it. Mark it inactive instead.
   const used = await db.laundryLoad.findFirst({ where: { facilityId: id }, select: { id: true } });
   if (used) {
-    throw new Error(
-      "This facility has laundry loads logged against it, so it can't be deleted. Mark it inactive instead.",
-    );
+    return {
+      error: "This facility has laundry loads logged against it, so it can't be deleted. Mark it inactive instead.",
+    };
   }
 
   await db.laundryFacility.delete({ where: { id } });

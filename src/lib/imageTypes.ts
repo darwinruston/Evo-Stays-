@@ -18,6 +18,14 @@ export function isAllowedImageType(type: string): boolean {
   return Object.hasOwn(EXTENSION_BY_TYPE, type);
 }
 
+// What to tell someone whose upload includes something we do not keep, or null
+// when every file is fine. Checked by actions before they save anything, so the
+// reason reaches the screen.
+export function photoProblem(files: File[]): string | null {
+  const wrong = files.find((file) => file.size > 0 && !isAllowedImageType(file.type));
+  return wrong ? `${wrong.name || "That file"} is not a photo we can use. Choose a JPEG, PNG or WebP image.` : null;
+}
+
 // What a file picker should offer people taking photos on a phone. HEIC is left
 // out on purpose: when a picker does not list it, an iPhone converts the photo
 // to a JPEG as it is chosen, so it can be shown on every device. HEIC is still

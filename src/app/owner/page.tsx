@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma, scopedDb } from "@/lib/prisma";
 import { formatDate, toIsoDate } from "@/lib/schedule";
@@ -125,7 +126,7 @@ export default async function OrganizationsPage() {
                     </div>
                   </div>
 
-                  <form
+                  <ActionForm
                     action={updateOrganizationPlan.bind(null, org.id)}
                     className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-3"
                   >
@@ -173,7 +174,7 @@ export default async function OrganizationsPage() {
                     <button type="submit" className={button("secondary", "sm")}>
                       Save
                     </button>
-                  </form>
+                  </ActionForm>
                   <div className="flex flex-wrap gap-3">
                     <form action={impersonateOrganization.bind(null, org.id)}>
                       <button type="submit" className={button("ghost", "sm")}>
@@ -199,7 +200,7 @@ export default async function OrganizationsPage() {
           Creates the company and its first admin login together. That admin can then add their
           own staff, clients and properties from here on.
         </p>
-        <form action={createOrganization} className="flex max-w-lg flex-col gap-4">
+        <ActionForm action={createOrganization} className="flex max-w-lg flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="orgName" className="text-sm font-medium">
               Organisation name
@@ -245,7 +246,7 @@ export default async function OrganizationsPage() {
               Create organisation
             </button>
           </div>
-        </form>
+        </ActionForm>
       </section>
     </div>
   );

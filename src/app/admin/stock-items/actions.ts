@@ -1,5 +1,6 @@
 "use server";
 
+import type { ActionResult } from "@/lib/actionResult";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -15,12 +16,12 @@ function str(formData: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-export async function createStockItem(formData: FormData) {
+export async function createStockItem(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
   await assertModule(session.user.organizationId, "stock");
 
   const name = str(formData, "name");
-  if (!name) throw new Error("Name is required");
+  if (!name) return { error: "Enter a name." };
 
   await db.stockItem.create({
     data: { organizationId: session.user.organizationId, name },
@@ -30,11 +31,11 @@ export async function createStockItem(formData: FormData) {
   redirect("/admin/stock-items");
 }
 
-export async function updateStockItem(id: string, formData: FormData) {
+export async function updateStockItem(id: string, formData: FormData): Promise<ActionResult> {
   const { db } = await requireStaff();
 
   const name = str(formData, "name");
-  if (!name) throw new Error("Name is required");
+  if (!name) return { error: "Enter a name." };
 
   await db.stockItem.update({
     where: { id },
@@ -48,7 +49,7 @@ export async function updateStockItem(id: string, formData: FormData) {
   redirect("/admin/stock-items");
 }
 
-export async function deleteStockItem(id: string) {
+export async function deleteStockItem(id: string): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   // An item with usage history stays as a record of what was actually
@@ -57,9 +58,9 @@ export async function deleteStockItem(id: string) {
   // instead, same as Service in the sibling app.
   const used = await db.stockUsageLog.findFirst({ where: { stockItemId: id }, select: { id: true } });
   if (used) {
-    throw new Error(
-      "This item has recorded usage on past cleans, so it can't be deleted. Mark it inactive instead.",
-    );
+    return {
+      error: "This item has recorded usage on past cleans, so it can't be deleted. Mark it inactive instead.",
+    };
   }
 
   // No usage yet, but it may still be configured as a par level somewhere --

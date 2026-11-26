@@ -1,5 +1,7 @@
 "use client";
 
+import type { ActionResult } from "@/lib/actionResult";
+import { ActionForm } from "@/components/ActionForm";
 import { useState } from "react";
 import { STOCK_BAND_LABELS, type StockLevelBand } from "@/lib/stock";
 import { button, card } from "@/lib/ui";
@@ -30,7 +32,7 @@ export function StockLevelStep({
   areaTotal,
   movedOn,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<ActionResult>;
   itemName: string;
   predicted: StockLevelBand;
   reason: string;
@@ -49,7 +51,7 @@ export function StockLevelStep({
   const alternatives = BAND_ORDER.filter((b) => b !== selected);
 
   return (
-    <form action={action} className={card("flex flex-col gap-4 p-4")}>
+    <ActionForm action={action} className={card("flex flex-col gap-4 p-4")}>
       <div>
         {areaName && (
           <p className="mb-2 inline-flex items-center rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium text-white">
@@ -90,6 +92,6 @@ export function StockLevelStep({
           ))}
         </div>
       </div>
-    </form>
+    </ActionForm>
   );
 }

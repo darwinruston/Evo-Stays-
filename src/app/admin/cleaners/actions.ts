@@ -373,7 +373,7 @@ export async function reassignPropertyCleansToCleaner(
   if (moved === 0) return { error: "No upcoming cleans to move in that range" };
 }
 
-export async function deleteCleaner(id: string) {
+export async function deleteCleaner(id: string): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   // Cleans keep pointing at a deleted cleaner would break the assignee
@@ -386,9 +386,9 @@ export async function deleteCleaner(id: string) {
     select: { id: true },
   });
   if (hasHistory) {
-    throw new Error(
-      "This cleaner has completed cleans on record, so their account can't be deleted without erasing that history.",
-    );
+    return {
+      error: "This cleaner has completed cleans on record, so their account can't be deleted without erasing that history.",
+    };
   }
 
   await db.clean.updateMany({ where: { assignedToId: id }, data: { assignedToId: null } });

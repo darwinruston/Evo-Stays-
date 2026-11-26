@@ -1,5 +1,7 @@
 "use server";
 
+import { photoProblem } from "@/lib/imageTypes";
+import type { ActionResult } from "@/lib/actionResult";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma, type PmsProvider } from "@prisma/client";
@@ -37,33 +39,42 @@ function selectedProvider(formData: FormData): PmsProvider | null {
   return raw === null ? null : (raw as PmsProvider);
 }
 
-// Reads every cred_<key> field this provider's adapter declares. Throws
-// naming the first missing one by its label -- used both when connecting a
+// Reads every cred_<key> field this provider's adapter declares, or names the
+// first missing one by its label -- used both when connecting a
 // PMS for the first time (every field required) and when switching to a
 // different provider on an already-connected client (nothing to "leave
 // unchanged" across a shape change, so every field is required there too).
-function collectCredentials(formData: FormData, provider: PmsProvider): PmsCredentials {
+function collectCredentials(
+  formData: FormData,
+  provider: PmsProvider,
+): { values: PmsCredentials } | { error: string } {
   const adapter = getPmsAdapter(provider);
   const values: PmsCredentials = {};
   for (const field of adapter.credentialFields) {
     const value = str(formData, `cred_${field.key}`);
-    if (!value) throw new Error(`${field.label} is required to connect ${adapter.displayName}.`);
+    if (!value) return { error: `${field.label} is required to connect ${adapter.displayName}.` };
     values[field.key] = value;
   }
-  return values;
+  return { values };
 }
 
-export async function createClient(formData: FormData) {
+export async function createClient(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
-  if (!name) throw new Error("Name is required");
+  if (!name) return { error: "Enter a name." };
 
   // Connecting a PMS is optional at creation time, same as the old
   // single-field Hostify key was -- a client can be added with no PMS and
   // connected later from the edit page.
   const pmsProvider = selectedProvider(formData);
-  const pmsCredentials = pmsProvider ? encrypt(JSON.stringify(collectCredentials(formData, pmsProvider))) : null;
+  const collected = pmsProvider ? collectCredentials(formData, pmsProvider) : null;
+  if (collected && "error" in collected) return collected;
+  const pmsCredentials = collected ? encrypt(JSON.stringify(collected.values)) : null;
+
+  const photo = file(formData, "photo");
+  const problem = photo ? photoProblem([photo]) : null;
+  if (problem) return { error: problem };
 
   const client = await db.client.create({
     data: {
@@ -77,7 +88,6 @@ export async function createClient(formData: FormData) {
     },
   });
 
-  const photo = file(formData, "photo");
   if (photo) {
     const photoPath = await saveProfilePhoto(client.id, photo);
     await db.client.update({ where: { id: client.id }, data: { photoPath } });
@@ -87,14 +97,15 @@ export async function createClient(formData: FormData) {
   redirect(`/admin/clients/${client.id}`);
 }
 
-export async function updateClient(id: string, formData: FormData) {
+export async function updateClient(id: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
-  if (!name) throw new Error("Name is required");
+  if (!name) return { error: "Enter a name." };
 
   const photo = file(formData, "photo");
-  const photoPath = photo ? await saveProfilePhoto(id, photo) : undefined;
+  const problem = photo ? photoProblem([photo]) : null;
+  if (problem) return { error: problem };
 
   // Left blank (same provider, no cred_* fields filled), the credential
   // fields mean "no change" rather than "clear them" -- a decrypted secret
@@ -114,9 +125,13 @@ export async function updateClient(id: string, formData: FormData) {
     const adapter = getPmsAdapter(selected);
     const anyFieldFilled = adapter.credentialFields.some((f) => str(formData, `cred_${f.key}`) !== null);
     if (providerChanged || anyFieldFilled) {
-      pmsUpdate = { pmsProvider: selected, pmsCredentials: encrypt(JSON.stringify(collectCredentials(formData, selected))) };
+      const collected = collectCredentials(formData, selected);
+      if ("error" in collected) return collected;
+      pmsUpdate = { pmsProvider: selected, pmsCredentials: encrypt(JSON.stringify(collected.values)) };
     }
   }
+
+  const photoPath = photo ? await saveProfilePhoto(id, photo) : undefined;
 
   await db.client.update({
     where: { id },
@@ -180,11 +195,11 @@ export async function removeClientPmsCredentials(id: string) {
 // schema.prisma) all come straight from the provider. listingsJson carries
 // the data already fetched for the picker page, so this doesn't need a
 // second round-trip to the PMS just to re-fetch what was already on screen.
-export async function importPmsListings(clientId: string, formData: FormData) {
+export async function importPmsListings(clientId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const selectedIds = new Set(formData.getAll("selectedIds").map(String));
-  if (selectedIds.size === 0) throw new Error("Select at least one listing to import");
+  if (selectedIds.size === 0) return { error: "Tick at least one listing to import." };
 
   // For the cover-photo fetch below -- listingsJson already covers
   // everything else, but photos are a separate endpoint (see
@@ -194,7 +209,7 @@ export async function importPmsListings(clientId: string, formData: FormData) {
     where: { id: clientId },
     select: { pmsProvider: true, pmsCredentials: true },
   });
-  if (!client.pmsProvider || !client.pmsCredentials) throw new Error("No PMS connected on this client.");
+  if (!client.pmsProvider || !client.pmsCredentials) return { error: "Connect a booking system on this client first." };
   const adapter = getPmsAdapter(client.pmsProvider);
   const credentials = decryptPmsCredentials(client.pmsCredentials);
 

@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { stockSuits } from "@/lib/dishwasherStock";
 import Link from "next/link";
@@ -510,7 +511,7 @@ export default async function PropertyDetailPage({
             >
               + Add item
             </summary>
-            <form
+            <ActionForm
               action={addPropertyChecklistItem.bind(null, property.id)}
               className={card("mt-3 flex flex-wrap items-end gap-3 p-4")}
             >
@@ -551,7 +552,7 @@ export default async function PropertyDetailPage({
               <button type="submit" className={button("primary", "sm")}>
                 Add
               </button>
-            </form>
+            </ActionForm>
           </details>
 
           <details className="w-fit">
@@ -588,7 +589,7 @@ export default async function PropertyDetailPage({
                   <p className="min-w-0 truncate text-sm font-medium">{level.stockItem.name}</p>
                   <div className="flex shrink-0 items-center gap-2">
                     <StockLevelIndicator band={bandFromDb(level.band)} compact />
-                    <form action={removePropertyStockLevel.bind(null, property.id, level.id)}>
+                    <ActionForm action={removePropertyStockLevel.bind(null, property.id, level.id)}>
                       <button
                         type="submit"
                         aria-label={`Remove ${level.stockItem.name}`}
@@ -596,7 +597,7 @@ export default async function PropertyDetailPage({
                       >
                         ✕
                       </button>
-                    </form>
+                    </ActionForm>
                   </div>
                 </div>
 
@@ -727,11 +728,11 @@ export default async function PropertyDetailPage({
                   {img.isPrimary ? (
                     <span className={badge("solid")}>Cover</span>
                   ) : (
-                    <form action={setPrimaryPhoto.bind(null, property.id, img.id)}>
+                    <ActionForm action={setPrimaryPhoto.bind(null, property.id, img.id)}>
                       <button type="submit" className={button("ghost", "sm")}>
                         Make cover
                       </button>
-                    </form>
+                    </ActionForm>
                   )}
                   <ConfirmAction
                     action={deletePropertyPhoto.bind(null, property.id, img.id)}
@@ -752,7 +753,7 @@ export default async function PropertyDetailPage({
           >
             + Add photos
           </summary>
-          <form
+          <ActionForm
             action={addPropertyPhotos.bind(null, property.id)}
             className={card("mt-3 flex max-w-lg flex-col gap-3 p-4")}
           >
@@ -773,7 +774,7 @@ export default async function PropertyDetailPage({
                 Upload
               </button>
             </div>
-          </form>
+          </ActionForm>
         </details>
       </section>
         </div>
@@ -938,11 +939,11 @@ export default async function PropertyDetailPage({
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <form action={syncPropertyCalendarFeed.bind(null, property.id, feed.id)}>
+                      <ActionForm action={syncPropertyCalendarFeed.bind(null, property.id, feed.id)}>
                         <button type="submit" className={button("secondary", "sm")}>
                           Sync now
                         </button>
-                      </form>
+                      </ActionForm>
                       <ConfirmAction
                         action={removePropertyCalendarFeed.bind(null, property.id, feed.id)}
                         label="Remove"
@@ -968,7 +969,7 @@ export default async function PropertyDetailPage({
               >
                 + Add calendar
               </summary>
-              <form
+              <ActionForm
                 action={addPropertyCalendarFeed.bind(null, property.id)}
                 className={card("mt-3 flex flex-wrap items-end gap-3 p-4")}
               >
@@ -1001,7 +1002,7 @@ export default async function PropertyDetailPage({
                 <button type="submit" className={button("primary", "sm")}>
                   Add
                 </button>
-              </form>
+              </ActionForm>
             </details>
           )}
         </section>
@@ -1026,7 +1027,7 @@ export default async function PropertyDetailPage({
             yet.
           </p>
         ) : property.pmsListingId === null ? (
-          <form
+          <ActionForm
             action={updatePropertyPmsListingId.bind(null, property.id)}
             className={card("flex flex-wrap items-end gap-3 p-4")}
           >
@@ -1049,7 +1050,7 @@ export default async function PropertyDetailPage({
             <button type="submit" className={button("primary", "sm")}>
               Link
             </button>
-          </form>
+          </ActionForm>
         ) : (
           <div className={card("flex flex-col gap-2 p-4")}>
             <div className="flex items-center justify-between gap-3">
@@ -1072,11 +1073,11 @@ export default async function PropertyDetailPage({
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <form action={syncPropertyPmsListing.bind(null, property.id)}>
+                <ActionForm action={syncPropertyPmsListing.bind(null, property.id)}>
                   <button type="submit" className={button("secondary", "sm")}>
                     Sync now
                   </button>
-                </form>
+                </ActionForm>
                 <ConfirmAction
                   action={removePropertyPmsListing.bind(null, property.id)}
                   label="Remove"

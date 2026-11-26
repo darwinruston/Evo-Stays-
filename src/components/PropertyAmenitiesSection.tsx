@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/lib/actionResult";
+import { ActionForm } from "@/components/ActionForm";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { SubmitButton } from "@/components/SubmitButton";
 import { KEY_AMENITIES, amenitiesKnown, hasAmenity, listedByBookingSystem, type PropertyAmenities } from "@/lib/amenities";
@@ -16,7 +18,7 @@ export function PropertyAmenitiesSection({
   property: PropertyAmenities;
   // The booking system's name when this property can read amenities from it.
   source: string | null;
-  save: (formData: FormData) => Promise<void>;
+  save: (formData: FormData) => Promise<ActionResult>;
   refresh: () => Promise<void>;
   // How the last refresh went, if one was just pressed.
   result?: string;
@@ -37,7 +39,7 @@ export function PropertyAmenitiesSection({
               : "Nothing recorded yet. Tick what is there and save."}
       </p>
 
-      <form action={save} className={card("flex flex-col gap-3 p-4")}>
+      <ActionForm action={save} className={card("flex flex-col gap-3 p-4")}>
         <ul className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
           {KEY_AMENITIES.map((a) => (
             <li key={a.id}>
@@ -64,7 +66,7 @@ export function PropertyAmenitiesSection({
         <div>
           <SubmitButton pendingLabel="Saving…">Save amenities</SubmitButton>
         </div>
-      </form>
+      </ActionForm>
 
       {result === "failed" && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">

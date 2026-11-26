@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { button, input } from "@/lib/ui";
+import type { ActionResult } from "@/lib/actionResult";
 
 // Asks before doing something that cannot be undone. The first press only
 // opens the question, saying what will go; the action runs from the second.
@@ -17,6 +18,7 @@ export function ConfirmAction({
   typeToConfirm,
   ariaLabel,
 }: {
+  // May hand back a reason for saying no (see ActionResult).
   action: (formData: FormData) => unknown;
   label: string;
   question: string;
@@ -29,6 +31,7 @@ export function ConfirmAction({
 }) {
   const [asking, setAsking] = useState(false);
   const [typed, setTyped] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const trigger = {
     button: button("danger", "sm"),
@@ -37,10 +40,27 @@ export function ConfirmAction({
   }[appearance];
 
   if (!asking) {
-    return (
-      <button type="button" aria-label={ariaLabel} onClick={() => setAsking(true)} className={`${trigger} w-fit`}>
+    const open = (
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        onClick={() => {
+          setError(null);
+          setAsking(true);
+        }}
+        className={`${trigger} w-fit`}
+      >
         {label}
       </button>
+    );
+    if (!error) return open;
+    return (
+      <div className="flex max-w-md flex-col items-start gap-1">
+        {open}
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      </div>
     );
   }
 
@@ -49,8 +69,10 @@ export function ConfirmAction({
   return (
     <form
       action={async (formData) => {
-        await action(formData);
-        // Still here (a list row that stays, or a refusal): close the question.
+        const result = (await action(formData)) as ActionResult;
+        // Still here (a list row that stays, or a refusal): close the question,
+        // leaving the reason for a refusal beside the button.
+        if (result) setError(result.error);
         setAsking(false);
         setTyped("");
       }}

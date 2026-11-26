@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { createLaundryFacility } from "../actions";
@@ -17,7 +18,7 @@ export default async function NewLaundryFacilityPage() {
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">New laundry company</h1>
       </div>
 
-      <form action={createLaundryFacility} className="flex max-w-lg flex-col gap-4">
+      <ActionForm action={createLaundryFacility} className="flex max-w-lg flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="name" className="text-sm font-medium">
             Name
@@ -36,7 +37,7 @@ export default async function NewLaundryFacilityPage() {
             Create facility
           </button>
         </div>
-      </form>
+      </ActionForm>
     </div>
   );
 }

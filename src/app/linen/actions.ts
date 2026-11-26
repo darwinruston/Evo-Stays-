@@ -17,14 +17,14 @@ const NOTE_MAX = 500;
 async function ownStop(cleanId: string, dayIso: string) {
   const { session, db, facilityId } = await requireLinen();
   await assertModule(session.user.organizationId, "laundry");
-  if (!facilityId) throw new Error("This login isn't linked to a linen company.");
+  if (!facilityId) return { ok: false as const, error: "This login is not linked to a linen company." };
 
   const day = parseIsoDate(dayIso);
-  if (!day) throw new Error("That day isn't valid.");
+  if (!day) return { ok: false as const, error: "That day is not valid." };
   const data = await loadLinenDay(db, facilityId, day);
   const stop = data?.plan.stops.find((s) => s.cleanId === cleanId);
-  if (!data || !stop) throw new Error("That visit isn't on your schedule.");
-  return { session, db, facilityId, day, data, stop };
+  if (!data || !stop) return { ok: false as const, error: "That visit is no longer on your schedule. Refresh the page." };
+  return { ok: true as const, session, db, facilityId, day, data, stop };
 }
 
 function revalidate(facilityId: string) {
@@ -37,7 +37,9 @@ function revalidate(facilityId: string) {
 // The linen company picking the exact time it'll arrive, within its window.
 // "HH:MM" on the day being planned.
 export async function setLinenArrival(cleanId: string, dayIso: string, formData: FormData): Promise<ActionResult> {
-  const { session, db, facilityId, day, stop } = await ownStop(cleanId, dayIso);
+  const own = await ownStop(cleanId, dayIso);
+  if (!own.ok) return { error: own.error };
+  const { session, db, facilityId, day, stop } = own;
 
   const raw = formData.get("arrivalTime");
   const match = typeof raw === "string" ? /^([01]\d|2[0-3]):([0-5]\d)$/.exec(raw.trim()) : null;
@@ -70,7 +72,9 @@ export async function setLinenArrival(cleanId: string, dayIso: string, formData:
 
 // Back to the suggested time.
 export async function clearLinenArrival(cleanId: string, dayIso: string): Promise<ActionResult> {
-  const { session, db, facilityId, stop } = await ownStop(cleanId, dayIso);
+  const own = await ownStop(cleanId, dayIso);
+  if (!own.ok) return { error: own.error };
+  const { session, db, facilityId, stop } = own;
 
   await db.linenVisit.updateMany({ where: { cleanId }, data: { chosenArrivalAt: null } });
   await logAudit(db, {
@@ -87,7 +91,9 @@ export async function clearLinenArrival(cleanId: string, dayIso: string): Promis
 // the road, no access, and so on. Staff are notified and it stays flagged
 // on the schedule until one of them resolves it.
 export async function flagLinenIssue(cleanId: string, dayIso: string, formData: FormData): Promise<ActionResult> {
-  const { session, db, facilityId, data, stop } = await ownStop(cleanId, dayIso);
+  const own = await ownStop(cleanId, dayIso);
+  if (!own.ok) return { error: own.error };
+  const { session, db, facilityId, data, stop } = own;
 
   const note = typeof formData.get("note") === "string" ? (formData.get("note") as string).trim() : "";
   if (note.length < 3) return { error: "Say what the problem is." };

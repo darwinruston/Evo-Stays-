@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -35,7 +36,7 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Edit laundry company</h1>
       </div>
 
-      <form action={updateLaundryFacility.bind(null, facility.id)} className="flex max-w-lg flex-col gap-4">
+      <ActionForm action={updateLaundryFacility.bind(null, facility.id)} className="flex max-w-lg flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="name" className="text-sm font-medium">
             Name
@@ -186,7 +187,7 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
             Save changes
           </button>
         </div>
-      </form>
+      </ActionForm>
 
       <section className="flex max-w-lg flex-col gap-3 border-t border-black/5 pt-6">
         <div>

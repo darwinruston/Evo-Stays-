@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
@@ -119,7 +120,7 @@ export default async function InvoicesPage({
 
       <section className={card("flex flex-col gap-4 p-4")}>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <form action={updateBillingCadence} className="flex items-end gap-2">
+          <ActionForm action={updateBillingCadence} className="flex items-end gap-2">
             <div className="flex flex-col gap-1">
               <label htmlFor="cadence" className="text-xs text-zinc-500">
                 Invoice cadence
@@ -140,10 +141,10 @@ export default async function InvoicesPage({
             <button type="submit" className={button("secondary", "sm")}>
               Save
             </button>
-          </form>
+          </ActionForm>
         </div>
 
-        <form action={runInvoiceGeneration} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-4">
+        <ActionForm action={runInvoiceGeneration} className="flex flex-wrap items-end gap-3 border-t border-black/5 pt-4">
           <InvoicePeriodFields initialFrom={toIsoDate(start)} initialTo={toIsoDate(lastIncludedDay)} />
           <button type="submit" className={button("primary", "sm")}>
             Generate invoices
@@ -152,7 +153,7 @@ export default async function InvoicesPage({
             Both dates are included in full. Only picks up completed cleans not already on an
             invoice, safe to run again over an overlapping period.
           </p>
-        </form>
+        </ActionForm>
       </section>
 
       <section className="flex flex-col gap-3">

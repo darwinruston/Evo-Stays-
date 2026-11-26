@@ -1,5 +1,6 @@
 "use server";
 
+import type { ActionResult } from "@/lib/actionResult";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { InvoiceCadence } from "@prisma/client";
@@ -40,14 +41,14 @@ function localDateFromInput(formData: FormData, key: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export async function updateBillingCadence(formData: FormData) {
+export async function updateBillingCadence(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
   await assertModule(session.user.organizationId, "invoicing");
 
   const cadence = str(formData, "cadence");
   const valid: InvoiceCadence[] = ["WEEKLY", "FORTNIGHTLY", "MONTHLY"];
   if (!cadence || !valid.includes(cadence as InvoiceCadence)) {
-    throw new Error("Pick a cadence");
+    return { error: "Choose how often to invoice." };
   }
 
   await db.billingSettings.upsert({
@@ -59,7 +60,7 @@ export async function updateBillingCadence(formData: FormData) {
   revalidatePath("/admin/invoices");
 }
 
-export async function runInvoiceGeneration(formData: FormData) {
+export async function runInvoiceGeneration(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
   await assertModule(session.user.organizationId, "invoicing");
 
@@ -67,10 +68,10 @@ export async function runInvoiceGeneration(formData: FormData) {
   // The form's "To" is the last included day; generateInvoices wants an
   // exclusive upper bound, so the actual boundary is one day later.
   const lastIncludedDay = localDateFromInput(formData, "periodEnd");
-  if (!periodStart || !lastIncludedDay) throw new Error("Pick a start and end date");
+  if (!periodStart || !lastIncludedDay) return { error: "Choose a start and end date." };
   const periodEnd = new Date(lastIncludedDay);
   periodEnd.setDate(periodEnd.getDate() + 1);
-  if (periodEnd <= periodStart) throw new Error("End date must be on or after the start date");
+  if (periodEnd <= periodStart) return { error: "The end date must be on or after the start date." };
 
   const result = await generateInvoices(db, periodStart, periodEnd);
 
@@ -90,11 +91,11 @@ export async function runInvoiceGeneration(formData: FormData) {
 // like one minute on site, still needs a paper trail of what really
 // happened). Locked once the invoice is marked paid, same as everything else
 // about a paid invoice -- unmark it first to make a correction.
-export async function adjustInvoiceLineHours(lineId: string, formData: FormData) {
+export async function adjustInvoiceLineHours(lineId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const hours = float(formData, "hours");
-  if (hours === null) throw new Error("Enter a number of hours (0 or more)");
+  if (hours === null) return { error: "Enter a number of hours (0 or more)." };
 
   const line = await db.invoiceLine.findUniqueOrThrow({
     where: { id: lineId },
@@ -102,13 +103,13 @@ export async function adjustInvoiceLineHours(lineId: string, formData: FormData)
   });
 
   if (line.invoice.paidAt) {
-    throw new Error("Mark the invoice unpaid before adjusting a visit.");
+    return { error: "Mark the invoice unpaid before adjusting a visit." };
   }
   if (line.invoice.xeroInvoiceId) {
-    throw new Error("This invoice has been sent to Xero. Change the bill in Xero instead.");
+    return { error: "This invoice has been sent to Xero. Change the bill in Xero instead." };
   }
   if (line.flatFee !== null) {
-    throw new Error("This visit is billed at a flat fee, so its hours don't change what's paid.");
+    return { error: "This visit is billed at a flat fee, so its hours don't change what's paid." };
   }
 
   const amount = hours * line.invoice.hourlyRate;

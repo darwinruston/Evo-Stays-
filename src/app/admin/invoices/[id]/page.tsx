@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
@@ -141,7 +142,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                   </p>
                 )}
                 {!invoice.paidAt && !invoice.xeroInvoiceId && !isFlat && (
-                  <form
+                  <ActionForm
                     action={adjustInvoiceLineHours.bind(null, line.id)}
                     className="flex items-center gap-2"
                   >
@@ -164,7 +165,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     <button type="submit" className={button("secondary", "sm")}>
                       Save
                     </button>
-                  </form>
+                  </ActionForm>
                 )}
               </li>
             );

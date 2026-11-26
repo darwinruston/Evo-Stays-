@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/ActionForm";
 import Link from "next/link";
 import { requireCleaner } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
@@ -200,12 +201,12 @@ export default async function CleanerCalendarPage({
             </form>
           </div>
         ) : (
-          <form action={blockDay}>
+          <ActionForm action={blockDay}>
             <input type="hidden" name="date" value={selectedIso} />
             <button type="submit" className={button("secondary", "sm")}>
               Block this day
             </button>
-          </form>
+          </ActionForm>
         )}
       </div>
     </div>

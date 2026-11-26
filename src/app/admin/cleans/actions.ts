@@ -41,11 +41,11 @@ function int(formData: FormData, key: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-export async function createClean(formData: FormData) {
+export async function createClean(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const propertyId = str(formData, "propertyId");
-  if (!propertyId) throw new Error("Property is required");
+  if (!propertyId) return { error: "Choose a property." };
 
   const scheduledFor = dateTime(formData, "scheduledFor");
   // Blank assignee means "pick someone sensible" -- omitting assignedToId
@@ -54,8 +54,8 @@ export async function createClean(formData: FormData) {
 
   const frequency = str(formData, "repeat");
   if (frequency) {
-    if (!isCleanFrequency(frequency)) throw new Error("Choose how often it repeats");
-    if (!scheduledFor) throw new Error("A repeating clean needs a date and time to start from");
+    if (!isCleanFrequency(frequency)) return { error: "Choose how often it repeats." };
+    if (!scheduledFor) return { error: "A repeating clean needs a date and time to start from." };
     const until = str(formData, "repeatUntil");
     const series = await startCleanSeries(db, {
       propertyId,

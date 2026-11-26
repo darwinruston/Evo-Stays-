@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/lib/actionResult";
+import { ActionForm } from "@/components/ActionForm";
 import { STOCK_BAND_LABELS, type StockLevelBand } from "@/lib/stock";
 import { button } from "@/lib/ui";
 
@@ -22,11 +24,11 @@ export function StockLevelToggle({
   action,
   current,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<ActionResult>;
   current: StockLevelBand;
 }) {
   return (
-    <form action={action} className="grid grid-cols-4 gap-1">
+    <ActionForm action={action} className="grid grid-cols-4 gap-1">
       {BAND_ORDER.map((band) => (
         <button
           key={band}
@@ -38,6 +40,6 @@ export function StockLevelToggle({
           {STOCK_BAND_LABELS[band]}
         </button>
       ))}
-    </form>
+    </ActionForm>
   );
 }

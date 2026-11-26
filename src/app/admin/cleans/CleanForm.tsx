@@ -1,5 +1,7 @@
 "use client";
 
+import type { ActionResult } from "@/lib/actionResult";
+import { ActionForm } from "@/components/ActionForm";
 import { useState } from "react";
 import { propertyDisplayName } from "@/lib/address";
 import { toDateTimeLocalValue } from "@/lib/dateInputs";
@@ -43,7 +45,7 @@ export function CleanForm({
   submitLabel,
   dateFormat,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<ActionResult>;
   clean?: CleanFields;
   properties: { id: string; name: string | null; address: string; client: { name: string } }[];
   cleaners: CleanerOption[];
@@ -73,7 +75,7 @@ export function CleanForm({
   const isUnavailable = !!selectedCleaner?.unavailableDates.includes(selectedDateIso);
 
   return (
-    <form action={action} className="flex max-w-lg flex-col gap-4">
+    <ActionForm action={action} className="flex max-w-lg flex-col gap-4">
       {clean ? (
         <input type="hidden" name="propertyId" value={clean.propertyId} />
       ) : (
@@ -263,6 +265,6 @@ export function CleanForm({
           {submitLabel}
         </button>
       </div>
-    </form>
+    </ActionForm>
   );
 }

@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/lib/actionResult";
+import { ActionForm } from "@/components/ActionForm";
 import { stockSuits } from "@/lib/dishwasherStock";
 import { knownNoDishwasher } from "@/lib/amenities";
 import Link from "next/link";
@@ -67,14 +69,14 @@ function PhotoUploadStep({
   submitLabel,
   pendingLabel,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<ActionResult>;
   heading: string;
   hint: string;
   submitLabel: string;
   pendingLabel: string;
 }) {
   return (
-    <form action={action} className={card("flex flex-col gap-3 p-4")}>
+    <ActionForm action={action} className={card("flex flex-col gap-3 p-4")}>
       <div>
         <h2 className="text-sm font-medium">{heading}</h2>
         <p className="mt-1 text-sm text-zinc-600">{hint}</p>
@@ -83,7 +85,7 @@ function PhotoUploadStep({
       <SubmitButton pendingLabel={pendingLabel} size="lg" fullWidth>
         {submitLabel}
       </SubmitButton>
-    </form>
+    </ActionForm>
   );
 }
 
@@ -269,7 +271,7 @@ export default async function CleanerCleanPage({
       {clean.status === "PENDING" && (
         <>
           {clean.scheduledFor && (
-            <form action={confirmArrival.bind(null, clean.id)} className={card("flex flex-col gap-3 p-4")}>
+            <ActionForm action={confirmArrival.bind(null, clean.id)} className={card("flex flex-col gap-3 p-4")}>
               <div>
                 <h2 className="text-sm font-medium">
                   {clean.plannedArrivalAt ? "Arrival time confirmed" : "Confirm your arrival time"}
@@ -303,7 +305,7 @@ export default async function CleanerCleanPage({
                   {clean.plannedArrivalAt ? "Update" : "Confirm"}
                 </button>
               </div>
-            </form>
+            </ActionForm>
           )}
           <PropertyDetails property={clean.property} showAmenities />
           {knownIssues.length > 0 && (
@@ -324,7 +326,7 @@ export default async function CleanerCleanPage({
             <h2 className="text-sm font-medium text-zinc-500">Cleaning checklist</h2>
             <CleaningChecklist extras={clean.property.checklistItems} noDishwasher={knownNoDishwasher(clean.property)} />
           </section>
-          <form action={checkInClean.bind(null, clean.id)} className="flex flex-col gap-5">
+          <ActionForm action={checkInClean.bind(null, clean.id)} className="flex flex-col gap-5">
             {/* A helper or a whole team may arrive: everyone on the clean is
                 paid for, so say how many before starting. Starts at whoever
                 came last time to this property. */}
@@ -338,7 +340,7 @@ export default async function CleanerCleanPage({
             <button type="submit" className={`w-full ${button("primary", "lg")}`}>
               I&apos;ve arrived, check in
             </button>
-          </form>
+          </ActionForm>
         </>
       )}
 
@@ -403,7 +405,7 @@ export default async function CleanerCleanPage({
           {/* Step 5 -- write it up and leave. */}
           {step === 4 && (
             <>
-              <form
+              <ActionForm
                 action={completeClean.bind(null, clean.id)}
                 className={card("flex flex-col gap-3 p-4")}
               >
@@ -422,7 +424,7 @@ export default async function CleanerCleanPage({
                 <SubmitButton pendingLabel="Completing…" size="lg" fullWidth>
                   Check out &amp; complete
                 </SubmitButton>
-              </form>
+              </ActionForm>
 
               <section className="flex flex-col gap-2">
                 <h2 className="text-sm font-medium text-zinc-500">Before ({before.length})</h2>

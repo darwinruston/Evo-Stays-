@@ -1,5 +1,6 @@
 "use server";
 
+import type { ActionResult } from "@/lib/actionResult";
 import { normaliseEmail } from "@/lib/emailAddress";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -36,7 +37,7 @@ function localDateFromInput(formData: FormData, key: string): Date | null {
 // created through a client freshly scoped to that new org, the same way any
 // other write in the app is scoped, just built from an id that didn't exist
 // a moment ago instead of the caller's own session.
-export async function createOrganization(formData: FormData) {
+export async function createOrganization(formData: FormData): Promise<ActionResult> {
   await requirePlatformOwner();
 
   const orgName = str(formData, "orgName");
@@ -44,18 +45,18 @@ export async function createOrganization(formData: FormData) {
   const typedAdminEmail = str(formData, "adminEmail");
   const adminEmail = typedAdminEmail && normaliseEmail(typedAdminEmail);
   const adminPassword = str(formData, "adminPassword");
-  if (!orgName) throw new Error("Organisation name is required");
+  if (!orgName) return { error: "Enter the company name." };
   if (!adminName || !adminEmail || !adminPassword) {
-    throw new Error("The first admin's name, email and password are all required");
+    return { error: "Enter the first admin's name, email and password." };
   }
-  if (adminPassword.length < 8) throw new Error("Password must be at least 8 characters");
+  if (adminPassword.length < 8) return { error: "The password must be at least 8 characters." };
 
   // Email is globally unique platform-wide (see the User model comment in
   // schema.prisma) -- checked against the unscoped client, since this has
   // to catch a clash with any organisation, not just a new one that has no
   // users yet to clash with.
   const existing = await prisma.user.findUnique({ where: { email: adminEmail }, select: { id: true } });
-  if (existing) throw new Error("That email address already has a login");
+  if (existing) return { error: "That email address already has a login." };
 
   const organization = await prisma.organization.create({ data: { name: orgName } });
   const db = scopedDb(organization.id);
@@ -83,18 +84,18 @@ export async function createOrganization(formData: FormData) {
 // record rather than an invoicing engine. Organisation carries no RLS (see
 // UNSCOPED_MODELS in src/lib/prisma.ts), so this goes through the unscoped
 // client directly, same as reading the list itself.
-export async function updateOrganizationPlan(organizationId: string, formData: FormData) {
+export async function updateOrganizationPlan(organizationId: string, formData: FormData): Promise<ActionResult> {
   await requirePlatformOwner();
 
   const plan = formData.get("plan");
-  if (plan !== "TRIAL" && plan !== "PAID") throw new Error("Choose Trial or Paid");
+  if (plan !== "TRIAL" && plan !== "PAID") return { error: "Choose Trial or Paid." };
 
   const rawPrice = str(formData, "monthlyPriceGBP");
   let monthlyPriceGBP: number | null = null;
   if (plan === "PAID") {
     const parsed = rawPrice !== null ? Number.parseFloat(rawPrice) : NaN;
     if (!Number.isFinite(parsed) || parsed < 0) {
-      throw new Error("Enter a monthly price of 0 or more");
+      return { error: "Enter a monthly price of 0 or more." };
     }
     monthlyPriceGBP = parsed;
   }

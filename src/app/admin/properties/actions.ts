@@ -1,5 +1,6 @@
 "use server";
 
+import { photoProblem } from "@/lib/imageTypes";
 import { stockSuits } from "@/lib/dishwasherStock";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -108,13 +109,16 @@ async function ensurePrimary(db: ScopedPrismaClient, propertyId: string) {
   });
 }
 
-export async function createProperty(formData: FormData) {
+export async function createProperty(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const clientId = str(formData, "clientId");
   const address = str(formData, "address");
-  if (!clientId) throw new Error("Client is required");
-  if (!address) throw new Error("Address is required");
+  if (!clientId) return { error: "Choose a client." };
+  if (!address) return { error: "Enter an address." };
+  const files = photoFiles(formData);
+  const problem = photoProblem(files);
+  if (problem) return { error: problem };
 
   const property = await db.property.create({
     data: {
@@ -137,7 +141,6 @@ export async function createProperty(formData: FormData) {
     },
   });
 
-  const files = photoFiles(formData);
   if (files.length > 0) {
     const paths = await savePropertyPhotos(property.id, files);
     await db.propertyImage.createMany({
@@ -162,11 +165,11 @@ function linenCompanyField(formData: FormData): { laundryFacilityId?: string | n
   return formData.has("laundryFacilityId") ? { laundryFacilityId: str(formData, "laundryFacilityId") } : {};
 }
 
-export async function updateProperty(id: string, formData: FormData) {
+export async function updateProperty(id: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const address = str(formData, "address");
-  if (!address) throw new Error("Address is required");
+  if (!address) return { error: "Enter an address." };
 
   // A changed address has to be found on the map again (see geocodeAddress):
   // the stored position belongs to the old one.
@@ -227,11 +230,13 @@ export async function deleteProperty(id: string) {
   redirect("/admin/properties");
 }
 
-export async function addPropertyPhotos(id: string, formData: FormData) {
+export async function addPropertyPhotos(id: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const files = photoFiles(formData);
-  if (files.length === 0) return;
+  if (files.length === 0) return { error: "Choose at least one photo." };
+  const problem = photoProblem(files);
+  if (problem) return { error: problem };
 
   const paths = await savePropertyPhotos(id, files);
   await db.propertyImage.createMany({
@@ -266,7 +271,7 @@ export async function fetchPropertyPmsCoverPhoto(id: string): Promise<ActionResu
 
   const adapter = getPmsAdapter(property.client.pmsProvider);
   if (!adapter.fetchCoverPhotoUrl) {
-    throw new Error(`${adapter.displayName} doesn't support fetching a cover photo yet.`);
+    return { error: `${adapter.displayName} doesn't support fetching a cover photo yet.` };
   }
 
   const credentials = decryptPmsCredentials(property.client.pmsCredentials);
@@ -294,7 +299,7 @@ export async function fetchPropertyPmsCoverPhoto(id: string): Promise<ActionResu
   revalidatePath("/admin/properties");
 }
 
-export async function setPrimaryPhoto(propertyId: string, imageId: string) {
+export async function setPrimaryPhoto(propertyId: string, imageId: string): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   // Scoped to the property so a stray image id can't repoint another
@@ -303,7 +308,7 @@ export async function setPrimaryPhoto(propertyId: string, imageId: string) {
     where: { id: imageId, propertyId },
     select: { id: true },
   });
-  if (!image) throw new Error("Photo not found for this property");
+  if (!image) return { error: "That photo has already gone. Refresh the page." };
 
   // Needs the two writes atomic with each other (never leave two photos, or
   // none, marked primary) -- the scoped `db` extension can't provide a real
@@ -319,14 +324,14 @@ export async function setPrimaryPhoto(propertyId: string, imageId: string) {
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
-export async function deletePropertyPhoto(propertyId: string, imageId: string) {
+export async function deletePropertyPhoto(propertyId: string, imageId: string): Promise<ActionResult> {
   const { db } = await requireStaff();
 
   const image = await db.propertyImage.findFirst({
     where: { id: imageId, propertyId },
     select: { id: true },
   });
-  if (!image) throw new Error("Photo not found for this property");
+  if (!image) return { error: "That photo has already gone. Refresh the page." };
 
   // Row only -- the file is left on disk, the same tradeoff the sibling app
   // accepts for local dev storage.
@@ -409,16 +414,16 @@ export async function addAllPropertyStock(propertyId: string, formData: FormData
 // recordStockLevel in src/app/cleaner/actions.ts for the same pattern.
 // Unlike that one, this doesn't create a StockUsageLog row: it's a standing
 // correction, not something that happened during a specific visit.
-export async function setPropertyStockLevel(propertyId: string, levelId: string, formData: FormData) {
+export async function setPropertyStockLevel(propertyId: string, levelId: string, formData: FormData): Promise<ActionResult> {
   const { db } = await requireStaff();
 
   const level = await db.propertyStockLevel.findFirst({
     where: { id: levelId, propertyId },
   });
-  if (!level) throw new Error("Stock level not found for this property");
+  if (!level) return { error: "That item is no longer on this property. Refresh the page." };
 
   const band = formData.get("band");
-  if (typeof band !== "string" || !isStockLevelBand(band)) throw new Error("Pick a level.");
+  if (typeof band !== "string" || !isStockLevelBand(band)) return { error: "Pick a level." };
 
   await db.propertyStockLevel.update({ where: { id: level.id }, data: { band: bandToDb(band) } });
 
@@ -441,14 +446,14 @@ export async function updatePropertyMinBillableHours(propertyId: string, formDat
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
-export async function removePropertyStockLevel(propertyId: string, levelId: string) {
+export async function removePropertyStockLevel(propertyId: string, levelId: string): Promise<ActionResult> {
   const { db } = await requireStaff();
 
   const level = await db.propertyStockLevel.findFirst({
     where: { id: levelId, propertyId },
     select: { id: true },
   });
-  if (!level) throw new Error("Stock level not found for this property");
+  if (!level) return { error: "That item is no longer on this property. Refresh the page." };
 
   // The usage history (StockUsageLog) stays -- it's a record of what was
   // physically counted on real visits, independent of whether the property
@@ -478,13 +483,13 @@ export async function updatePropertySyncHorizon(propertyId: string, formData: Fo
 // One feed per platform a property is listed on -- Airbnb and Vrbo each
 // publish their own separate iCal URL for the same physical unit, so this
 // isn't a one-per-property field.
-export async function addPropertyCalendarFeed(propertyId: string, formData: FormData) {
+export async function addPropertyCalendarFeed(propertyId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const label = str(formData, "label");
   const url = str(formData, "url");
-  if (!label) throw new Error("Label is required");
-  if (!url) throw new Error("Calendar URL is required");
+  if (!label) return { error: "Enter a name for the calendar." };
+  if (!url) return { error: "Paste in the calendar link." };
 
   await db.propertyCalendarFeed.create({
     data: { organizationId: session.user.organizationId, propertyId, label, url },
@@ -493,14 +498,14 @@ export async function addPropertyCalendarFeed(propertyId: string, formData: Form
   revalidatePath(`/admin/properties/${propertyId}`);
 }
 
-export async function removePropertyCalendarFeed(propertyId: string, feedId: string) {
+export async function removePropertyCalendarFeed(propertyId: string, feedId: string): Promise<ActionResult> {
   const { db } = await requireStaff();
 
   const feed = await db.propertyCalendarFeed.findFirst({
     where: { id: feedId, propertyId },
     select: { id: true },
   });
-  if (!feed) throw new Error("Calendar not found for this property");
+  if (!feed) return { error: "That calendar has already been removed. Refresh the page." };
 
   // Its SyncedBookingEvents cascade with it; the Cleans they produced stay
   // put (cleanId just goes back to unlinked) -- deleting a feed shouldn't
@@ -513,14 +518,14 @@ export async function removePropertyCalendarFeed(propertyId: string, feedId: str
 // "Sync now" -- see src/lib/icalSync.ts. Never throws; a fetch/parse failure
 // is recorded on the feed itself (lastSyncError) for the property page to
 // show, so there's nothing here to catch.
-export async function syncPropertyCalendarFeed(propertyId: string, feedId: string) {
+export async function syncPropertyCalendarFeed(propertyId: string, feedId: string): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const feed = await db.propertyCalendarFeed.findFirst({
     where: { id: feedId, propertyId },
     select: { id: true },
   });
-  if (!feed) throw new Error("Calendar not found for this property");
+  if (!feed) return { error: "That calendar has already been removed. Refresh the page." };
 
   await syncCalendarFeed(db, feed.id, session.user.id);
 
@@ -538,7 +543,7 @@ export async function syncPropertyCalendarFeed(propertyId: string, feedId: strin
 // value to be joined through on every later read -- see the comment on
 // Property.pmsProvider in schema.prisma for why that denormalisation is
 // load-bearing, not just a convenience.
-export async function updatePropertyPmsListingId(propertyId: string, formData: FormData) {
+export async function updatePropertyPmsListingId(propertyId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const pmsListingId = str(formData, "pmsListingId");
@@ -548,7 +553,7 @@ export async function updatePropertyPmsListingId(propertyId: string, formData: F
     select: { client: { select: { pmsProvider: true } } },
   });
   if (pmsListingId !== null && !property.client.pmsProvider) {
-    throw new Error("Connect a PMS on this property's client before linking a listing.");
+    return { error: "Connect a booking system on this property's client before linking a listing." };
   }
 
   try {
@@ -563,7 +568,7 @@ export async function updatePropertyPmsListingId(propertyId: string, formData: F
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new Error("That listing is already linked to another property");
+      return { error: "That listing is already linked to another property." };
     }
     throw err;
   }
@@ -599,15 +604,15 @@ export async function removePropertyPmsListing(propertyId: string) {
 // "Sync now" -- see src/lib/pms/sync.ts. Never throws; a failure is
 // recorded on the property itself (pmsLastSyncError) for the page to show,
 // so there's nothing here to catch.
-export async function syncPropertyPmsListing(propertyId: string) {
+export async function syncPropertyPmsListing(propertyId: string): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const property = await db.property.findFirst({
     where: { id: propertyId },
     select: { id: true, pmsListingId: true },
   });
-  if (!property) throw new Error("Property not found");
-  if (property.pmsListingId === null) throw new Error("No PMS listing configured for this property");
+  if (!property) return { error: "That property no longer exists." };
+  if (property.pmsListingId === null) return { error: "Link a listing to this property first." };
 
   await syncPmsListing(db, propertyId, session.user.id);
 
@@ -619,13 +624,13 @@ export async function syncPropertyPmsListing(propertyId: string) {
 // A property-specific checklist line, added on top of the standard list
 // (see PropertyChecklistItem in schema.prisma). The room is normalised so
 // "kitchen" joins the standard Kitchen card instead of starting another.
-export async function addPropertyChecklistItem(propertyId: string, formData: FormData) {
+export async function addPropertyChecklistItem(propertyId: string, formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireStaff();
 
   const rawRoom = str(formData, "room");
   const text = str(formData, "text");
-  if (!rawRoom) throw new Error("Say which room it's in");
-  if (!text) throw new Error("Say what needs doing");
+  if (!rawRoom) return { error: "Say which room it's in." };
+  if (!text) return { error: "Say what needs doing." };
   // normaliseRoom already snaps to a standard room's spelling; this does the
   // same for a custom room the property already uses, so "hot tub" after
   // "Hot Tub" joins that card rather than listing the room twice.
@@ -637,8 +642,8 @@ export async function addPropertyChecklistItem(propertyId: string, formData: For
   });
   const room =
     existingRooms.find((r) => r.room.toLowerCase() === normalised.toLowerCase())?.room ?? normalised;
-  if (room.length > CHECKLIST_ROOM_MAX) throw new Error(`Keep the room name under ${CHECKLIST_ROOM_MAX} characters`);
-  if (text.length > CHECKLIST_TEXT_MAX) throw new Error(`Keep the item under ${CHECKLIST_TEXT_MAX} characters`);
+  if (room.length > CHECKLIST_ROOM_MAX) return { error: `Keep the room name under ${CHECKLIST_ROOM_MAX} characters.` };
+  if (text.length > CHECKLIST_TEXT_MAX) return { error: `Keep the item under ${CHECKLIST_TEXT_MAX} characters.` };
 
   await db.propertyChecklistItem.create({
     data: { organizationId: session.user.organizationId, propertyId, room, text },
@@ -926,10 +931,10 @@ export async function removeSafetyDocument(propertyId: string, documentId: strin
 
 // Staff's tick boxes. Stored as differences from the listing (see
 // correctionsFrom), so the listing still updates the ones they agreed with.
-export async function saveAmenities(propertyId: string, formData: FormData) {
+export async function saveAmenities(propertyId: string, formData: FormData): Promise<ActionResult> {
   const { db } = await requireStaff();
   const property = await db.property.findUnique({ where: { id: propertyId }, select: { amenities: true } });
-  if (!property) throw new Error("Property not found");
+  if (!property) return { error: "That property no longer exists." };
 
   const ticked = new Set(formData.getAll("amenity").map(String));
   await db.property.update({
