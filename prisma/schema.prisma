@@ -487,6 +487,9 @@ model Property {
   // Preset access-point keys (e.g. ["KEY_SAFE","LIFT"]) -- a JSON string
   // array since SQLite/Prisma has no native scalar list type here.
   accessOptions      Json?
+  // The code for each way in that has one, keyed by access option, e.g.
+  // {"LOCKBOX": "4821"} (see ACCESS_CODE_LABELS in src/lib/accessOptions.ts).
+  accessCodes        Json?
   // Free text for anything the presets don't cover: key safe codes, alarm
   // codes, parking, which bin day. The cleaner reads this on site.
   accessNotes        String?

@@ -127,6 +127,7 @@ async function main() {
             bathrooms: 2,
             maxOccupancy: 6,
             accessOptions: ["LOCKBOX", "PARKING_ON_SITE"],
+            accessCodes: { LOCKBOX: "2580" },
             accessNotes: "Lockbox on the gatepost. Parking for two cars on the drive.",
           },
         ],

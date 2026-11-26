@@ -1,5 +1,6 @@
 "use server";
 
+import { ACCESS_CODE_LABELS, ACCESS_CODE_MAX } from "@/lib/accessOptions";
 import { photoProblem } from "@/lib/imageTypes";
 import { stockSuits } from "@/lib/dishwasherStock";
 import { revalidatePath } from "next/cache";
@@ -76,6 +77,17 @@ function accessOptions(formData: FormData): string[] {
 
 // Validated against the enum rather than cast, so a hand-crafted POST can't
 // put an arbitrary string in the column.
+// Only for the ways in that are ticked: unticking one forgets its code.
+function accessCodes(formData: FormData): Record<string, string> {
+  const codes: Record<string, string> = {};
+  for (const option of accessOptions(formData)) {
+    if (!ACCESS_CODE_LABELS[option]) continue;
+    const code = str(formData, `accessCode_${option}`);
+    if (code) codes[option] = code.slice(0, ACCESS_CODE_MAX);
+  }
+  return codes;
+}
+
 function propertyType(formData: FormData): PropertyType {
   const raw = str(formData, "type");
   const values = Object.values(PropertyType) as string[];
@@ -135,6 +147,7 @@ export async function createProperty(formData: FormData): Promise<ActionResult> 
       sofaBedSleeps: int(formData, "sofaBedSleeps"),
       checkInTime: timeOfDay(formData, "checkInTime"),
       accessOptions: accessOptions(formData),
+      accessCodes: accessCodes(formData),
       accessNotes: str(formData, "accessNotes"),
       notes: str(formData, "notes"),
       ...linenCompanyField(formData),
@@ -192,6 +205,7 @@ export async function updateProperty(id: string, formData: FormData): Promise<Ac
       sofaBedSleeps: int(formData, "sofaBedSleeps"),
       checkInTime: timeOfDay(formData, "checkInTime"),
       accessOptions: accessOptions(formData),
+      accessCodes: accessCodes(formData),
       accessNotes: str(formData, "accessNotes"),
       notes: str(formData, "notes"),
     },

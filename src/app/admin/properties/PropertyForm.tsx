@@ -1,7 +1,8 @@
 import { PendingButton } from "@/components/PendingButton";
 import type { ActionResult } from "@/lib/actionResult";
 import { ActionForm } from "@/components/ActionForm";
-import { ACCESS_OPTIONS, parseAccessOptions } from "@/lib/accessOptions";
+import { parseAccessCodes, parseAccessOptions } from "@/lib/accessOptions";
+import { AccessFields } from "@/components/AccessFields";
 import { PROPERTY_TYPE_LABELS } from "@/lib/accessOptions";
 import { MANAGEMENT_HINTS, MANAGEMENT_TYPES, managementLabel } from "@/lib/safetyChecks";
 import { button, inputCompact } from "@/lib/ui";
@@ -20,6 +21,7 @@ type PropertyFields = {
   sofaBedSleeps: number | null;
   checkInTime: string | null;
   accessOptions: unknown;
+  accessCodes: unknown;
   accessNotes: string | null;
   notes: string | null;
   laundryFacilityId?: string | null;
@@ -242,22 +244,7 @@ export function PropertyForm({
         </p>
       </div>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium">Access</legend>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {ACCESS_OPTIONS.map((o) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm text-zinc-600">
-              <input
-                type="checkbox"
-                name="accessOptions"
-                value={o.value}
-                defaultChecked={selected.includes(o.value)}
-              />
-              {o.label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <AccessFields selected={selected} codes={parseAccessCodes(property?.accessCodes)} />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="accessNotes" className="text-sm font-medium">
@@ -268,7 +255,7 @@ export function PropertyForm({
           name="accessNotes"
           rows={3}
           defaultValue={property?.accessNotes ?? ""}
-          placeholder="Key safe code, parking, bin day: whatever the cleaner needs on site."
+          placeholder="Where the key safe is, parking, bin day: whatever the cleaner needs on site."
           className={inputCompact}
         />
       </div>

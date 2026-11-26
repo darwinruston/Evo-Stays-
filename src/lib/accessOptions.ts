@@ -25,6 +25,23 @@ export function parseAccessOptions(value: unknown): string[] {
   return [];
 }
 
+// The ways in that have a code, and what to call it.
+export const ACCESS_CODE_LABELS: Record<string, string> = {
+  KEY_SAFE: "Key safe code",
+  LOCKBOX: "Lockbox code",
+  SMART_LOCK: "Keypad code",
+};
+
+export const ACCESS_CODE_MAX = 40;
+
+// The stored codes, keyed by access option.
+export function parseAccessCodes(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+}
+
 export const PROPERTY_TYPE_LABELS: Record<string, string> = {
   APARTMENT: "Apartment",
   HOUSE: "House",
