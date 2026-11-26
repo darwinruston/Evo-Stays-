@@ -5,8 +5,8 @@ import { ACCESS_CODE_LABELS, ACCESS_CODE_MAX, ACCESS_OPTIONS } from "@/lib/acces
 import { inputCompact } from "@/lib/ui";
 
 // The ways into a property. Ticking one that has a code (a key safe, a lockbox,
-// a keypad) asks for it straight away, in a box of its own so it can be shown
-// clearly to whoever is looking at the property.
+// a keypad) gives it a box of its own, so the code has a clear place to go and
+// can be picked out for whoever is looking at the property.
 export function AccessFields({
   selected,
   codes,
@@ -43,9 +43,9 @@ export function AccessFields({
       </div>
 
       {needCode.map((o) => (
-        <div key={o.value} className="flex flex-col gap-1.5 rounded-lg border border-teal-600/30 bg-teal-50 p-3">
+        <div key={o.value} className="flex flex-col gap-1.5">
           <label htmlFor={`accessCode-${o.value}`} className="text-sm font-medium">
-            What is the {ACCESS_CODE_LABELS[o.value].toLowerCase()}?
+            {ACCESS_CODE_LABELS[o.value]}
           </label>
           <input
             id={`accessCode-${o.value}`}
@@ -53,7 +53,7 @@ export function AccessFields({
             defaultValue={codes[o.value] ?? ""}
             maxLength={ACCESS_CODE_MAX}
             autoComplete="off"
-            placeholder="e.g. 4821"
+            placeholder="Enter the code"
             className={`${inputCompact} max-w-48`}
           />
         </div>

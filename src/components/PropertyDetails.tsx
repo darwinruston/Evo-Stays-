@@ -61,20 +61,25 @@ export function PropertyDetails({
           <p className="text-sm text-zinc-600">Nothing recorded yet.</p>
         ) : (
           <>
-            {access
-              .filter((a) => ACCESS_CODE_LABELS[a])
-              .map((a) => (
-                <div key={a} className="rounded-2xl border-2 border-teal-600 bg-teal-50 px-4 py-3">
-                  <p className="text-sm font-medium text-teal-900">{ACCESS_CODE_LABELS[a]}</p>
-                  {codes[a] ? (
-                    <p className="font-mono text-3xl font-semibold tracking-widest break-all text-zinc-900">
-                      {codes[a]}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-amber-800">Not added yet</p>
-                  )}
-                </div>
-              ))}
+            {access.some((a) => ACCESS_CODE_LABELS[a]) && (
+              <div className={card("divide-y divide-black/5 px-4 py-1")}>
+                {access
+                  .filter((a) => ACCESS_CODE_LABELS[a])
+                  .map((a) => (
+                    <Row
+                      key={a}
+                      label={ACCESS_CODE_LABELS[a]}
+                      value={
+                        codes[a] ? (
+                          <span className="font-semibold tracking-wide break-all text-zinc-900">{codes[a]}</span>
+                        ) : (
+                          <span className="text-zinc-400">Not added yet</span>
+                        )
+                      }
+                    />
+                  ))}
+              </div>
+            )}
             {access.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {access.map((a) => (
