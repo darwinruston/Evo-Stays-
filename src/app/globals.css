@@ -32,3 +32,26 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* iPhones and iPads draw date and time boxes at a width of their own and can
+   ignore the width they are given, so they spill over whatever sits beside
+   them. Only Safari on iOS understands -webkit-touch-callout, so desktop
+   browsers keep their usual boxes. */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    /* Without this an empty box shrinks to nothing once the native look is off. */
+    min-height: 2.6em;
+  }
+
+  input::-webkit-date-and-time-value {
+    margin: 0;
+    text-align: left;
+  }
+}
