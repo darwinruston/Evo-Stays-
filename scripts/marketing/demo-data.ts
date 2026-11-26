@@ -11,6 +11,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import sharp from "sharp";
 import { prisma, scopedDb } from "../../src/lib/prisma";
+import { checkSafetyReminders } from "../../src/lib/safetyReminders";
 
 const ORG = "showcase-org";
 // A new random password every time, for the logins capture.mjs signs in with.
@@ -55,9 +56,13 @@ async function cover(propertyId: string, sky: string, wall: string, roof: string
 async function remove() {
   const db = scopedDb(ORG);
   // In an order that never leaves something pointing at a row already gone.
+  // Invoices first: their lines point at the visit records.
+  await db.invoice.deleteMany({});
   await db.notification.deleteMany({});
   await db.auditLog.deleteMany({});
   await db.task.deleteMany({});
+  await db.laundryLoad.deleteMany({});
+  await db.linenVisit.deleteMany({});
   await db.issue.deleteMany({});
   await db.clean.deleteMany({});
   await db.cleanSeries.deleteMany({});
@@ -164,6 +169,22 @@ async function main() {
     data: { organizationId, cleanId: done.id, recordedById: jo.id, teamSize: 2, arrivedAt: day(-1, 11, 4), departedAt: day(-1, 13, 40), note: "All done. Hot tub cover needs a new strap." },
   });
 
+  // A week of finished visits, so the invoices page has something to add up.
+  const past = [
+    [1, "showcase-riverside", priya.id, -6, 2, 1],
+    [2, "showcase-dockside", priya.id, -5, 1.5, 1],
+    [3, "showcase-millstone", marcus.id, -4, 3, 1],
+    [4, "showcase-quay", jo.id, -3, 2.5, 2],
+  ] as const;
+  for (const [n, propertyId, who, offset, hours, teamSize] of past) {
+    const left = day(offset, 11, 0);
+    left.setMinutes(hours * 60);
+    const visit = await clean(`showcase-past${n}`, propertyId, who, day(offset, 11), { status: "COMPLETED", arrivedAt: day(offset, 11) });
+    await db.cleanLog.create({
+      data: { organizationId, cleanId: visit.id, recordedById: who, teamSize, arrivedAt: day(offset, 11), departedAt: left },
+    });
+  }
+
   await db.issue.create({
     data: { organizationId, propertyId: "showcase-riverside", cleanId: today1.id, reportedById: priya.id, category: "BROKEN", severity: "MEDIUM", description: "Shower tray cracked along the back edge, water getting underneath.", createdAt: day(-2, 12) },
   });
@@ -195,6 +216,10 @@ async function main() {
   await check("showcase-quay", "insurance", "Building and liability insurance", 12, -290, 75);
   await check("showcase-dockside", "gas-safety", "Gas safety certificate", 12, -60, 305);
   await check("showcase-riverside", "fire-risk", "Fire risk assessment", 12, -120, 245);
+
+  // What the background timer would do within ten minutes: turn the dates that
+  // are due into tasks, so the demo shows them straight away.
+  await checkSafetyReminders(db);
 
   await mkdir(path.dirname(PASSWORD_FILE), { recursive: true });
   await writeFile(PASSWORD_FILE, PASSWORD);

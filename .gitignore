@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Auto-created encryption key (see src/lib/encryption.ts) -- never commit
 .encryption-key
+
+# Marketing videos: made by scripts/marketing/videos.mjs, too big for git
+/docs/marketing/video/
