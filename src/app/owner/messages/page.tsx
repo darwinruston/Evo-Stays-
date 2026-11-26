@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatScheduledFor } from "@/lib/schedule";
@@ -59,11 +60,12 @@ export default async function MessagesPage() {
                           {m.handledAt ? "Mark as waiting" : "Mark as dealt with"}
                         </button>
                       </form>
-                      <form action={deleteContactMessage.bind(null, m.id)}>
-                        <button type="submit" className="text-xs text-red-600 hover:underline">
-                          Delete
-                        </button>
-                      </form>
+                      <ConfirmAction
+                        action={deleteContactMessage.bind(null, m.id)}
+                        label="Delete"
+                        appearance="link"
+                        question="Delete this message? This cannot be undone."
+                      />
                     </div>
                   </div>
                   <p className="border-t border-black/5 pt-3 text-sm whitespace-pre-line text-zinc-700">{m.message}</p>

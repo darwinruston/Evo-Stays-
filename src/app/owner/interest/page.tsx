@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { requirePlatformOwner } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/schedule";
@@ -64,11 +65,13 @@ export default async function InterestPage() {
                       {reg.source && ` · link: ${reg.source}`}
                     </p>
                   </div>
-                  <form action={deleteInterestRegistration.bind(null, reg.id)}>
-                    <button type="submit" className="text-xs text-red-600 hover:underline">
-                      Remove
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={deleteInterestRegistration.bind(null, reg.id)}
+                    label="Remove"
+                    appearance="link"
+                    question={`Remove ${reg.companyName} from the interest list? This cannot be undone.`}
+                    confirmLabel="Yes, remove"
+                  />
                 </div>
                 {reg.notes && <p className="border-t border-black/5 pt-2 text-sm text-zinc-600">{reg.notes}</p>}
               </li>

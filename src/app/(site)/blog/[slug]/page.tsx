@@ -16,7 +16,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: post.title,
     description: post.description,
-    ...(BASE ? { metadataBase: new URL(BASE) } : {}),
     // One address per post, whatever ?from= tag a link carried.
     alternates: { canonical: `/blog/${post.slug}` },
     openGraph: {
@@ -24,7 +23,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: post.title,
       description: post.description,
       publishedTime: post.published,
-      ...(post.image && BASE ? { images: [{ url: post.image.src, alt: post.image.alt }] } : {}),
+      // Named here because setting openGraph at all replaces the site's own.
+      images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Evo Stays" }],
     },
   };
 }

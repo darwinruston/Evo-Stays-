@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
@@ -207,11 +208,13 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
                   <p className="truncate text-xs text-zinc-500">{login.email}</p>
                 </div>
                 {session.user.role === "ADMIN" && (
-                  <form action={removeLinenLogin.bind(null, login.id, facility.id)}>
-                    <button type="submit" className="text-xs text-red-600 hover:underline">
-                      Remove
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={removeLinenLogin.bind(null, login.id, facility.id)}
+                    label="Remove"
+                    appearance="link"
+                    question={`Remove ${login.name}'s login? They will not be able to sign in again.`}
+                    confirmLabel="Yes, remove"
+                  />
                 )}
               </li>
             ))}
@@ -235,11 +238,11 @@ export default async function EditLaundryFacilityPage({ params }: { params: Prom
         ) : (
           <>
             <p className="text-sm text-zinc-600">Not used by any load yet. This cannot be undone.</p>
-            <form action={deleteLaundryFacility.bind(null, facility.id)}>
-              <button type="submit" className={button("danger", "sm")}>
-                Delete facility
-              </button>
-            </form>
+            <ConfirmAction
+              action={deleteLaundryFacility.bind(null, facility.id)}
+              label="Delete facility"
+              question={`Delete ${facility.name}? This cannot be undone.`}
+            />
           </>
         )}
       </section>

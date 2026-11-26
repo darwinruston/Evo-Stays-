@@ -27,41 +27,25 @@ export function toDateInputValue(date: Date): string {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// "12 Nov 25", or "Nov 12, 25" where the company's country writes the month
-// first.
-export function formatDateOnly(date: Date): string {
-  const month = MONTHS[date.getUTCMonth()];
-  const year = pad(date.getUTCFullYear() % 100);
-  return currentRegion().dateOrder === "mdy" ? `${month} ${date.getUTCDate()}, ${year}` : `${date.getUTCDate()} ${month} ${year}`;
+// "26/11/2026", or "11/26/2026" where the company's country writes the month
+// first. The same way dates are written everywhere in the app (see formatDate in
+// src/lib/schedule.ts), so one screen never shows two styles.
+function written(day: number, month: number, year: number): string {
+  const [first, second] = currentRegion().dateOrder === "mdy" ? [month, day] : [day, month];
+  return `${pad(first)}/${pad(second)}/${year}`;
 }
 
-// A moment in time as wall-clock time: "12 Nov 25, 14:30" (or "Nov 12, 25,
+export function formatDateOnly(date: Date): string {
+  return written(date.getUTCDate(), date.getUTCMonth() + 1, date.getUTCFullYear());
+}
+
+// A moment in time as wall-clock time: "26/11/2026, 14:30" (or "11/26/2026,
 // 2:30 PM" where the company's country writes it that way). For things that
 // happened at a time of day, such as an update on a task. In the time zone of
 // the server, like every other time in the app (see src/lib/region.ts).
 export function formatDateTime(date: Date): string {
-  const region = currentRegion();
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat(region.locale, {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    })
-      .formatToParts(date)
-      .map((p) => [p.type, p.value]),
-  );
-  const month = MONTHS[Number(parts.month) - 1];
-  const year = String(parts.year).slice(-2);
-  // 24-hour clocks pad the hour ("09:05"); 12-hour ones do not ("9:05 AM").
-  const hour = parts.dayPeriod ? parts.hour : String(parts.hour).padStart(2, "0");
-  const clock = `${hour}:${parts.minute}${parts.dayPeriod ? ` ${String(parts.dayPeriod).toUpperCase()}` : ""}`;
-  return region.dateOrder === "mdy"
-    ? `${month} ${Number(parts.day)}, ${year}, ${clock}`
-    : `${Number(parts.day)} ${month} ${year}, ${clock}`;
+  const clock = new Intl.DateTimeFormat(currentRegion().locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+  return `${written(date.getDate(), date.getMonth() + 1, date.getFullYear())}, ${clock.toUpperCase()}`;
 }
 
 // Adds whole months, stopping at the end of a shorter month rather than

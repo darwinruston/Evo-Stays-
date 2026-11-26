@@ -105,7 +105,7 @@ export default async function AdminHomePage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Signed in as {session.user.name} · {session.user.role}
+          Signed in as {session.user.name} · {session.user.role === "ADMIN" ? "Admin" : "Office"}
         </p>
       </div>
 

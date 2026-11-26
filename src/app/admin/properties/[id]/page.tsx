@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { stockSuits } from "@/lib/dishwasherStock";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -732,11 +733,13 @@ export default async function PropertyDetailPage({
                       </button>
                     </form>
                   )}
-                  <form action={deletePropertyPhoto.bind(null, property.id, img.id)}>
-                    <button type="submit" className={button("ghost", "sm")} aria-label="Delete photo">
-                      Delete
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={deletePropertyPhoto.bind(null, property.id, img.id)}
+                    label="Delete"
+                    appearance="ghost"
+                    ariaLabel="Delete photo"
+                    question="Delete this photo? This cannot be undone."
+                  />
                 </div>
               </li>
             ))}
@@ -940,11 +943,13 @@ export default async function PropertyDetailPage({
                           Sync now
                         </button>
                       </form>
-                      <form action={removePropertyCalendarFeed.bind(null, property.id, feed.id)}>
-                        <button type="submit" className="text-xs text-red-600 hover:underline">
-                          Remove
-                        </button>
-                      </form>
+                      <ConfirmAction
+                        action={removePropertyCalendarFeed.bind(null, property.id, feed.id)}
+                        label="Remove"
+                        appearance="link"
+                        question="Remove this calendar link? Cleans will stop being made from it."
+                        confirmLabel="Yes, remove"
+                      />
                     </div>
                   </div>
                 </li>
@@ -1072,11 +1077,13 @@ export default async function PropertyDetailPage({
                     Sync now
                   </button>
                 </form>
-                <form action={removePropertyPmsListing.bind(null, property.id)}>
-                  <button type="submit" className="text-xs text-red-600 hover:underline">
-                    Remove
-                  </button>
-                </form>
+                <ConfirmAction
+                  action={removePropertyPmsListing.bind(null, property.id)}
+                  label="Remove"
+                  appearance="link"
+                  question="Unlink this listing? New bookings will stop creating cleans for this property."
+                  confirmLabel="Yes, unlink"
+                />
               </div>
             </div>
           </div>

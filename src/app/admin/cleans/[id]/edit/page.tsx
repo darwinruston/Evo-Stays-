@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { currentRegion } from "@/lib/region";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -5,7 +6,6 @@ import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
 import { CleanForm } from "../../CleanForm";
 import { updateClean, deleteClean } from "../../actions";
-import { button } from "@/lib/ui";
 import { getCleanerOptions } from "@/lib/cleans";
 
 export const metadata = { title: "Edit clean" };
@@ -47,11 +47,11 @@ export default async function EditCleanPage({ params }: { params: Promise<{ id: 
           Removes this clean and anything recorded against it. To keep the record but call it
           off, set the status to cancelled instead.
         </p>
-        <form action={deleteClean.bind(null, clean.id)}>
-          <button type="submit" className={button("danger", "sm")}>
-            Delete clean
-          </button>
-        </form>
+        <ConfirmAction
+          action={deleteClean.bind(null, clean.id)}
+          label="Delete clean"
+          question="Delete this clean, with its photos and everything recorded against it? This cannot be undone."
+        />
       </section>
     </div>
   );

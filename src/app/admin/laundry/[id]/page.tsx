@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
@@ -93,11 +94,11 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
           Frees the visits above to be included in a different load.
           {load.receiptPath && " The ticket photo isn't deleted from storage."}
         </p>
-        <form action={deleteLaundryLoad.bind(null, load.id)}>
-          <button type="submit" className={button("danger", "sm")}>
-            Delete this load
-          </button>
-        </form>
+        <ConfirmAction
+          action={deleteLaundryLoad.bind(null, load.id)}
+          label="Delete this load"
+          question="Delete this laundry load? This cannot be undone."
+        />
       </section>
     </div>
   );

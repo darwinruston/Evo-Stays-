@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
@@ -5,7 +6,6 @@ import { getOrgModules } from "@/lib/modules";
 import { ClientForm } from "../../ClientForm";
 import { updateClient, deleteClient, removeClientPmsCredentials } from "../../actions";
 import { getPmsAdapter } from "@/lib/pms/registry";
-import { button } from "@/lib/ui";
 
 export const metadata = { title: "Edit client" };
 
@@ -42,11 +42,12 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           <p className="text-sm text-zinc-600">
             Properties linked to a listing will stop syncing until it&apos;s reconnected.
           </p>
-          <form action={removeClientPmsCredentials.bind(null, client.id)}>
-            <button type="submit" className={button("danger", "sm")}>
-              Remove {getPmsAdapter(client.pmsProvider).displayName} credentials
-            </button>
-          </form>
+          <ConfirmAction
+            action={removeClientPmsCredentials.bind(null, client.id)}
+            label={`Remove ${getPmsAdapter(client.pmsProvider).displayName} credentials`}
+            question="Disconnect this booking system? Linked properties stop syncing until it is connected again."
+            confirmLabel="Yes, disconnect"
+          />
         </section>
       )}
 
@@ -57,11 +58,12 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           {client._count.properties === 1 ? "property" : "properties"} and all property photos.
           This cannot be undone.
         </p>
-        <form action={deleteClient.bind(null, client.id)}>
-          <button type="submit" className={button("danger", "sm")}>
-            Delete client
-          </button>
-        </form>
+        <ConfirmAction
+          action={deleteClient.bind(null, client.id)}
+          label="Delete client"
+          question={`Delete ${client.name}, their ${client._count.properties} ${client._count.properties === 1 ? "property" : "properties"} and every photo, clean and record on them? This cannot be undone.`}
+          typeToConfirm={client._count.properties > 0 ? client.name : undefined}
+        />
       </section>
     </div>
   );

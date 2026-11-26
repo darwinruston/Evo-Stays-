@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
@@ -61,11 +62,11 @@ export default async function EditStockItemPage({ params }: { params: Promise<{ 
                 : "Not configured on any property."}{" "}
               This cannot be undone.
             </p>
-            <form action={deleteStockItem.bind(null, item.id)}>
-              <button type="submit" className={button("danger", "sm")}>
-                Delete item
-              </button>
-            </form>
+            <ConfirmAction
+              action={deleteStockItem.bind(null, item.id)}
+              label="Delete item"
+              question={`Delete ${item.name} from your stock list and from every property that has it? This cannot be undone.`}
+            />
           </>
         )}
       </section>

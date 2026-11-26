@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { arrivalLabel } from "@/lib/arrival";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -14,7 +15,7 @@ import { propertyDisplayName, propertyFullName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { formatCurrency } from "@/lib/invoices";
 import { formatDate } from "@/lib/schedule";
-import { badge, button, card } from "@/lib/ui";
+import { badge, card } from "@/lib/ui";
 import { isCleanFinished, sameDayCounts, sameDayLabel } from "@/lib/cleans";
 import { cleanPrep } from "@/lib/cleanPrep";
 import { turnoversFor } from "@/lib/turnover";
@@ -275,11 +276,12 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
           Only possible while this cleaner has no completed cleans on record. History stays
           attributed to whoever actually did the work.
         </p>
-        <form action={deleteCleaner.bind(null, cleaner.id)}>
-          <button type="submit" className={button("danger", "sm")}>
-            Remove cleaner
-          </button>
-        </form>
+        <ConfirmAction
+          action={deleteCleaner.bind(null, cleaner.id)}
+          label="Remove cleaner"
+          question={`Remove ${cleaner.name}'s login? They will not be able to sign in again. This cannot be undone.`}
+          confirmLabel="Yes, remove them"
+        />
       </section>
     </div>
   );

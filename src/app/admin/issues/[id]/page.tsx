@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { SafeImage } from "@/components/SafeImage";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -278,11 +279,11 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
         <summary className="cursor-pointer text-xs text-zinc-500">Delete this issue</summary>
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-xs text-zinc-500">Only for a duplicate or a report made by mistake.</p>
-          <form action={deleteIssue.bind(null, issue.id)}>
-            <button type="submit" className={button("danger", "sm")}>
-              Delete issue
-            </button>
-          </form>
+          <ConfirmAction
+            action={deleteIssue.bind(null, issue.id)}
+            label="Delete issue"
+            question="Delete this report and its photos? This cannot be undone."
+          />
         </div>
       </details>
     </div>

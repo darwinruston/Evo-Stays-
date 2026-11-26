@@ -16,7 +16,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "Evo Stays", template: "%s · Evo Stays" },
-  description: "Cleaning and stock management for short-let properties.",
+  description: "Cleans, access codes, safety dates and linen for short-let teams, in one place.",
+  // Shared links need the picture's full address (src/app/opengraph-image.png),
+  // which is only known once APP_URL is set.
+  ...(process.env.APP_URL ? { metadataBase: new URL(process.env.APP_URL) } : {}),
   // iPhone: what the home screen icon looks like, and opening full screen
   // from it. (The manifest, for Android and desktop, is src/app/manifest.ts.)
   icons: { apple: "/icons/apple-touch-icon.png" },

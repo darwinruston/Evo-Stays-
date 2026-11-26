@@ -1,3 +1,4 @@
+import { ConfirmAction } from "@/components/ConfirmAction";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/authz";
@@ -5,7 +6,6 @@ import { getOrgModules } from "@/lib/modules";
 import { propertyDisplayName } from "@/lib/address";
 import { PropertyForm } from "../../PropertyForm";
 import { updateProperty, deleteProperty } from "../../actions";
-import { button } from "@/lib/ui";
 
 export const metadata = { title: "Edit property" };
 
@@ -49,11 +49,12 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
         <p className="text-sm text-zinc-600">
           Removes this property and its photos. This cannot be undone.
         </p>
-        <form action={deleteProperty.bind(null, property.id)}>
-          <button type="submit" className={button("danger", "sm")}>
-            Delete property
-          </button>
-        </form>
+        <ConfirmAction
+          action={deleteProperty.bind(null, property.id)}
+          label="Delete property"
+          question="Delete this property with its photos, cleans, issues, stock and safety records? This cannot be undone."
+          typeToConfirm={propertyDisplayName(property)}
+        />
       </section>
     </div>
   );

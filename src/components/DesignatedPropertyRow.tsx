@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRevealForm } from "@/lib/useRevealForm";
@@ -108,11 +109,13 @@ export function DesignatedPropertyRow({
               </button>
             </>
           )}
-          <form action={removeAction}>
-            <button type="submit" className="text-xs text-red-600 hover:underline">
-              Remove
-            </button>
-          </form>
+          <ConfirmAction
+            action={removeAction}
+            label="Remove"
+            appearance="link"
+            question={`Take ${propertyName} off ${cleanerName}'s properties?`}
+            confirmLabel="Yes, remove"
+          />
         </div>
       </div>
 
