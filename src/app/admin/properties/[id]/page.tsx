@@ -1,3 +1,4 @@
+import { stockSuits } from "@/lib/dishwasherStock";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff, staffMetadataDb } from "@/lib/authz";
@@ -132,10 +133,15 @@ export default async function PropertyDetailPage({
   ]);
 
   const configuredItemIds = new Set(property.stockLevels.map((l) => l.stockItemId));
-  const availableItems = await db.stockItem.findMany({
+  const unconfiguredItems = await db.stockItem.findMany({
     where: { active: true, id: { notIn: [...configuredItemIds] } },
     orderBy: { name: "asc" },
   });
+  // No dishwasher, no dishwasher stock: it is not offered, and any already
+  // here is pointed out so it can be removed.
+  const availableItems = unconfiguredItems.filter((i) => stockSuits(i.name, property));
+  const unusedStock = property.stockLevels.filter((l) => !stockSuits(l.stockItem.name, property));
+  const heldBackCount = unconfiguredItems.length - availableItems.length;
   // The stock already here, grouped by where it is kept in the order a
   // cleaner walks through it.
   const stockGroups = groupByStockZone(property.stockLevels, (l) => l.stockItem.name);
@@ -196,7 +202,7 @@ export default async function PropertyDetailPage({
     </details>
   );
 
-  const lowStockCount = modules.stock ? property.stockLevels.filter((l) => isRunningLow(l)).length : 0;
+  const lowStockCount = modules.stock ? property.stockLevels.filter((l) => isRunningLow(l) && stockSuits(l.stockItem.name, property)).length : 0;
   const syncFailing =
     modules.sync &&
     (property.pmsLastSyncError !== null || property.calendarFeeds.some((f) => f.lastSyncError !== null));
@@ -603,6 +609,18 @@ export default async function PropertyDetailPage({
           </div>
         ))}
 
+        {unusedStock.length > 0 && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            This property has no dishwasher, so cleaners are not asked about {unusedStock.map((l) => l.stockItem.name).join(", ")}.
+            Remove with the ✕ if not needed.
+          </p>
+        )}
+        {heldBackCount > 0 && (
+          <p className="text-sm text-zinc-500">
+            Dishwasher supplies are left out, as this property has no dishwasher.
+          </p>
+        )}
+
         {availableItems.length > 0 ? (
           <div className="flex flex-wrap items-start gap-2">
             <AddStockLevelForm action={addPropertyStockLevel.bind(null, property.id)} items={sortByStockZone(availableItems, (i) => i.name).map((i) => ({ id: i.id, name: i.name, areaName: stockZoneFor(i.name)?.name ?? null }))} />
@@ -612,7 +630,7 @@ export default async function PropertyDetailPage({
           </div>
         ) : (
           <p className="text-sm text-zinc-500">
-            {property.stockLevels.length === 0 ? (
+            {unconfiguredItems.length === 0 && property.stockLevels.length === 0 ? (
               <>
                 No stock items exist yet,{" "}
                 <a href="/admin/stock-items/new" className="underline underline-offset-2">
@@ -621,7 +639,7 @@ export default async function PropertyDetailPage({
                 .
               </>
             ) : (
-              "Every active item is already configured on this property."
+              "Every item that suits this property is already on it."
             )}
           </p>
         )}

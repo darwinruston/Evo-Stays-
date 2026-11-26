@@ -1,5 +1,6 @@
 "use server";
 
+import { stockSuits } from "@/lib/dishwasherStock";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
@@ -207,11 +208,15 @@ async function configuredStockItemIds(
   // A company that has switched stock tracking off has no stock step, so
   // nothing is owed before check-out whatever is still configured.
   if (!(await getOrgModules(organizationId)).stock) return [];
-  const levels = await db.propertyStockLevel.findMany({
-    where: { propertyId },
-    select: { stockItemId: true },
-  });
-  return levels.map((l) => l.stockItemId);
+  const [property, levels] = await Promise.all([
+    db.property.findUniqueOrThrow({ where: { id: propertyId } }),
+    db.propertyStockLevel.findMany({
+      where: { propertyId },
+      select: { stockItemId: true, stockItem: { select: { name: true } } },
+    }),
+  ]);
+  // The same list the cleaner is walked through (see stockSuits).
+  return levels.filter((l) => stockSuits(l.stockItem.name, property)).map((l) => l.stockItemId);
 }
 
 // One item, one tap: the cleaner picks (or confirms a pre-highlighted

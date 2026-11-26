@@ -1,3 +1,4 @@
+import { stockSuits } from "@/lib/dishwasherStock";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
 import { propertyDisplayName } from "@/lib/address";
@@ -18,12 +19,12 @@ export default async function StockOverviewPage() {
   const levels = await db.propertyStockLevel.findMany({
     include: {
       stockItem: true,
-      property: { select: { id: true, nickname: true, name: true, address: true, client: { select: { name: true } } } },
+      property: { select: { id: true, nickname: true, name: true, address: true, amenities: true, amenitiesCheckedAt: true, amenitiesSyncedAt: true, amenityAdded: true, amenityRemoved: true, client: { select: { name: true } } } },
     },
     orderBy: { updatedAt: "desc" },
   });
 
-  const low = levels.filter(isRunningLow);
+  const low = levels.filter((l) => isRunningLow(l) && stockSuits(l.stockItem.name, l.property));
 
   // Grouped by property for the "All stock" browse section below -- sorted
   // alphabetically so it reads the same way on every visit, unlike "Running

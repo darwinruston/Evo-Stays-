@@ -1,3 +1,4 @@
+import { stockSuits } from "@/lib/dishwasherStock";
 import { arrivalLabel } from "@/lib/arrival";
 import Link from "next/link";
 import { requireStaff } from "@/lib/authz";
@@ -28,7 +29,16 @@ export default async function AdminHomePage() {
     // "Low" compares two columns on the same row, which SQLite can't express
     // in a where clause without raw SQL -- filtered in JS instead, see
     // src/lib/stock.ts.
-    db.propertyStockLevel.findMany({ select: { propertyId: true, band: true } }),
+    db.propertyStockLevel.findMany({
+      select: {
+        propertyId: true,
+        band: true,
+        stockItem: { select: { name: true } },
+        property: {
+          select: { amenities: true, amenitiesCheckedAt: true, amenitiesSyncedAt: true, amenityAdded: true, amenityRemoved: true },
+        },
+      },
+    }),
     db.issue.count({ where: { status: { not: "RESOLVED" } } }),
     db.clean.findMany({
       where: { scheduledFor: { gte: start, lt: end }, status: { not: "CANCELLED" } },
@@ -50,7 +60,9 @@ export default async function AdminHomePage() {
     }),
   ]);
 
-  const lowProperties = new Set(stockLevels.filter(isRunningLow).map((l) => l.propertyId)).size;
+  const lowProperties = new Set(
+    stockLevels.filter((l) => isRunningLow(l) && stockSuits(l.stockItem.name, l.property)).map((l) => l.propertyId),
+  ).size;
 
   // Only unfinished cleans have a turnover worth flagging -- one pass over
   // the synced bookings for the whole list (see turnoversFor).

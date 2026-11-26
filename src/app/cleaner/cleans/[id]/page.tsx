@@ -1,3 +1,4 @@
+import { stockSuits } from "@/lib/dishwasherStock";
 import { knownNoDishwasher } from "@/lib/amenities";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -164,7 +165,12 @@ export default async function CleanerCleanPage({
   // worked out from the item names, see src/lib/stockZones.ts) so nobody is
   // back and forth across the house. Same order every time, so "item 2 of 3"
   // means the same on every reload.
-  const stockItems = stockModuleOn ? sortByStockZone(clean.property.stockLevels, (l) => l.stockItem.name) : [];
+  const stockItems = stockModuleOn
+    ? sortByStockZone(
+        clean.property.stockLevels.filter((l) => stockSuits(l.stockItem.name, clean.property)),
+        (l) => l.stockItem.name,
+      )
+    : [];
   const recordedStockItemIds = new Set((clean.log?.stockUsage ?? []).map((u) => u.stockItemId));
   const stockDone =
     stockItems.length === 0 || stockItems.every((s) => recordedStockItemIds.has(s.stockItemId));

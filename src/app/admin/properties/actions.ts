@@ -1,5 +1,6 @@
 "use server";
 
+import { stockSuits } from "@/lib/dishwasherStock";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma, PropertyManagement, PropertyType } from "@prisma/client";
@@ -351,6 +352,13 @@ export async function addPropertyStockLevel(propertyId: string, formData: FormDa
   });
   if (existing) return { error: "That item is already configured on this property" };
 
+  const [item, property] = await Promise.all([
+    db.stockItem.findUnique({ where: { id: stockItemId }, select: { name: true } }),
+    db.property.findUnique({ where: { id: propertyId } }),
+  ]);
+  if (!item || !property) return { error: "Pick an item" };
+  if (!stockSuits(item.name, property)) return { error: "This property has no dishwasher" };
+
   await db.propertyStockLevel.create({
     data: { organizationId: session.user.organizationId, propertyId, stockItemId, band: bandToDb(band) },
   });
@@ -370,15 +378,15 @@ export async function addAllPropertyStock(propertyId: string, formData: FormData
   const band = formData.get("band");
   if (typeof band !== "string" || !isStockLevelBand(band)) return { error: "Pick a level" };
 
-  const property = await db.property.findUnique({ where: { id: propertyId }, select: { id: true } });
+  const property = await db.property.findUnique({ where: { id: propertyId } });
   if (!property) return { error: "Property not found" };
 
   const [items, existing] = await Promise.all([
-    db.stockItem.findMany({ where: { active: true }, select: { id: true } }),
+    db.stockItem.findMany({ where: { active: true }, select: { id: true, name: true } }),
     db.propertyStockLevel.findMany({ where: { propertyId }, select: { stockItemId: true } }),
   ]);
   const have = new Set(existing.map((l) => l.stockItemId));
-  const missing = items.filter((i) => !have.has(i.id));
+  const missing = items.filter((i) => !have.has(i.id) && stockSuits(i.name, property));
   if (missing.length === 0) return { error: "Every active item is already on this property" };
 
   await db.propertyStockLevel.createMany({
