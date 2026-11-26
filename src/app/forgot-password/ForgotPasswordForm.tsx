@@ -17,7 +17,7 @@ export function ForgotPasswordForm() {
         <label htmlFor="email" className="text-sm font-medium">
           Email
         </label>
-        <input id="email" name="email" type="email" required autoComplete="email" className={input} />
+        <input id="email" name="email" type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} required autoComplete="email" className={input} />
       </div>
 
       {message && <p className="text-sm text-zinc-600">{message}</p>}

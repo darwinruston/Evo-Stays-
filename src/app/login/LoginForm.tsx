@@ -24,7 +24,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
         <input
           id="email"
           name="email"
-          type="email"
+          type="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
           required
           autoComplete="email"
           value={email}

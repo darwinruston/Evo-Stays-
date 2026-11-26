@@ -1,3 +1,4 @@
+import { normaliseEmail } from "@/lib/emailAddress";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma, scopedDb, type ScopedPrismaClient } from "@/lib/prisma";
@@ -13,7 +14,7 @@ const CLEANER_ROLES = ["ADMIN", "CLEANER"];
 // that role has no bearing on whether they're the owner.
 function isPlatformOwner(email: string | null | undefined): boolean {
   const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
-  return !!ownerEmail && email === ownerEmail;
+  return !!ownerEmail && !!email && normaliseEmail(email) === normaliseEmail(ownerEmail);
 }
 
 // Checked on every staff/cleaner request, not just at login -- a session

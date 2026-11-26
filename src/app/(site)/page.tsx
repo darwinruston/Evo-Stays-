@@ -1,3 +1,4 @@
+import { normaliseEmail } from "@/lib/emailAddress";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -69,7 +70,8 @@ export default async function Home() {
     // in src/lib/authz.ts), checked ahead of the role-based split below, since
     // that account still carries a staff role to satisfy the schema even though
     // it isn't a customer running cleaning operations.
-    if (session.user.email === process.env.PLATFORM_OWNER_EMAIL) redirect("/owner");
+    const owner = process.env.PLATFORM_OWNER_EMAIL;
+    if (owner && session.user.email && normaliseEmail(session.user.email) === normaliseEmail(owner)) redirect("/owner");
     redirect(session.user.role === "CLEANER" ? "/cleaner" : session.user.role === "LINEN" ? "/linen" : "/admin");
   }
 

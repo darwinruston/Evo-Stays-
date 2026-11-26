@@ -1,5 +1,6 @@
 "use server";
 
+import { normaliseEmail } from "@/lib/emailAddress";
 import { authPrisma } from "@/lib/prisma";
 import { issuePasswordResetLink } from "@/lib/passwordResetEmail";
 
@@ -24,7 +25,9 @@ export async function requestPasswordReset(
   // outright (its USING clause governs reads, not just writes) through any
   // client with no organisation scope set, including the plain `prisma`
   // singleton.
-  const user = await authPrisma.user.findUnique({ where: { email } });
+  const user =
+    (await authPrisma.user.findUnique({ where: { email: normaliseEmail(email) } })) ??
+    (await authPrisma.user.findUnique({ where: { email } }));
 
   if (user) await issuePasswordResetLink(user);
 

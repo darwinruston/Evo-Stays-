@@ -1,5 +1,6 @@
 "use server";
 
+import { normaliseEmail } from "@/lib/emailAddress";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
@@ -29,7 +30,8 @@ export async function updateCleaner(id: string, formData: FormData): Promise<Act
   const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
-  const email = str(formData, "email");
+  const typedEmail = str(formData, "email");
+  const email = typedEmail && normaliseEmail(typedEmail);
   if (!name || !email) return { error: "Name and email are both required" };
 
   const emailOwner = await db.user.findUnique({ where: { email }, select: { id: true } });

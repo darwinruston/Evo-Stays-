@@ -1,3 +1,4 @@
+import { normaliseEmail } from "@/lib/emailAddress";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -49,7 +50,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ip = clientIp(request.headers);
         if (isLoginBlocked(email, ip)) throw new TooManyAttempts();
 
-        const user = await authPrisma.user.findUnique({ where: { email } });
+        // Capitals don't matter in the email (see normaliseEmail). The address
+        // exactly as typed is the fallback for the rare login still stored
+        // with capitals because another has the same address.
+        const typed = email.trim();
+        const user =
+          (await authPrisma.user.findUnique({ where: { email: normaliseEmail(typed) } })) ??
+          (await authPrisma.user.findUnique({ where: { email: typed } }));
         const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
         if (!user || !valid) {
           recordLoginFailure(email, ip);

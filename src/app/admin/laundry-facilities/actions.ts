@@ -1,5 +1,6 @@
 "use server";
 
+import { normaliseEmail } from "@/lib/emailAddress";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
@@ -124,7 +125,8 @@ export async function createLinenLogin(facilityId: string, formData: FormData): 
   const { session, db } = await requireAdmin();
 
   const name = str(formData, "name");
-  const email = str(formData, "email");
+  const typedEmail = str(formData, "email");
+  const email = typedEmail && normaliseEmail(typedEmail);
   const password = str(formData, "password");
   if (!name || !email || !password) return { error: "Name, email and password are all required" };
   if (password.length < 8) return { error: "Password must be at least 8 characters" };

@@ -1,5 +1,6 @@
 "use server";
 
+import { normaliseEmail } from "@/lib/emailAddress";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
@@ -50,7 +51,8 @@ export async function createTeamMember(formData: FormData): Promise<ActionResult
   const { session, db } = await requireStaff();
 
   const name = str(formData, "name");
-  const email = str(formData, "email");
+  const typedEmail = str(formData, "email");
+  const email = typedEmail && normaliseEmail(typedEmail);
   const password = str(formData, "password");
   const role = newMemberRole(formData);
   if (!role) return { error: "Choose what they will do" };
@@ -93,7 +95,8 @@ export async function updateStaff(id: string, formData: FormData): Promise<Actio
   if (isSystemSyncUserId(id)) return { error: "That account can't be edited" };
 
   const name = str(formData, "name");
-  const email = str(formData, "email");
+  const typedEmail = str(formData, "email");
+  const email = typedEmail && normaliseEmail(typedEmail);
   const role = staffRole(formData);
   if (!role) return { error: "Choose Admin or Office" };
   if (!name || !email) return { error: "Name and email are both required" };

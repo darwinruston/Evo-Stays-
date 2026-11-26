@@ -1,5 +1,6 @@
 "use server";
 
+import { normaliseEmail } from "@/lib/emailAddress";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
@@ -40,7 +41,8 @@ export async function createOrganization(formData: FormData) {
 
   const orgName = str(formData, "orgName");
   const adminName = str(formData, "adminName");
-  const adminEmail = str(formData, "adminEmail");
+  const typedAdminEmail = str(formData, "adminEmail");
+  const adminEmail = typedAdminEmail && normaliseEmail(typedAdminEmail);
   const adminPassword = str(formData, "adminPassword");
   if (!orgName) throw new Error("Organisation name is required");
   if (!adminName || !adminEmail || !adminPassword) {
