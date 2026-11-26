@@ -1,10 +1,10 @@
 import type { ActionResult } from "@/lib/actionResult";
-import { ActionForm } from "@/components/ActionForm";
+import { AmenitiesPanel } from "@/components/AmenitiesPanel";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { SubmitButton } from "@/components/SubmitButton";
 import { KEY_AMENITIES, amenitiesKnown, hasAmenity, listedByBookingSystem, type PropertyAmenities } from "@/lib/amenities";
 import { formatDate } from "@/lib/schedule";
-import { badge, card } from "@/lib/ui";
+import { badge } from "@/lib/ui";
 
 // The property page's list of what is in the place: tick boxes for the ones
 // that matter, which staff can correct, and everything the listing says.
@@ -23,23 +23,65 @@ export function PropertyAmenitiesSection({
   // How the last refresh went, if one was just pressed.
   result?: string;
 }) {
+  const ticked = KEY_AMENITIES.filter((a) => hasAmenity(property, a)).length;
+
   return (
     <section className="flex flex-col gap-3">
       <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
         Amenities
         <InfoTooltip text="What is in this property. Ticks come from the listing where the booking system sends it; correct any that are wrong and your correction is kept. A property known to have no dishwasher loses the dishwasher line on the cleaning checklist." />
       </h2>
-      <p className="text-sm text-zinc-500">
-        {property.amenitiesSyncedAt
-          ? `Read from ${source ?? "the listing"} on ${formatDate(property.amenitiesSyncedAt)}.`
-          : source
-            ? `Not read from ${source} yet.`
-            : amenitiesKnown(property)
-              ? "Set by your team."
-              : "Nothing recorded yet. Tick what is there and save."}
-      </p>
+      <AmenitiesPanel
+        summary={ticked > 0 ? `${ticked} ticked` : "None ticked yet"}
+        startOpen={result !== undefined}
+        save={save}
+        before={
+          <p className="text-sm text-zinc-500">
+            {property.amenitiesSyncedAt
+              ? `Read from ${source ?? "the listing"} on ${formatDate(property.amenitiesSyncedAt)}.`
+              : source
+                ? `Not read from ${source} yet.`
+                : amenitiesKnown(property)
+                  ? "Set by your team."
+                  : "Nothing recorded yet. Tick what is there and save."}
+          </p>
+        }
+        after={
+          <>
+            {result === "failed" && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+                Could not read the amenities just now. Wait a minute and try again.
+              </p>
+            )}
+            {result === "read" && <p className="text-sm text-emerald-700">Amenities updated.</p>}
 
-      <ActionForm action={save} className={card("flex flex-col gap-3 p-4")}>
+            {source && (
+              <form action={refresh}>
+                <SubmitButton pendingLabel="Reading…" variant="secondary">
+                  Refresh from {source}
+                </SubmitButton>
+              </form>
+            )}
+
+            {property.amenities.length > 0 && (
+              <details className="text-sm">
+                <summary className="cursor-pointer text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700">
+                  Everything on the listing ({property.amenities.length})
+                </summary>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {[...property.amenities]
+                    .sort((a, b) => a.localeCompare(b))
+                    .map((name) => (
+                      <li key={name} className={badge("neutral")}>
+                        {name}
+                      </li>
+                    ))}
+                </ul>
+              </details>
+            )}
+          </>
+        }
+      >
         <ul className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
           {KEY_AMENITIES.map((a) => (
             <li key={a.id}>
@@ -66,39 +108,7 @@ export function PropertyAmenitiesSection({
         <div>
           <SubmitButton pendingLabel="Saving…">Save amenities</SubmitButton>
         </div>
-      </ActionForm>
-
-      {result === "failed" && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
-          Could not read the amenities just now. Wait a minute and try again.
-        </p>
-      )}
-      {result === "read" && <p className="text-sm text-emerald-700">Amenities updated.</p>}
-
-      {source && (
-        <form action={refresh}>
-          <SubmitButton pendingLabel="Reading…" variant="secondary">
-            Refresh from {source}
-          </SubmitButton>
-        </form>
-      )}
-
-      {property.amenities.length > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-zinc-500 underline decoration-dotted decoration-zinc-300 underline-offset-2 hover:text-zinc-700">
-            Everything on the listing ({property.amenities.length})
-          </summary>
-          <ul className="mt-2 flex flex-wrap gap-1.5">
-            {[...property.amenities]
-              .sort((a, b) => a.localeCompare(b))
-              .map((name) => (
-                <li key={name} className={badge("neutral")}>
-                  {name}
-                </li>
-              ))}
-          </ul>
-        </details>
-      )}
+      </AmenitiesPanel>
     </section>
   );
 }
