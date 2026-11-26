@@ -2,6 +2,7 @@ import Link from "next/link";
 import { EvoTick } from "@/components/EvoTick";
 import { NAV_LINKS } from "@/lib/site";
 import { button } from "@/lib/ui";
+import { cta } from "@/components/marketing/parts";
 
 // The top bar on every public page. On a wide screen the links sit in the bar;
 // on a phone they fold into a menu (a plain <details>, so it needs no script).
@@ -25,7 +26,7 @@ export function SiteHeader() {
           <Link href="/login" className={`hidden sm:inline-flex ${button("ghost", "sm")}`}>
             Sign in
           </Link>
-          <Link href="/signup" className={button("primary", "sm")}>
+          <Link href="/signup" className={cta("primary", "sm")}>
             Register interest
           </Link>
 

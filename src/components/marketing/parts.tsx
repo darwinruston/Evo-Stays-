@@ -1,10 +1,27 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { FaqItem } from "@/lib/site";
-import { button, card } from "@/lib/ui";
+import { card } from "@/lib/ui";
 
 // Small building blocks shared by every public page, so the pages read as one
 // site and each page file stays about its own content.
+
+// The public site's own colour: a deep teal, with brighter accents on cards and
+// icons. The signed-in app stays black and white (see src/lib/ui.ts), where
+// colour is kept for things that need attention.
+const CTA_BASE =
+  "inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4";
+
+export function cta(kind: "primary" | "secondary" | "onDark" | "onDarkOutline", size: "sm" | "lg" = "lg"): string {
+  const sizes = { sm: "px-3.5 py-2 text-sm", lg: "px-6 py-3 text-base" };
+  const kinds = {
+    primary: "bg-teal-700 text-white shadow-sm hover:bg-teal-800 focus-visible:ring-teal-200",
+    secondary: "border border-teal-900/15 bg-white text-teal-900 hover:bg-teal-50 focus-visible:ring-teal-200",
+    onDark: "bg-white text-teal-900 shadow-sm hover:bg-teal-50 focus-visible:ring-white/40",
+    onDarkOutline: "border border-white/35 text-white hover:bg-white/10 focus-visible:ring-white/40",
+  };
+  return `${CTA_BASE} ${sizes[size]} ${kinds[kind]}`;
+}
 
 export function CheckIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -32,14 +49,16 @@ export function Section({
   className = "",
 }: {
   id?: string;
-  tone?: "plain" | "surface";
+  tone?: "plain" | "surface" | "tint";
   children: ReactNode;
   className?: string;
 }) {
   return (
     <section
       id={id}
-      className={`px-4 py-16 sm:px-6 sm:py-20 lg:px-10 ${tone === "surface" ? "border-y border-black/5 bg-surface" : ""} ${className}`}
+      className={`px-4 py-16 sm:px-6 sm:py-20 lg:px-10 ${
+        tone === "surface" ? "border-y border-black/5 bg-surface" : tone === "tint" ? "bg-gradient-to-b from-teal-50 to-sky-50" : ""
+      } ${className}`}
     >
       <div className="mx-auto max-w-6xl">{children}</div>
     </section>
@@ -59,7 +78,7 @@ export function SectionHeading({
 }) {
   return (
     <div className={`flex max-w-2xl flex-col gap-3 ${centre ? "mx-auto items-center text-center" : ""}`}>
-      {eyebrow && <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">{eyebrow}</span>}
+      {eyebrow && <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase">{eyebrow}</span>}
       <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
       {intro && <p className="text-zinc-600">{intro}</p>}
     </div>
@@ -69,9 +88,9 @@ export function SectionHeading({
 // A page's own opening: the one h1, a short line under it.
 export function PageIntro({ eyebrow, title, intro }: { eyebrow?: string; title: string; intro: string }) {
   return (
-    <section className="px-4 pt-14 pb-10 sm:px-6 sm:pt-20 lg:px-10">
+    <section className="bg-gradient-to-b from-teal-50 via-sky-50 to-transparent px-4 pt-14 pb-10 sm:px-6 sm:pt-20 lg:px-10">
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
-        {eyebrow && <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">{eyebrow}</span>}
+        {eyebrow && <span className="text-xs font-semibold tracking-wide text-teal-700 uppercase">{eyebrow}</span>}
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
         <p className="text-lg text-zinc-600">{intro}</p>
       </div>
@@ -87,9 +106,9 @@ export function ProductShot({ src, alt, className = "" }: { src: string; alt: st
       className={`overflow-hidden rounded-xl border border-black/10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-24px_rgba(0,0,0,0.25)] ${className}`}
     >
       <div className="flex items-center gap-1.5 border-b border-black/5 bg-zinc-50 px-3 py-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
-        <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
-        <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
+        <span className="h-2.5 w-2.5 rounded-full bg-rose-300" />
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+        <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element -- plain <img>, see the reasoning on EvoTick.tsx: next/image's optimiser 400s on this project's static images. */}
       <img src={src} alt={alt} className="w-full" />
@@ -147,15 +166,15 @@ export function CtaBand({
   body?: string;
 }) {
   return (
-    <Section tone="surface">
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 text-center">
+    <Section>
+      <div className="mx-auto flex max-w-4xl flex-col items-center gap-5 rounded-3xl bg-gradient-to-br from-teal-800 via-teal-700 to-sky-700 px-6 py-14 text-center text-white shadow-[0_32px_64px_-32px_rgba(15,118,110,0.7)]">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
-        <p className="text-zinc-600">{body}</p>
+        <p className="max-w-xl text-teal-50">{body}</p>
         <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/signup" className={button("primary", "lg")}>
+          <Link href="/signup" className={cta("onDark")}>
             Register interest
           </Link>
-          <Link href="/contact" className={button("secondary", "lg")}>
+          <Link href="/contact" className={cta("onDarkOutline")}>
             Talk to us
           </Link>
         </div>

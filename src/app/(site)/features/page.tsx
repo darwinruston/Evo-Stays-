@@ -42,6 +42,7 @@ const AREAS: Area[] = [
       "Address, type, bedrooms, bathrooms and how many it sleeps",
       "Access notes and key safe codes, shown only to the cleaners on that property",
       "Which cleaners look after it",
+      "What is in it, such as a dishwasher or hot tub, read from your booking system where it sends it",
       "Open problems with photos, kept against the property until fixed",
       "Health and safety checks, such as gas safety and electrical reports, with a reminder before each one runs out",
       "Every clean, with its checklist, photos and stock levels",
@@ -59,6 +60,7 @@ const AREAS: Area[] = [
     lead: "Every booking becomes a clean, and every clean goes to the right person.",
     points: [
       "New cleans go to a cleaner who already knows the property and is free",
+      "Regular cleans can repeat every week, 2 weeks, 4 weeks, month or 3 months",
       "Cleaners can mark days they cannot work, and those days are skipped",
       "Same-day turnovers go first, with a time the clean must be finished by",
       "If one cleaner is booked in two places at once, you are warned before the day",
@@ -77,6 +79,7 @@ const AREAS: Area[] = [
     title: "Cleaners' phones",
     lead: "The same simple steps every time, on the phone they already have.",
     points: [
+      "Add a cleaner with a personal link, and they choose their own password",
       "Opens like an app from the home screen, with alerts on the lock screen",
       "Shows the access notes and key safe codes, only for the properties they are on",
       "Shows how the property should look, and any known problems, before they start",
@@ -87,8 +90,8 @@ const AREAS: Area[] = [
     ],
     image: {
       src: "/marketing/cleaner-checklist.jpg",
-      alt: "A cleaner's checklist for a property, split into Kitchen, Bathroom and Bedrooms",
-      kind: "desktop",
+      alt: "A cleaner's checklist on a phone, split into Kitchen, Bathroom, Bedrooms, Living area and General",
+      kind: "phone",
     },
   },
   {
@@ -96,7 +99,9 @@ const AREAS: Area[] = [
     title: "Stock",
     lead: "Nobody counts bin bags. They say whether there are enough.",
     points: [
-      "Choose which items to track at each property",
+      "Choose which items to track at each property, or add them all at once",
+      "Dishwasher supplies are only offered where there is a dishwasher",
+      "Cleaners are walked through the items room by room",
       "Cleaners tap High, Medium, Low or None. No counting",
       "One list shows every property running low",
       "Each level is saved with the visit, so you can see when it changed",
@@ -104,6 +109,39 @@ const AREAS: Area[] = [
     image: {
       src: "/marketing/stock-levels.jpg",
       alt: "Stock levels for toilet roll, bin bags and hand soap at a property, each set with a High, Medium, Low or None toggle",
+      kind: "desktop",
+    },
+  },
+  {
+    id: "safety",
+    title: "Health and safety",
+    lead: "Know what is due before it runs out.",
+    points: [
+      "Gas safety, electrical reports, alarms, insurance and more, for each property",
+      "Reminders three months, one month and one week before",
+      "A task is created for the team when something comes due",
+      "Keep the certificates against the property for later years",
+      "The built-in list follows UK checks. Other countries get a general starting list, so check your local rules",
+    ],
+    image: {
+      src: "/marketing/health-safety.jpg",
+      alt: "The health and safety page, showing one check overdue and three coming up across several properties",
+      kind: "desktop",
+    },
+  },
+  {
+    id: "tasks",
+    title: "Team tasks",
+    lead: "The jobs that are not cleans, with someone's name on them.",
+    points: [
+      "Give a task to one person, several or the whole team",
+      "Break it into smaller steps, with their own dates and updates",
+      "Repeat it monthly or yearly, and get reminded before it is due",
+      "Turn a problem a cleaner reported into a task",
+    ],
+    image: {
+      src: "/marketing/tasks.jpg",
+      alt: "The team task list with importance, who each task is with and when it is due",
       kind: "desktop",
     },
   },
@@ -147,6 +185,7 @@ const AREAS: Area[] = [
       "An invoice per cleaner, weekly, fortnightly or monthly, split by property",
       "Agree a minimum number of hours or a flat fee for a property",
       "Change any line, and mark an invoice paid when you have paid it",
+      "Send an invoice to Xero as a bill, and the payment is recorded there when you mark it paid",
     ],
   },
   {
