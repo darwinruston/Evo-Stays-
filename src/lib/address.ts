@@ -21,3 +21,18 @@ export function propertyDisplayName(property: {
 }): string {
   return property.nickname?.trim() || property.name?.trim() || shortAddress(property.address);
 }
+
+// Both names, nickname first ("Riverside · Bright 2-bed loft by the river"),
+// for places where someone is matching a property against the booking system,
+// such as giving it to a cleaner. Just the one name where there is no
+// nickname, or the two are the same.
+export function propertyFullName(property: {
+  nickname?: string | null;
+  name?: string | null;
+  address: string;
+}): string {
+  const nickname = property.nickname?.trim();
+  const listing = property.name?.trim();
+  if (nickname && listing && nickname !== listing) return `${nickname} · ${listing}`;
+  return propertyDisplayName(property);
+}

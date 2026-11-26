@@ -56,7 +56,7 @@ export default async function InvoicesPage({
     db.invoice.findMany({
       distinct: ["propertyId"],
       orderBy: { propertyId: "asc" },
-      select: { property: { select: { id: true, name: true, address: true } } },
+      select: { property: { select: { id: true, nickname: true, name: true, address: true } } },
     }),
   ]);
 

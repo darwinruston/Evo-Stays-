@@ -18,7 +18,7 @@ export default async function NewIssuePage({
 
   const properties = await db.property.findMany({
     orderBy: [{ client: { name: "asc" } }, { createdAt: "asc" }],
-    select: { id: true, name: true, address: true, client: { select: { name: true } } },
+    select: { id: true, nickname: true, name: true, address: true, client: { select: { name: true } } },
   });
 
   return (

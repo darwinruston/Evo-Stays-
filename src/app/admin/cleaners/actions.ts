@@ -1,6 +1,7 @@
 "use server";
 
 import { cancelInviteLinks } from "@/lib/invites";
+import { propertyDisplayName } from "@/lib/address";
 import { normaliseEmail } from "@/lib/emailAddress";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -200,8 +201,8 @@ export async function updateCleanerPropertyFee(
     entityId: cleanerId,
     summary:
       flatFee !== null
-        ? `Flat fee for ${designation.property.name || designation.property.address} set to ${formatCurrency(flatFee)} per clean`
-        : `Flat fee for ${designation.property.name || designation.property.address} cleared, paid by the hour`,
+        ? `Flat fee for ${propertyDisplayName(designation.property)} set to ${formatCurrency(flatFee)} per clean`
+        : `Flat fee for ${propertyDisplayName(designation.property)} cleared, paid by the hour`,
   });
 
   revalidatePath(`/admin/cleaners/${cleanerId}`);
@@ -303,7 +304,7 @@ async function moveCleansToCleaner(
   range: { fromDate: Date | null; toDate: Date | null } = { fromDate: null, toDate: null },
 ): Promise<number> {
   const [property, cleaner] = await Promise.all([
-    db.property.findUniqueOrThrow({ where: { id: propertyId }, select: { name: true, address: true } }),
+    db.property.findUniqueOrThrow({ where: { id: propertyId }, select: { nickname: true, name: true, address: true } }),
     db.user.findUniqueOrThrow({ where: { id: cleanerId, role: "CLEANER" }, select: { name: true } }),
   ]);
   const { fromDate, toDate } = range;
@@ -345,7 +346,7 @@ async function moveCleansToCleaner(
       actorId,
       entityType: "Clean",
       entityId: clean.id,
-      summary: `Reassigned from ${clean.assignedTo?.name ?? "Unassigned"} to ${cleaner.name} (${property.name || property.address} designation)`,
+      summary: `Reassigned from ${clean.assignedTo?.name ?? "Unassigned"} to ${cleaner.name} (${propertyDisplayName(property)} designation)`,
     });
   }
 

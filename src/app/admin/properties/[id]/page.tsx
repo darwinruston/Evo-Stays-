@@ -147,7 +147,7 @@ export default async function PropertyDetailPage({
     include: {
       facility: { select: { name: true } },
       recordedBy: { select: { name: true } },
-      logs: { include: { clean: { include: { property: { select: { id: true, name: true, address: true } } } } } },
+      logs: { include: { clean: { include: { property: { select: { id: true, nickname: true, name: true, address: true } } } } } },
     },
   });
 

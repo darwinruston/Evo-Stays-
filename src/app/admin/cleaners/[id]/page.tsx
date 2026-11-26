@@ -10,7 +10,7 @@ import { EditableNumberField } from "@/components/EditableNumberField";
 import { EditCleanerDetailsForm } from "@/components/EditCleanerDetailsForm";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { ReassignForm } from "@/components/ReassignForm";
-import { propertyDisplayName } from "@/lib/address";
+import { propertyDisplayName, propertyFullName } from "@/lib/address";
 import { CleanList, type CleanRow } from "@/components/CleanList";
 import { formatCurrency } from "@/lib/invoices";
 import { formatDate } from "@/lib/schedule";
@@ -63,7 +63,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
       },
       designatedProperties: {
         orderBy: { createdAt: "asc" },
-        include: { property: { select: { id: true, name: true, address: true, client: { select: { name: true } } } } },
+        include: { property: { select: { id: true, nickname: true, name: true, address: true, client: { select: { name: true } } } } },
       },
       unavailability: {
         where: { date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
@@ -94,7 +94,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
   const availableProperties = await db.property.findMany({
     where: { id: { notIn: [...designatedPropertyIds] } },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, address: true, client: { select: { name: true } } },
+    select: { id: true, nickname: true, name: true, address: true, client: { select: { name: true } } },
   });
 
   const otherCleaners = await db.user.findMany({
@@ -199,7 +199,7 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
               <DesignatedPropertyRow
                 currencySymbol={currencySymbol()}
                 key={d.id}
-                propertyName={propertyDisplayName(d.property)}
+                propertyName={propertyFullName(d.property)}
                 propertyHref={`/admin/properties/${d.propertyId}`}
                 clientName={d.property.client.name}
                 cleanerName={cleaner.name}
@@ -218,10 +218,12 @@ export default async function CleanerDetailPage({ params }: { params: Promise<{ 
           <AddPropertyForm
             action={assignCleanerProperty.bind(null, cleaner.id)}
             cleanerName={cleaner.name}
-            options={availableProperties.map((p) => ({
-              id: p.id,
-              label: `${propertyDisplayName(p)} · ${p.client.name}`,
-            }))}
+            options={availableProperties
+              .map((p) => ({
+                id: p.id,
+                label: `${propertyFullName(p)} (${p.client.name})`,
+              }))
+              .sort((a, b) => a.label.localeCompare(b.label))}
           />
         ) : (
           cleaner.designatedProperties.length > 0 && (

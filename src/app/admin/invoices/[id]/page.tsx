@@ -34,7 +34,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     where: { id },
     include: {
       cleaner: { select: { id: true, name: true, email: true } },
-      property: { select: { id: true, name: true, address: true, client: { select: { id: true, name: true } } } },
+      property: { select: { id: true, nickname: true, name: true, address: true, client: { select: { id: true, name: true } } } },
       lines: { orderBy: { arrivedAt: "asc" } },
     },
   });

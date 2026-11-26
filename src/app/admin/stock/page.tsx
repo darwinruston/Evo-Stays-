@@ -18,7 +18,7 @@ export default async function StockOverviewPage() {
   const levels = await db.propertyStockLevel.findMany({
     include: {
       stockItem: true,
-      property: { select: { id: true, name: true, address: true, client: { select: { name: true } } } },
+      property: { select: { id: true, nickname: true, name: true, address: true, client: { select: { name: true } } } },
     },
     orderBy: { updatedAt: "desc" },
   });

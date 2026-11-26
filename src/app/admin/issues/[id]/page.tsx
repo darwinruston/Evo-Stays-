@@ -46,7 +46,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
   const issue = await db.issue.findUnique({
     where: { id },
     include: {
-      property: { select: { id: true, name: true, address: true, client: { select: { id: true, name: true } } } },
+      property: { select: { id: true, nickname: true, name: true, address: true, client: { select: { id: true, name: true } } } },
       clean: { select: { id: true, scheduledFor: true } },
       reportedBy: { select: { name: true } },
       resolvedBy: { select: { name: true } },

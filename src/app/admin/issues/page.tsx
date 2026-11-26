@@ -41,7 +41,7 @@ export default async function IssuesPage({
       },
     }),
     propertyId
-      ? db.property.findUnique({ where: { id: propertyId }, select: { id: true, name: true, address: true } })
+      ? db.property.findUnique({ where: { id: propertyId }, select: { id: true, nickname: true, name: true, address: true } })
       : null,
   ]);
 

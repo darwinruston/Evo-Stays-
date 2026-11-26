@@ -22,7 +22,7 @@ export default async function LaundryLoadDetailPage({ params }: { params: Promis
         orderBy: { departedAt: "asc" },
         include: {
           clean: {
-            include: { property: { select: { id: true, name: true, address: true } }, assignedTo: { select: { name: true } } },
+            include: { property: { select: { id: true, nickname: true, name: true, address: true } }, assignedTo: { select: { name: true } } },
           },
         },
       },

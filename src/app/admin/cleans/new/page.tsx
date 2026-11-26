@@ -18,7 +18,7 @@ export default async function NewCleanPage({
   const [properties, cleaners] = await Promise.all([
     db.property.findMany({
       orderBy: [{ client: { name: "asc" } }, { createdAt: "asc" }],
-      select: { id: true, name: true, address: true, client: { select: { name: true } } },
+      select: { id: true, nickname: true, name: true, address: true, client: { select: { name: true } } },
     }),
     getCleanerOptions(db),
   ]);
