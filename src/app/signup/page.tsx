@@ -2,10 +2,12 @@ import Link from "next/link";
 import { RegisterInterestForm } from "./RegisterInterestForm";
 import { EvoTick } from "@/components/EvoTick";
 import { card } from "@/lib/ui";
+import { cleanSource } from "@/lib/heardFrom";
 
 export const metadata = { title: "Register interest" };
 
-export default function SignUpPage() {
+export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  const { from } = await searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -20,7 +22,7 @@ export default function SignUpPage() {
             Evo Stays isn&apos;t open for sign-ups just yet. Leave your details and we&apos;ll reach out
             to set up a demo as soon as it&apos;s ready.
           </p>
-          <RegisterInterestForm />
+          <RegisterInterestForm source={cleanSource(from) ?? ""} />
           <p className="mt-6 text-center text-sm text-zinc-500">
             Already have an account?{" "}
             <Link href="/login" className="underline underline-offset-2 hover:text-zinc-900">

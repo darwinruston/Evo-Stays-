@@ -1,6 +1,7 @@
+import { ARTICLES } from "@/lib/articles";
 import type { MetadataRoute } from "next";
 
-const PAGES = ["", "/features", "/faq", "/about", "/contact", "/signup", "/privacy", "/terms", "/cookies"];
+const PAGES = ["", "/articles", ...ARTICLES.map((a) => `/articles/${a.slug}`), "/features", "/faq", "/about", "/contact", "/signup", "/privacy", "/terms", "/cookies"];
 
 // The public pages, for search engines. It needs the site's own address
 // (APP_URL), so until that is set there is nothing useful to list.

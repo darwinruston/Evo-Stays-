@@ -156,6 +156,10 @@ model InterestRegistration {
   email       String   @unique
   companyName String
   notes       String?
+  // Their own answer to "How did you hear about us?", and the ?from= tag on
+  // the link that brought them (see src/app/signup/).
+  heardFrom   String?
+  source      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

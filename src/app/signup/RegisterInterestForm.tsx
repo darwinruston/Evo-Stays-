@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 import { registerInterest, type RegisterInterestState } from "./actions";
 import { button, input } from "@/lib/ui";
+import { HEARD_FROM } from "@/lib/heardFrom";
 
-export function RegisterInterestForm() {
+export function RegisterInterestForm({ source }: { source: string }) {
   const [state, formAction, pending] = useActionState<RegisterInterestState, FormData>(
     registerInterest,
     undefined,
@@ -47,6 +48,26 @@ export function RegisterInterestForm() {
           Tell us about your portfolio <span className="font-normal text-zinc-500">(optional)</span>
         </label>
         <textarea id="notes" name="notes" rows={3} placeholder="e.g. 15 properties, currently on a spreadsheet" className={input} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="heardFrom" className="text-sm font-medium">
+          How did you hear about us? <span className="font-normal text-zinc-500">(optional)</span>
+        </label>
+        <select id="heardFrom" name="heardFrom" defaultValue="" className={input}>
+          <option value="">Choose…</option>
+          {HEARD_FROM.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
+      <input type="hidden" name="source" value={source} />
+      {/* Hidden from people; bots fill it in (see the action). */}
+      <div aria-hidden="true" className="hidden">
+        <label htmlFor="website">Leave this empty</label>
+        <input id="website" name="website" tabIndex={-1} autoComplete="off" />
       </div>
 
       {state && "error" in state && <p className="text-sm text-red-600">{state.error}</p>}

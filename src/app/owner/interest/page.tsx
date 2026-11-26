@@ -16,6 +16,14 @@ export default async function InterestPage() {
 
   const registrations = await prisma.interestRegistration.findMany({ orderBy: { createdAt: "desc" } });
 
+  // Which efforts are working: by their own answer, or the link's tag.
+  const counts = new Map<string, number>();
+  for (const reg of registrations) {
+    const name = reg.heardFrom ?? reg.source;
+    if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  const bySource = [...counts].sort((a, b) => b[1] - a[1]);
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -30,6 +38,11 @@ export default async function InterestPage() {
         <h2 className="text-sm font-medium text-zinc-500">
           {registrations.length} {registrations.length === 1 ? "registration" : "registrations"}
         </h2>
+        {bySource.length > 0 && (
+          <p className="text-sm text-zinc-600">
+            Where they came from: {bySource.map(([name, count]) => `${name} ${count}`).join(" · ")}
+          </p>
+        )}
         {registrations.length === 0 ? (
           <p className="text-sm text-zinc-600">No one yet.</p>
         ) : (
@@ -45,7 +58,11 @@ export default async function InterestPage() {
                         {reg.email}
                       </a>
                     </p>
-                    <p className="text-xs text-zinc-500">Registered {formatDate(reg.createdAt)}</p>
+                    <p className="text-xs text-zinc-500">
+                      Registered {formatDate(reg.createdAt)}
+                      {reg.heardFrom && ` · heard from: ${reg.heardFrom}`}
+                      {reg.source && ` · link: ${reg.source}`}
+                    </p>
                   </div>
                   <form action={deleteInterestRegistration.bind(null, reg.id)}>
                     <button type="submit" className="text-xs text-red-600 hover:underline">

@@ -1,6 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { clientIp } from "@/lib/loginRateLimit";
+import { contactLimited } from "@/lib/contactRateLimit";
+import { normaliseEmail } from "@/lib/emailAddress";
+import { HEARD_FROM, cleanSource } from "@/lib/heardFrom";
 
 export type RegisterInterestState = { error: string } | { success: true } | undefined;
 
@@ -26,18 +31,38 @@ export async function registerInterest(
   _prev: RegisterInterestState,
   formData: FormData,
 ): Promise<RegisterInterestState> {
+  // A real person never sees or fills this field, so anything in it is a bot.
+  // The reply looks like a success so it learns nothing.
+  if (str(formData, "website")) return { success: true };
+
   const name = str(formData, "name");
-  const email = str(formData, "email");
+  const typedEmail = str(formData, "email");
   const companyName = str(formData, "companyName");
   const notes = str(formData, "notes");
-  if (!name || !email || !companyName) {
+  if (!name || !typedEmail || !companyName) {
     return { error: "Name, email and company name are all required." };
   }
+  if (name.length > 100 || companyName.length > 150 || (notes?.length ?? 0) > 2000) {
+    return { error: "Some of that is too long. Please shorten it." };
+  }
+  const email = normaliseEmail(typedEmail);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+    return { error: "That email address doesn't look right." };
+  }
+  if (contactLimited(clientIp(await headers()), email)) {
+    return { error: "You've sent this a few times already. Please wait a while before trying again." };
+  }
+
+  const answer = str(formData, "heardFrom");
+  const heardFrom = answer && (HEARD_FROM as readonly string[]).includes(answer) ? answer : null;
+  const source = cleanSource(formData.get("source"));
 
   await prisma.interestRegistration.upsert({
     where: { email },
-    update: { name, companyName, notes },
-    create: { name, email, companyName, notes },
+    // Someone sending it again keeps how they first found us unless they say
+    // something new.
+    update: { name, companyName, notes, ...(heardFrom ? { heardFrom } : {}), ...(source ? { source } : {}) },
+    create: { name, email, companyName, notes, heardFrom, source },
   });
 
   return { success: true };

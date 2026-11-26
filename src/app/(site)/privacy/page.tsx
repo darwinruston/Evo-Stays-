@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         <strong>From this website.</strong>
       </p>
       <ul>
-        <li>If you register interest: your name, email, company name and anything you choose to tell us about your portfolio.</li>
+        <li>If you register interest: your name, email, company name, anything you choose to tell us about your portfolio or how you heard about us, and which of our links brought you.</li>
         <li>If you use the contact form: your name, email, company (optional), what it is about and your message.</li>
         <li>
           To stop spam and guess-work at sign-in, your network address is counted briefly. It is held in the server&apos;s
