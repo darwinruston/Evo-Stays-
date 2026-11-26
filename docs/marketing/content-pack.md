@@ -6,14 +6,14 @@ do not have.
 
 ## The funnel
 
-Post or email, then an article or video, then **Register interest**. Every link carries a tag, so the
+Post or email, then a blog post or video, then **Register interest**. Every link carries a tag, so the
 owner's interest list shows what worked.
 
 | Where the link goes | Add to the end of the address |
 |---|---|
-| LinkedIn post | `/articles/<name>?from=linkedin` |
+| LinkedIn post | `/blog/<name>?from=linkedin` |
 | Company email | `/signup?from=email` |
-| Facebook or Reddit reply | `/articles/<name>?from=group` |
+| Facebook or Reddit reply | `/blog/<name>?from=group` |
 | Video description | `/signup?from=video` |
 | Flyer or event | `/signup?from=event` |
 
@@ -27,9 +27,9 @@ Thursdays. Start the week after the new site is live.
 
 | Week | Monday | Wednesday | Friday | Video | Emails |
 |---|---|---|---|---|---|
-| 1 | Post 1: why we built it | Post 2: article, checklist | Post 3: screenshot, cleaner's phone | A | 10 new |
-| 2 | Post 4: same-day turnovers | Post 5: article, turnovers | Post 6: question | B | 10 new, week 1 follow-ups |
-| 3 | Post 7: stock | Post 8: article, safety dates | Post 9: linen | C | 15 new, follow-ups |
+| 1 | Post 1: why we built it | Post 2: blog, checklist | Post 3: screenshot, cleaner's phone | A | 10 new |
+| 2 | Post 4: same-day turnovers | Post 5: blog, turnovers | Post 6: question | B | 10 new, week 1 follow-ups |
+| 3 | Post 7: stock | Post 8: blog, safety dates | Post 9: linen | C | 15 new, follow-ups |
 | 4 | Post 10: repeating cleans | Post 11: what we have not built | Post 12: invitation | D and the walkthrough | 15 new, follow-ups |
 
 ## LinkedIn posts
@@ -41,7 +41,7 @@ Post from a person, not a company page. Reply to every comment the same day.
 > nobody opened. So we started building one place for all of it. If you run your own cleaners for short
 > lets, what breaks first for you?
 
-**2. Checklist** (link: checklist article)
+**2. Checklist** (link: checklist post)
 > Most turnover checklists try to teach people to clean. Your cleaners can clean. They need to know what
 > done looks like, and what is odd about this property. Here is the list we use, free to copy: [link]
 
@@ -52,8 +52,8 @@ Post from a person, not a company page. Reply to every comment the same day.
 **4. Same-day turnovers** (image: `cleans-schedule.jpg`)
 > "Same day" is not a deadline. "Done by 2.30" is. How do you tell your cleaners which ones are tight?
 
-**5. Turnovers article**
-> Five habits that stop a same-day turnover becoming a 2pm panic: [link]
+**5. Turnovers post**
+> The habits that stop a same-day turnover becoming a 2pm panic: [link]
 
 **6. Question, no link**
 > Honest question for people managing short lets: where is the gas safety date for your furthest-away
@@ -126,7 +126,7 @@ Send 10 to 15 a day at most, each one personal, from our own domain with email a
 
 ### Email 3, only if they opened the door
 
-Send only to those who replied "not now": a month later, with the most useful new article. Nobody who
+Send only to those who replied "not now": a month later, with the most useful new post. Nobody who
 did not reply gets a third email.
 
 ## Short videos (20 to 30 seconds, upright, captions burned in, no voice needed)

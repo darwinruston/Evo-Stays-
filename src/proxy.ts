@@ -17,7 +17,7 @@ const PUBLIC_PATHS = new Set([
   "/forgot-password",
   // The public website: see src/app/(site)/.
   "/features",
-  "/articles",
+  "/blog",
   "/faq",
   "/about",
   "/contact",
@@ -27,7 +27,7 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/reset-password/") || pathname.startsWith("/invite/") || pathname.startsWith("/articles/");
+  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/reset-password/") || pathname.startsWith("/invite/") || pathname.startsWith("/blog/");
 }
 
 export default auth((req) => {
