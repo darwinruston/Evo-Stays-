@@ -364,6 +364,28 @@ export function issueResolvedNotice(
   ];
 }
 
+// To staff, when a cleaner marks a day unavailable that they already have work
+// on. The cleans stay with them until someone moves them, so this is what gets
+// that done. One notice for the day, opening it on the calendar.
+export function cleanerUnavailableNotices(
+  staffIds: string[],
+  cleanerName: string,
+  dayIso: string,
+  cleans: CleanNoticeRef[],
+): NotificationInput[] {
+  if (cleans.length === 0) return [];
+  const booked = cleans
+    .map((c) => `${propertyDisplayName(c.property)} (${when(c.scheduledFor)})`)
+    .join(", ");
+  return staffIds.map((userId) => ({
+    userId,
+    kind: "CLEAN_NEEDS_CLEANER" as const,
+    title: `${cleanerName} can't work ${cleans.length === 1 ? "a day with a clean booked" : "a day with cleans booked"}`,
+    body: `${booked}. ${cleans.length === 1 ? "It is" : "They are"} still theirs until you give ${cleans.length === 1 ? "it" : "them"} to someone else.`,
+    href: `/admin/cleans/calendar?month=${dayIso.slice(0, 7)}&day=${dayIso}`,
+  }));
+}
+
 // The notices a newly created clean warrants, whoever created it: the
 // assignee hears it's theirs, or -- for a clean a sync couldn't place --
 // staff hear it needs someone. A clean staff created by hand and left

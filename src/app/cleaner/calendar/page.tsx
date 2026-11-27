@@ -55,6 +55,8 @@ export default async function CleanerCalendarPage({
     byDay.set(iso, list);
   }
   const selected = byDay.get(selectedIso) ?? [];
+  // Work on the selected day that someone would have to cover.
+  const stillToDo = selectedIso >= todayIso ? selected.filter((c) => c.status === "PENDING").length : 0;
 
   const blockedByDay = new Map(blockedDays.map((b) => [toIsoDate(b.date), b]));
   const selectedBlocked = blockedByDay.get(selectedIso) ?? null;
@@ -169,14 +171,13 @@ export default async function CleanerCalendarPage({
           </ul>
         )}
 
-        {selected.length > 0 ? (
-          <p className="text-xs text-zinc-500">
-            Can&apos;t block this day: you have {selected.length === 1 ? "a clean" : "cleans"} scheduled.
-            Ask an admin to reassign {selected.length === 1 ? "it" : "them"} first.
-          </p>
-        ) : selectedBlocked ? (
+        {selectedBlocked ? (
           <div className={card("flex items-center justify-between gap-3 p-3.5")}>
-            <p className="text-sm text-zinc-600">You&apos;ve marked this day unavailable.</p>
+            <p className="text-sm text-zinc-600">
+              You&apos;ve marked this day unavailable.
+              {stillToDo > 0 &&
+                ` Your ${stillToDo === 1 ? "clean stays" : "cleans stay"} on your list until the office moves ${stillToDo === 1 ? "it" : "them"}.`}
+            </p>
             <form action={unblockDay.bind(null, selectedBlocked.id)}>
               <PendingButton className={button("secondary", "sm")}>
                 Unblock
@@ -184,8 +185,13 @@ export default async function CleanerCalendarPage({
             </form>
           </div>
         ) : (
-          <ActionForm action={blockDay}>
+          <ActionForm action={blockDay} className="flex flex-col items-start gap-2">
             <input type="hidden" name="date" value={selectedIso} />
+            {stillToDo > 0 && (
+              <p className="text-xs text-zinc-500">
+                You have {stillToDo === 1 ? "a clean" : "cleans"} this day. If you block it, the office is told.
+              </p>
+            )}
             <PendingButton className={button("secondary", "sm")}>
               Block this day
             </PendingButton>

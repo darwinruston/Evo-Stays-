@@ -311,7 +311,8 @@ enum NotificationKind {
   CLEAN_RESCHEDULED
   CLEAN_CANCELLED
   // To staff: a sync created a clean that auto-assign couldn't place, so it
-  // sits Unassigned until someone picks a cleaner.
+  // sits Unassigned until someone picks a cleaner, or a cleaner has marked a
+  // day unavailable that they have cleans on.
   CLEAN_NEEDS_CLEANER
   // To staff: someone reported a problem at a property (see Issue).
   ISSUE_REPORTED

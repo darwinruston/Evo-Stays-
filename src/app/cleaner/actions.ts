@@ -7,11 +7,11 @@ import { prisma, type ScopedPrismaClient } from "@/lib/prisma";
 import { requireCleaner } from "@/lib/authz";
 import { assertModule, getOrgModules } from "@/lib/modules";
 import { linenNoticesFor } from "@/lib/linenNotify";
-import { notify } from "@/lib/notify";
+import { cleanerUnavailableNotices, notify, staffUserIds } from "@/lib/notify";
 import { savePropertyPhotos } from "@/lib/uploads";
 import { photoProblem } from "@/lib/imageTypes";
 import { bandToDb, isStockLevelBand } from "@/lib/stock";
-import { dayBounds, parseIsoDate } from "@/lib/schedule";
+import { dayBounds, parseIsoDate, toIsoDate } from "@/lib/schedule";
 import { plannedArrivalFor } from "@/lib/arrival";
 import { parseTeamSize, TEAM_SIZE_MAX } from "@/lib/teamSize";
 import { logAudit } from "@/lib/audit";
@@ -421,6 +421,9 @@ export async function createLaundryLoad(
 // then leaves this cleaner out of consideration for anything scheduled that
 // day. Staff can still assign them by hand regardless (see the warning in
 // CleanForm.tsx); this only changes what auto-assign guesses.
+//
+// Allowed even with cleans already booked that day: people fall ill and plans
+// change. The cleans stay theirs, and the office is told so it can move them.
 export async function blockDay(formData: FormData): Promise<ActionResult> {
   const { session, db } = await requireCleaner();
 
@@ -429,27 +432,31 @@ export async function blockDay(formData: FormData): Promise<ActionResult> {
   if (!date) return { error: "Choose a date." };
 
   const { start, end } = dayBounds(date);
-  const existingClean = await db.clean.findFirst({
-    where: {
-      assignedToId: session.user.id,
-      scheduledFor: { gte: start, lt: end },
-      status: { not: "CANCELLED" },
-    },
-    select: { id: true },
-  });
-  if (existingClean) {
-    return {
-      error: "You already have a clean scheduled that day. Ask an admin to reassign it before blocking the day.",
-    };
-  }
-
   try {
     await db.cleanerUnavailability.create({
       data: { organizationId: session.user.organizationId, cleanerId: session.user.id, date: start },
     });
   } catch (err) {
-    // Already blocked -- nothing to do.
-    if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== "P2002") throw err;
+    // Already blocked: nothing to do, and the office has already been told.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return;
+    throw err;
+  }
+
+  // Only work still to be done, from today on, needs anyone's attention.
+  if (end > new Date()) {
+    const booked = await db.clean.findMany({
+      where: { assignedToId: session.user.id, scheduledFor: { gte: start, lt: end }, status: "PENDING" },
+      select: { id: true, scheduledFor: true, property: { select: { nickname: true, name: true, address: true } } },
+      orderBy: { scheduledFor: "asc" },
+    });
+    if (booked.length > 0) {
+      const cleaner = await db.user.findUnique({ where: { id: session.user.id }, select: { name: true } });
+      await notify(
+        db,
+        cleanerUnavailableNotices(await staffUserIds(db), cleaner?.name ?? "A cleaner", toIsoDate(start), booked),
+      );
+      revalidatePath("/admin/cleans/calendar");
+    }
   }
 
   revalidatePath("/cleaner/calendar");
