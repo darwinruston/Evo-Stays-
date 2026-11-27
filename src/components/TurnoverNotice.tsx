@@ -37,7 +37,7 @@ export function TurnoverNotice({ turnover, className = "" }: { turnover: Turnove
         <p className="text-sm font-semibold">Same-day turnover</p>
         <p className="text-sm text-zinc-600">
           {!turnover.arrivalTimeKnown
-            ? "Next guests arrive today. Finish as early as you can."
+            ? "Next guests arrive the same day. Finish as early as you can."
             : deadlinePassed(turnover)
               ? `Next guests were due at ${time}. Finish as soon as you can and let the office know.`
               : `Next guests arrive at ${time}. Finish before then.`}

@@ -281,7 +281,7 @@ export default async function PropertyDetailPage({
               )}
               {lowStockCount > 0 && (
                 <Link href="?tab=checklist" className={badge("warning")}>
-                  {lowStockCount} running low
+                  {lowStockCount} stock {lowStockCount === 1 ? "item" : "items"} running low
                 </Link>
               )}
               {safetyAttention > 0 && (
@@ -294,8 +294,11 @@ export default async function PropertyDetailPage({
                   Sync problem
                 </Link>
               )}
-              {openIssues.length === 0 && lowStockCount === 0 && !syncFailing && safetyAttention === 0 && (
-                <span className={badge("success")}>All good</span>
+              {/* Named, so it cannot be read as "nothing wrong here at all". */}
+              {modules.stock && property.stockLevels.length > 0 && lowStockCount === 0 && (
+                <Link href="?tab=checklist" className={badge("success")}>
+                  Stock all good
+                </Link>
               )}
             </div>
           </div>

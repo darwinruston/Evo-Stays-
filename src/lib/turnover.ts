@@ -150,7 +150,8 @@ export function formatArrival(t: Turnover): string {
 export function turnoverLabel(t: Turnover, scheduledFor: Date): { text: string; urgent: boolean } | null {
   if (t.sameDay) {
     return {
-      text: t.arrivalTimeKnown ? `Same-day · guests at ${timeOfDay(t.nextArrival)}` : "Same-day · guests arrive today",
+      // "Same day", never "today": the list shows cleans weeks ahead too.
+      text: t.arrivalTimeKnown ? `Guests arrive same day at ${timeOfDay(t.nextArrival)}` : "Guests arrive same day",
       urgent: true,
     };
   }
